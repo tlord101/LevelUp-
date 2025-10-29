@@ -8,7 +8,7 @@ import { getStorage } from 'firebase/storage';
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyBE3KrZbhU-CXxEO_Clz6L2V9AqgdoQ1x4",
-  authDomain: "levelup-87509.firebaseapp.com.",
+  authDomain: "levelup-87509.firebaseapp.com",
   projectId: "levelup-87509",
   storageBucket: "levelup-87509.appspot.com",
   messagingSenderId: "495294111203",
