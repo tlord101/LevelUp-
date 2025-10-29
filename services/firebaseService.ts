@@ -32,7 +32,7 @@ export const createOrUpdateUserProfile = async (user: User, additionalData: Part
       skinType: null,
       allergies: null,
       goal: additionalData.goal || UserGoal.FITNESS,
-      onboardingCompleted: true,
+      onboardingCompleted: false,
       createdAt: serverTimestamp(),
       level: 1,
       xp: 0,
