@@ -25,6 +25,11 @@ jobs:
     name: Deploy CORS Configuration
     runs-on: ubuntu-latest
     
+    # Restrict permissions to minimum required
+    permissions:
+      contents: read
+      id-token: write  # Required for Google Cloud authentication
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
