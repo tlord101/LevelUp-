@@ -1,5 +1,14 @@
 name: Deploy Firebase Storage CORS Configuration
 
+# This workflow applies CORS configuration to the Firebase Storage bucket.
+# 
+# Prerequisites:
+# 1. Create a Google Cloud service account with Storage Admin permissions
+# 2. Generate a JSON key for the service account
+# 3. Add the key as a repository secret named 'GCP_SA_KEY'
+#
+# To run manually: Go to Actions tab -> Deploy Firebase Storage CORS Configuration -> Run workflow
+
 on:
   workflow_dispatch:
     inputs:
