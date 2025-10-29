@@ -1,0 +1,63 @@
+name: Deploy Firebase Storage CORS Configuration
+
+# This workflow applies CORS configuration to the Firebase Storage bucket.
+# 
+# Prerequisites:
+# 1. Create a Google Cloud service account with Storage Admin permissions
+# 2. Generate a JSON key for the service account
+# 3. Add the key as a repository secret named 'GCP_SA_KEY'
+#
+# To run manually: Go to Actions tab -> Deploy Firebase Storage CORS Configuration -> Run workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+
+jobs:
+  deploy-cors:
+    name: Deploy CORS Configuration
+    runs-on: ubuntu-latest
+    
+    # Restrict permissions to minimum required
+    permissions:
+      contents: read
+      id-token: write  # Required for Google Cloud authentication
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Verify cors.json exists
+        run: |
+          if [ ! -f "cors.json" ]; then
+            echo "Error: cors.json not found!"
+            exit 1
+          fi
+          echo "✓ cors.json found"
+
+      - name: Apply CORS configuration
+        run: |
+          echo "Applying CORS configuration to Firebase Storage bucket..."
+          gsutil cors set cors.json gs://levelup-87509.appspot.com
+          echo "✓ CORS configuration applied successfully"
+
+      - name: Verify CORS configuration
+        run: |
+          echo "Verifying CORS configuration..."
+          gsutil cors get gs://levelup-87509.appspot.com
+          echo "✓ CORS configuration verified"
