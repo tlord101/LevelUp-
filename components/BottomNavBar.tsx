@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { Home, Scan, Smile, UtensilsCrossed, Users, Settings } from 'lucide-react';
+import { hapticTap } from '../utils/haptics';
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: Home },
@@ -19,6 +20,7 @@ const BottomNavBar: React.FC = () => {
           <NavLink
             key={`${item.path}-${item.label}`}
             to={item.path}
+            onClick={hapticTap}
             // Use a function for className to handle active state
             className={({ isActive }) =>
               `flex flex-col items-center justify-center w-full pt-2 pb-1 text-xs transition-colors duration-200 ${

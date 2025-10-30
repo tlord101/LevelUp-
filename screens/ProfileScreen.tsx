@@ -3,12 +3,14 @@ import { useAuth } from '../context/AuthContext';
 import { signOutUser } from '../services/firebaseService';
 import { useNavigate } from 'react-router-dom';
 import { BookOpen } from 'lucide-react';
+import { hapticTap } from '../utils/haptics';
 
 const ProfileScreen: React.FC = () => {
   const { userProfile } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
+    hapticTap();
     try {
       await signOutUser();
       navigate('/login');
@@ -59,7 +61,10 @@ const ProfileScreen: React.FC = () => {
       )}
 
       <button
-        onClick={() => navigate('/food-history')}
+        onClick={() => {
+            hapticTap();
+            navigate('/food-history');
+        }}
         className="w-full flex items-center justify-center gap-2 bg-white text-gray-800 font-bold py-3 px-6 rounded-lg hover:bg-gray-100 transition duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 border border-gray-200 shadow-sm"
       >
         <BookOpen size={20} />

@@ -4,6 +4,7 @@ import { auth, firestore } from '../config/firebase';
 import { doc, getDoc, Timestamp, setDoc } from 'firebase/firestore';
 import { UserProfile, UserGoal } from '../types';
 import { createOrUpdateUserProfile } from '../services/firebaseService';
+import { hapticSuccess } from '../utils/haptics';
 
 interface AuthContextType {
   user: User | null;
@@ -96,8 +97,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let newXp = prevProfile.xp + amount;
       let newLevel = prevProfile.level;
       let newStats = { ...prevProfile.stats };
+      let didLevelUp = false;
 
       while (newXp >= xpPerLevel) {
+        didLevelUp = true;
         newLevel += 1;
         newXp -= xpPerLevel;
         // Give a small random stat boost on level up
@@ -105,6 +108,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const randomStat = statsKeys[Math.floor(Math.random() * statsKeys.length)];
         newStats[randomStat] += 2; // Increase a random stat
         console.log(`Leveled up to level ${newLevel}!`);
+      }
+
+      if (didLevelUp) {
+        hapticSuccess();
       }
       
       const updatedData = { xp: newXp, level: newLevel, stats: newStats };

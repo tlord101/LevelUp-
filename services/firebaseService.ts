@@ -8,6 +8,7 @@ import {
   UserCredential,
   User,
   OAuthProvider,
+  sendPasswordResetEmail,
 } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp, getDoc, collection, addDoc, query, where, orderBy, getDocs, Timestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -90,6 +91,11 @@ export const signInWithApple = async (): Promise<UserCredential> => {
 // Sign Out
 export const signOutUser = async (): Promise<void> => {
   return signOut(auth);
+};
+
+// Send Password Reset Email
+export const sendPasswordReset = async (email: string): Promise<void> => {
+  return sendPasswordResetEmail(auth, email);
 };
 
 // Upload image to Firebase Storage

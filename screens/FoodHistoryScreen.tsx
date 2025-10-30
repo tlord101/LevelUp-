@@ -4,6 +4,7 @@ import { getNutritionScans } from '../services/firebaseService';
 import { NutritionScan } from '../types';
 import { ArrowLeft, Calendar, Flame } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { hapticTap } from '../utils/haptics';
 
 const FoodHistoryScreen: React.FC = () => {
   const [scans, setScans] = useState<NutritionScan[]>([]);
@@ -59,7 +60,7 @@ const FoodHistoryScreen: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="sticky top-0 bg-white/80 backdrop-blur-sm border-b border-gray-200 p-4 flex items-center z-10">
-        <button onClick={() => navigate(-1)} className="mr-4 p-2 rounded-full hover:bg-gray-100">
+        <button onClick={() => { hapticTap(); navigate(-1); }} className="mr-4 p-2 rounded-full hover:bg-gray-100">
           <ArrowLeft size={24} className="text-gray-800" />
         </button>
         <h1 className="text-xl font-bold text-gray-900">Food Scan History</h1>

@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Flame } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { hapticTap, hapticSuccess } from '../utils/haptics';
 
 const onboardingSteps = [
     {
@@ -82,24 +83,28 @@ const OnboardingScreen: React.FC = () => {
     const totalSteps = onboardingSteps.length;
 
     const handleNext = () => {
+        hapticTap();
         if (step < totalSteps) {
             setStep(step + 1);
         }
     };
 
     const handleBack = () => {
+        hapticTap();
         if (step > 1) {
             setStep(step - 1);
         }
     };
     
     const handleComplete = async () => {
+        hapticTap();
         try {
             await updateUserProfileData({
                 ...formData,
                 age: parseInt(formData.age, 10) || null,
                 onboardingCompleted: true,
             });
+            hapticSuccess();
             navigate('/dashboard');
         } catch (error) {
             console.error("Failed to complete onboarding:", error);
@@ -112,6 +117,7 @@ const OnboardingScreen: React.FC = () => {
     };
 
     const handleOptionSelect = (option: string, key: keyof typeof formData, type: string) => {
+        hapticTap();
         if (type.startsWith('single-select')) {
             setFormData(prev => ({ ...prev, [key]: option }));
         } else if (type.startsWith('multi-select')) {

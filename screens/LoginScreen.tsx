@@ -1,7 +1,9 @@
+
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { signInWithEmail, signInWithGoogle, signInWithApple } from '../services/firebaseService';
+import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
 
 const GoogleIcon = () => (
     <svg className="w-5 h-5" viewBox="0 0 48 48">
@@ -29,28 +31,34 @@ const LoginScreen: React.FC = () => {
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
+        hapticTap();
         setError(null);
         setLoading(true);
         
         try {
             await signInWithEmail(email, password);
+            hapticSuccess();
             navigate('/dashboard');
         } catch (err: any) {
             setError(err.message);
+            hapticError();
         } finally {
             setLoading(false);
         }
     };
     
     const handleSocialLogin = async (provider: 'google' | 'apple') => {
+        hapticTap();
         setLoading(true);
         setError(null);
         try {
             const signInMethod = provider === 'google' ? signInWithGoogle : signInWithApple;
             await signInMethod();
+            hapticSuccess();
             navigate('/dashboard');
         } catch (err: any) {
             setError(err.message);
+            hapticError();
         } finally {
             setLoading(false);
         }
@@ -79,11 +87,17 @@ const LoginScreen: React.FC = () => {
                             </button>
                         </div>
                     </div>
+                    
+                    <div className="text-right -mt-2">
+                        <Link to="/forgot-password" className="text-sm font-medium text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-purple-600 hover:underline">
+                            Forgot Password?
+                        </Link>
+                    </div>
 
                     {error && <p className="text-center text-red-500 text-sm">{error}</p>}
 
                     <div>
-                        <button type="submit" disabled={loading} className="w-full mt-2 flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-lg font-semibold text-white bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50">
+                        <button type="submit" disabled={loading} className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-lg font-semibold text-white bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50">
                             {loading ? 'Logging In...' : 'Login'}
                         </button>
                     </div>

@@ -6,6 +6,7 @@ import { uploadImage, saveNutritionScan, getNutritionScans } from '../services/f
 import { NutritionScanResult, NutritionScan } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { GoogleGenAI, Type } from '@google/genai';
+import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
 
 // Helper function to convert blob to base64
 const blobToBase64 = (blob: Blob): Promise<string> => {
@@ -64,7 +65,10 @@ const CameraView: React.FC<{ onCapture: (blob: Blob) => void; onClose: () => voi
             canvas.height = video.videoHeight;
             canvas.getContext('2d')?.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
             canvas.toBlob((blob) => {
-                if (blob) onCapture(blob);
+                if (blob) {
+                    hapticTap();
+                    onCapture(blob);
+                }
             }, 'image/jpeg', 0.9);
         }
     };
@@ -226,12 +230,14 @@ const FoodScannerScreen: React.FC = () => {
             await saveNutritionScan(user.uid, imageUrl, parsedResult);
 
             addXP(15);
+            hapticSuccess();
             setLatestScanResult(parsedResult);
             await fetchScans(); // Refetch to update stats
 
         } catch (err: any) {
             console.error("Analysis failed:", err);
             setError(err.message || "An unexpected error occurred with Gemini. Please try again.");
+            hapticError();
         } finally {
             setIsLoading(false);
             setImageFile(null);
@@ -268,13 +274,19 @@ const FoodScannerScreen: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-3 mt-4">
                     <button 
-                        onClick={() => setShowCamera(true)}
+                        onClick={() => {
+                            hapticTap();
+                            setShowCamera(true);
+                        }}
                         className="flex items-center justify-center gap-2 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-sm hover:bg-green-700 transition"
                     >
                         <Camera size={20} /> Scan Meal
                     </button>
                     <button 
-                        onClick={() => fileInputRef.current?.click()}
+                        onClick={() => {
+                            hapticTap();
+                            fileInputRef.current?.click();
+                        }}
                         className="flex items-center justify-center gap-2 py-3 bg-white text-green-700 font-semibold rounded-lg border border-green-200 hover:bg-green-50 transition"
                     >
                         <Upload size={20} /> Upload Photo
@@ -282,7 +294,10 @@ const FoodScannerScreen: React.FC = () => {
                 </div>
 
                 <button
-                    onClick={handleAnalyze}
+                    onClick={() => {
+                        hapticTap();
+                        handleAnalyze();
+                    }}
                     disabled={!imageFile || isLoading}
                     className="w-full mt-3 flex items-center justify-center gap-2 py-3 bg-teal-500 text-white font-bold rounded-lg shadow-sm hover:bg-teal-600 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
                 >
@@ -330,7 +345,7 @@ const FoodScannerScreen: React.FC = () => {
             <div className="bg-white p-4 rounded-xl shadow-sm">
                  <div className="flex justify-between items-center mb-2">
                     <h2 className="font-bold text-gray-800 flex items-center gap-2"><Clock size={18}/> Scan History</h2>
-                    <button onClick={() => navigate('/food-history')} className="flex items-center text-sm font-semibold text-purple-600 hover:text-purple-800">
+                    <button onClick={() => { hapticTap(); navigate('/food-history'); }} className="flex items-center text-sm font-semibold text-purple-600 hover:text-purple-800">
                         View All <ChevronRight size={16} />
                     </button>
                 </div>

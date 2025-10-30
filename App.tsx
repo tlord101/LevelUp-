@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import WelcomeScreen from './screens/WelcomeScreen';
 import SignupScreen from './screens/SignupScreen';
 import LoginScreen from './screens/LoginScreen';
+import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
 import DashboardScreen from './screens/DashboardScreen';
 import BodyScannerScreen from './screens/BodyScannerScreen';
 import FaceScannerScreen from './screens/FaceScannerScreen';
@@ -86,6 +87,7 @@ const App: React.FC = () => {
                 <Route path="/" element={<WelcomeScreen />} />
                 <Route path="/signup" element={<SignupScreen />} />
                 <Route path="/login" element={<LoginScreen />} />
+                <Route path="/forgot-password" element={<ForgotPasswordScreen />} />
 
                 {/* Onboarding route with its own wrapper for protection */}
                 <Route path="/onboarding" element={<OnboardingRouteWrapper />} />

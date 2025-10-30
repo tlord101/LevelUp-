@@ -1,8 +1,8 @@
-
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { signUpWithEmail, signInWithGoogle, signInWithApple } from '../services/firebaseService';
+import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
 
 const GoogleIcon = () => (
     <svg className="w-5 h-5" viewBox="0 0 48 48">
@@ -31,10 +31,12 @@ const SignupScreen: React.FC = () => {
 
     const handleSignUp = async (e: React.FormEvent) => {
         e.preventDefault();
+        hapticTap();
         setError(null);
 
         if (password !== confirmPassword) {
             setError("Passwords do not match.");
+            hapticError();
             return;
         }
         
@@ -42,24 +44,29 @@ const SignupScreen: React.FC = () => {
 
         try {
             await signUpWithEmail(email, password);
+            hapticSuccess();
             navigate('/dashboard');
         } catch (err: any) {
             setError(err.message);
+            hapticError();
         } finally {
             setLoading(false);
         }
     };
     
     const handleSocialSignUp = async (provider: 'google' | 'apple') => {
+        hapticTap();
         setLoading(true);
         setError(null);
         try {
             const signInMethod = provider === 'google' ? signInWithGoogle : signInWithApple;
             await signInMethod();
+            hapticSuccess();
             // AuthProvider will detect the new user and ProtectedLayout will redirect to onboarding if needed.
             navigate('/dashboard');
         } catch (err: any) {
             setError(err.message);
+            hapticError();
         } finally {
             setLoading(false);
         }
@@ -119,14 +126,14 @@ const SignupScreen: React.FC = () => {
                 </div>
 
                 <div className="space-y-4">
-                    <button onClick={() => handleSocialSignUp('google')} className="w-full inline-flex items-center justify-center gap-3 py-3 px-4 border border-gray-300 rounded-xl shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+                     <button onClick={() => handleSocialSignUp('google')} className="w-full inline-flex items-center justify-center gap-3 py-3 px-4 border border-gray-300 rounded-xl shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
                         <GoogleIcon /> Continue with Google
                     </button>
                     <button onClick={() => handleSocialSignUp('apple')} className="w-full inline-flex items-center justify-center gap-3 py-3 px-4 border border-gray-300 rounded-xl shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
                         <AppleIcon /> Continue with Apple
                     </button>
                 </div>
-                
+
                 <p className="text-center text-sm text-gray-600">
                     Already have an account?{' '}
                     <Link to="/login" className="font-medium text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-purple-600 hover:underline">
