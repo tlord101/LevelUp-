@@ -117,7 +117,12 @@ export const requestNotificationPermissionAndSaveToken = async (userId: string):
     console.log('Notification permission granted.');
     try {
       // VAPID key from Firebase Console > Project Settings > Cloud Messaging > Web Push certificates
-      const vapidKey = "BPhg-eH05LSAj_1O8C8U9_Y3z1K-qBv3O1Q6s7p9g_4Z8J2R0wF_v_l6H3a1j4k5s_N9O7l2G8X1Y0c";
+      const vapidKey = "YOUR_VAPID_KEY_FROM_FIREBASE_CONSOLE";
+
+      if (vapidKey.startsWith("YOUR_VAPID_KEY")) {
+        throw new Error("VAPID key is not configured in firebaseService.ts. Please add it for notifications to work.");
+      }
+
       const currentToken = await getToken(messaging, { vapidKey });
 
       if (currentToken) {

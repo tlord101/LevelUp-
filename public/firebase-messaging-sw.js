@@ -3,12 +3,13 @@ import { getMessaging, onBackgroundMessage } from "firebase/messaging/sw";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyBbvjDDFf7kb5tdvv5iOR2v29HFcb-vBhU",
+  authDomain: "tick-c20ac.firebaseapp.com",
+  projectId: "tick-c20ac",
+  storageBucket: "tick-c20ac.firebasestorage.app",
+  messagingSenderId: "717973440095",
+  appId: "1:717973440095:web:3e388dc407554ddd15bdea",
+  measurementId: "G-B5MQ1LETCL"
 };
 
 // Initialize Firebase

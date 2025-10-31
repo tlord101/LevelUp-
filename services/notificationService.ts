@@ -27,9 +27,9 @@ export const sendTestPushNotification = async (token: string, title: string, bod
     //    Project Settings > Cloud Messaging > Cloud Messaging API (Legacy) > Server Key
     // 2. IMPORTANT: Ensure the "Cloud Messaging API (Legacy)" is ENABLED in your Google Cloud project.
     //    Go to https://console.cloud.google.com/apis/library/fcm.googleapis.com and enable it.
-    const legacyServerKey = 'AAAA127tQG8:APA91bFwR-vJ2B15J5iR5e_WJbJg0wP2fK6o6V-G5v1x7X7t7j6e1H3n5q1O9L2n9s9g8f7d6e5c4b3a2';
+    const legacyServerKey = 'YOUR_LEGACY_SERVER_KEY_FROM_FIREBASE_CONSOLE';
     
-    if (legacyServerKey.includes('YOUR_SERVER_KEY')) {
+    if (legacyServerKey.startsWith('YOUR_LEGACY_SERVER_KEY')) {
         throw new Error('Firebase Server Key is not configured in notificationService.ts. Please add it for testing.');
     }
 
