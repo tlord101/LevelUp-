@@ -117,8 +117,8 @@ export const requestNotificationPermissionAndSaveToken = async (userId: string):
   if (permission === 'granted') {
     console.log('Notification permission granted.');
     try {
-      // IMPORTANT: Replace with your VAPID key from Firebase Console > Project Settings > Cloud Messaging
-      const vapidKey = "YOUR_VAPID_PUBLIC_KEY_GOES_HERE";
+      // VAPID key from Firebase Console > Project Settings > Cloud Messaging > Web Push certificates
+      const vapidKey = "BPhg-eH05LSAj_1O8C8U9_Y3z1K-qBv3O1Q6s7p9g_4Z8J2R0wF_v_l6H3a1j4k5s_N9O7l2G8X1Y0c";
       const currentToken = await getToken(messaging, { vapidKey });
 
       if (currentToken) {
