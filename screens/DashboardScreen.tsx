@@ -28,23 +28,28 @@ const MissionItem: React.FC<{ mission: Mission, onClick: () => void }> = ({ miss
 
 const NotificationPermissionCard: React.FC<{ userUid: string, onClose: () => void }> = ({ userUid, onClose }) => {
     const [isRequesting, setIsRequesting] = useState(false);
+    const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
     const handleEnableClick = async () => {
         hapticTap();
         setIsRequesting(true);
+        setStatus(null);
         try {
             const granted = await requestNotificationPermissionAndSaveToken(userUid);
             if (granted) {
                 hapticSuccess();
+                setStatus({ type: 'success', message: 'Notifications enabled successfully!' });
+                setTimeout(() => onClose(), 2000); // Auto-close on success
             } else {
                 hapticError();
+                setStatus({ type: 'error', message: 'Permission was denied. You can enable it in your browser settings.' });
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
             hapticError();
+            setStatus({ type: 'error', message: error.message || 'An unknown error occurred.' });
         } finally {
             setIsRequesting(false);
-            onClose(); // Always close after interaction
         }
     };
     
@@ -64,6 +69,11 @@ const NotificationPermissionCard: React.FC<{ userUid: string, onClose: () => voi
                     >
                        {isRequesting ? <Loader2 size={18} className="animate-spin"/> : 'Enable'}
                     </button>
+                    {status && (
+                        <p className={`mt-2 text-sm font-medium ${status.type === 'success' ? 'text-green-600' : 'text-red-500'}`}>
+                            {status.message}
+                        </p>
+                    )}
                 </div>
                 <button onClick={() => { onClose(); hapticTap(); }} className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100">
                     <X size={18} />

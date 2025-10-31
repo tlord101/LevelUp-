@@ -105,12 +105,11 @@ export const sendPasswordReset = async (email: string): Promise<void> => {
  * Requests permission for push notifications and saves the token to Firestore.
  * @param userId The current user's ID.
  * @returns A boolean indicating if permission was successfully granted and the token saved.
+ * @throws An error if notifications are not supported or if token retrieval fails.
  */
 export const requestNotificationPermissionAndSaveToken = async (userId: string): Promise<boolean> => {
   if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
-    console.log("This browser does not support push notifications.");
-    alert("This browser does not support push notifications.");
-    return false;
+    throw new Error("This browser does not support push notifications.");
   }
 
   const permission = await Notification.requestPermission();
@@ -127,12 +126,14 @@ export const requestNotificationPermissionAndSaveToken = async (userId: string):
         await updateDoc(userRef, { notificationToken: currentToken });
         return true;
       } else {
-        console.log('No registration token available. Request permission to generate one.');
-        return false;
+        throw new Error('Failed to generate notification token. Please try again.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('An error occurred while retrieving token.', err);
-      return false;
+      if (err.code === 'messaging/invalid-vapid-key') {
+         throw new Error('Configuration error: The notification VAPID key is invalid.');
+      }
+      throw new Error(`An error occurred while setting up notifications. Please check the console for details.`);
     }
   } else {
     console.log('Unable to get permission to notify.');
