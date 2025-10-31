@@ -44,6 +44,10 @@ export const createOrUpdateUserProfile = async (user: User, additionalData: Part
         willpower: 10,
       },
       notificationToken: null,
+      notificationPreferences: {
+        dailyReminders: true,
+        communityUpdates: true,
+      },
     };
     await setDoc(userRef, profileData);
   }

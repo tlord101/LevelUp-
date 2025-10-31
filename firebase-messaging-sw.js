@@ -3,13 +3,13 @@ import { getMessaging, onBackgroundMessage } from "firebase/messaging/sw";
 
 // NOTE: This config is duplicated from 'config/firebase.ts' because service workers run in a separate thread.
 const firebaseConfig = {
-  apiKey: "AIzaSyBbvjDDFf7kb5tdvv5iOR2v29HFcb-vBhU",
-  authDomain: "tick-c20ac.firebaseapp.com",
-  projectId: "tick-c20ac",
-  storageBucket: "tick-c20ac.firebasestorage.app",
-  messagingSenderId: "717973440095",
-  appId: "1:717973440095:web:3e388dc407554ddd15bdea",
-  measurementId: "G-B5MQ1LETCL"
+  apiKey: "AIzaSyBE3KrZbhU-CXxEO_Clz6L2V9AqgdoQ1x4",
+  authDomain: "levelup-87509.firebaseapp.com",
+  projectId: "levelup-87509",
+  storageBucket: "levelup-87509.firebasestorage.app",
+  messagingSenderId: "495294111203",
+  appId: "1:495294111203:web:73f82542f7d1265f5c54d6",
+  measurementId: "G-7VMVCJ7WS1"
 };
 
 const app = initializeApp(firebaseConfig);

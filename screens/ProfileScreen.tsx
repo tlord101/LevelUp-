@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { signOutUser } from '../services/firebaseService';
+import { signOutUser, requestNotificationPermissionAndSaveToken } from '../services/firebaseService';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Scan, Smile, Bell, X, Loader2 } from 'lucide-react';
+import { BookOpen, Scan, Smile, Bell, X, Loader2, Settings2 } from 'lucide-react';
 import { hapticTap, hapticError, hapticSuccess } from '../utils/haptics';
 import { sendTestPushNotification } from '../services/notificationService';
 
@@ -81,11 +81,49 @@ const NotificationTesterModal: React.FC<{ isOpen: boolean; onClose: () => void; 
     );
 };
 
+const ToggleSwitch: React.FC<{
+  label: string;
+  description: string;
+  enabled: boolean;
+  onChange: (enabled: boolean) => void;
+  disabled?: boolean;
+}> = ({ label, description, enabled, onChange, disabled = false }) => (
+  <div className="flex items-center justify-between py-3">
+    <div>
+      <p className={`font-semibold ${disabled ? 'text-gray-400' : 'text-gray-800'}`}>{label}</p>
+      <p className="text-sm text-gray-500">{description}</p>
+    </div>
+    <button
+      onClick={() => !disabled && onChange(!enabled)}
+      disabled={disabled}
+      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${
+        enabled ? 'bg-purple-600' : 'bg-gray-200'
+      } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+      aria-pressed={enabled}
+    >
+      <span
+        aria-hidden="true"
+        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+          enabled ? 'translate-x-5' : 'translate-x-0'
+        }`}
+      />
+    </button>
+  </div>
+);
+
 
 const ProfileScreen: React.FC = () => {
-  const { userProfile } = useAuth();
+  const { user, userProfile, updateUserProfileData } = useAuth();
   const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [permissionStatus, setPermissionStatus] = useState<NotificationPermission>('default');
+  const [isRequestingPermission, setIsRequestingPermission] = useState(false);
+
+  useEffect(() => {
+    if ('Notification' in window) {
+      setPermissionStatus(Notification.permission);
+    }
+  }, []);
 
   const handleLogout = async () => {
     hapticTap();
@@ -96,6 +134,47 @@ const ProfileScreen: React.FC = () => {
       console.error('Failed to log out:', error);
     }
   };
+  
+  const handleRequestPermission = async () => {
+    if (!user) return;
+    setIsRequestingPermission(true);
+    hapticTap();
+    try {
+        const granted = await requestNotificationPermissionAndSaveToken(user.uid);
+        if (granted) {
+            hapticSuccess();
+        } else {
+            hapticError();
+        }
+    } catch (error) {
+        console.error("Error requesting permission:", error);
+        hapticError();
+    } finally {
+        setIsRequestingPermission(false);
+        if ('Notification' in window) {
+            setPermissionStatus(Notification.permission);
+        }
+    }
+  };
+
+  const handlePreferenceChange = async (preference: 'dailyReminders' | 'communityUpdates', value: boolean) => {
+    if (!userProfile || !updateUserProfileData) return;
+    hapticTap();
+    
+    const currentPrefs = userProfile.notificationPreferences || {
+        dailyReminders: true,
+        communityUpdates: true,
+    };
+    
+    const newPreferences = {
+        ...currentPrefs,
+        [preference]: value,
+    };
+    
+    await updateUserProfileData({ notificationPreferences: newPreferences });
+  };
+
+  const notificationsEnabled = permissionStatus === 'granted';
 
   return (
     <div className="space-y-4 p-4 pb-24">
@@ -142,6 +221,50 @@ const ProfileScreen: React.FC = () => {
           </div>
         </div>
       )}
+
+      <div className="bg-white shadow-md rounded-lg p-6 space-y-2">
+          <div className="flex items-center gap-3">
+              <Settings2 size={20} className="text-gray-600" />
+              <h2 className="text-lg font-semibold text-gray-800">Notification Preferences</h2>
+          </div>
+          <div className="border-t border-gray-100 -mx-6 px-6">
+              <ToggleSwitch
+                  label="Daily Reminders"
+                  description="Get motivated with daily missions."
+                  enabled={userProfile?.notificationPreferences?.dailyReminders ?? true}
+                  onChange={(value) => handlePreferenceChange('dailyReminders', value)}
+                  disabled={!notificationsEnabled}
+              />
+          </div>
+          <div className="border-t border-gray-100 -mx-6 px-6">
+              <ToggleSwitch
+                  label="Community Updates"
+                  description="Likes, comments, and group activity."
+                  enabled={userProfile?.notificationPreferences?.communityUpdates ?? true}
+                  onChange={(value) => handlePreferenceChange('communityUpdates', value)}
+                  disabled={!notificationsEnabled}
+              />
+          </div>
+
+          {!notificationsEnabled && (
+              <div className="border-t border-gray-100 pt-4">
+                  {permissionStatus === 'denied' ? (
+                      <p className="text-sm text-yellow-700 bg-yellow-50 p-3 rounded-lg">
+                          Notifications are blocked. You'll need to enable them in your browser settings to receive updates.
+                      </p>
+                  ) : (
+                      <button
+                          onClick={handleRequestPermission}
+                          disabled={isRequestingPermission}
+                          className="w-full flex items-center justify-center gap-2 py-2 bg-blue-500 text-white font-bold rounded-lg shadow-sm hover:bg-blue-600 transition disabled:bg-gray-400"
+                      >
+                          {isRequestingPermission ? <Loader2 className="animate-spin" /> : <Bell size={18} />}
+                          {isRequestingPermission ? 'Requesting...' : 'Enable Notifications'}
+                      </button>
+                  )}
+              </div>
+          )}
+      </div>
 
       <button
         onClick={() => {

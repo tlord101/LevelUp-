@@ -33,6 +33,10 @@ export interface UserProfile {
   activityLevel?: string;
   healthConditions?: string[];
   notificationToken?: string | null;
+  notificationPreferences?: {
+    dailyReminders: boolean;
+    communityUpdates: boolean;
+  };
 }
 
 export interface NutritionScanResult {
