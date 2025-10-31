@@ -1,4 +1,3 @@
-
 import { Timestamp, FieldValue } from 'firebase/firestore';
 
 export enum UserGoal {
@@ -33,6 +32,7 @@ export interface UserProfile {
   bodyType?: string;
   activityLevel?: string;
   healthConditions?: string[];
+  notificationToken?: string | null;
 }
 
 export interface NutritionScanResult {
@@ -51,5 +51,57 @@ export interface NutritionScan {
   userId: string;
   imageURL: string;
   results: NutritionScanResult;
+  createdAt: Timestamp | FieldValue;
+}
+
+export interface BodyScanResult {
+  postureAnalysis: string;
+  bodyFatPercentage: number;
+  recommendations: string[];
+}
+
+export interface BodyScan {
+  id:string;
+  userId: string;
+  imageURL: string;
+  results: BodyScanResult;
+  createdAt: Timestamp | FieldValue;
+}
+
+export interface FaceScanResult {
+  skinAnalysis: {
+    hydration: string;
+    clarity: string;
+    radiance: string;
+  };
+  recommendations: string[];
+}
+
+export interface FaceScan {
+  id: string;
+  userId: string;
+  imageURL: string;
+  results: FaceScanResult;
+  createdAt: Timestamp | FieldValue;
+}
+
+export interface Post {
+  id: string;
+  userId: string;
+  authorDisplayName: string;
+  content: string;
+  imageUrl?: string;
+  createdAt: Timestamp | FieldValue;
+  likes: string[]; // Array of user IDs who liked the post
+  commentCount: number;
+}
+
+export interface Group {
+  id: string;
+  name: string;
+  description: string;
+  icon: string; // emoji
+  ownerId: string;
+  members: string[]; // array of user uids
   createdAt: Timestamp | FieldValue;
 }

@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { dailyMissions, Mission } from '../services/missions';
-import { Settings, Trophy, Target, Apple, Dumbbell, Sparkles, ChevronRight } from 'lucide-react';
+import { Settings, Trophy, Target, Apple, Dumbbell, Sparkles, ChevronRight, Bell, X, Loader2 } from 'lucide-react';
 import AvatarDisplay from '../components/AvatarDisplay';
 import { useNavigate } from 'react-router-dom';
-import { hapticTap } from '../utils/haptics';
+import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
+import { requestNotificationPermissionAndSaveToken } from '../services/firebaseService';
 
 const StatCard: React.FC<{ value: number; label: string, icon: React.ElementType }> = ({ value, label, icon: Icon }) => (
     <div className="bg-gray-100 p-3 rounded-xl text-center shadow-sm">
@@ -25,9 +26,64 @@ const MissionItem: React.FC<{ mission: Mission, onClick: () => void }> = ({ miss
     </button>
 );
 
+const NotificationPermissionCard: React.FC<{ userUid: string, onClose: () => void }> = ({ userUid, onClose }) => {
+    const [isRequesting, setIsRequesting] = useState(false);
+
+    const handleEnableClick = async () => {
+        hapticTap();
+        setIsRequesting(true);
+        try {
+            const granted = await requestNotificationPermissionAndSaveToken(userUid);
+            if (granted) {
+                hapticSuccess();
+            } else {
+                hapticError();
+            }
+        } catch (error) {
+            console.error(error);
+            hapticError();
+        } finally {
+            setIsRequesting(false);
+            onClose(); // Always close after interaction
+        }
+    };
+    
+    return (
+        <div className="bg-white p-4 rounded-2xl shadow-md border border-gray-200">
+            <div className="flex items-start gap-3">
+                <div className="bg-blue-100 text-blue-600 p-2 rounded-full mt-1">
+                    <Bell size={20} />
+                </div>
+                <div className="flex-1">
+                    <h3 className="font-bold text-gray-800">Stay in the loop!</h3>
+                    <p className="text-sm text-gray-600 mt-1">Enable notifications to get reminders for missions and updates.</p>
+                     <button 
+                        onClick={handleEnableClick} 
+                        disabled={isRequesting}
+                        className="mt-3 bg-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-blue-600 transition disabled:bg-blue-300 flex items-center justify-center min-w-[100px]"
+                    >
+                       {isRequesting ? <Loader2 size={18} className="animate-spin"/> : 'Enable'}
+                    </button>
+                </div>
+                <button onClick={() => { onClose(); hapticTap(); }} className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100">
+                    <X size={18} />
+                </button>
+            </div>
+        </div>
+    );
+};
+
 const DashboardScreen: React.FC = () => {
-    const { userProfile } = useAuth();
+    const { userProfile, user } = useAuth();
     const navigate = useNavigate();
+    const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
+
+    useEffect(() => {
+        // Show prompt only if browser supports notifications and permission is 'default'
+        if ('Notification' in window && Notification.permission === 'default') {
+            setShowNotificationPrompt(true);
+        }
+    }, []);
 
     const handleMissionClick = (missionId: string) => {
         hapticTap();
@@ -41,7 +97,7 @@ const DashboardScreen: React.FC = () => {
         navigate('/profile');
     };
     
-    if (!userProfile) {
+    if (!userProfile || !user) {
         return <div className="p-6 text-center">Loading profile...</div>;
     }
     
@@ -59,6 +115,13 @@ const DashboardScreen: React.FC = () => {
                     <Settings className="w-6 h-6 text-gray-600" />
                 </button>
             </header>
+
+            {showNotificationPrompt && (
+                <NotificationPermissionCard 
+                    userUid={user.uid} 
+                    onClose={() => setShowNotificationPrompt(false)} 
+                />
+            )}
 
             <div className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white p-5 rounded-2xl shadow-lg">
                 <div className="flex justify-between items-center">
@@ -97,7 +160,7 @@ const DashboardScreen: React.FC = () => {
              <button
                 onClick={() => {
                     hapticTap();
-                    alert("AI Coach feature coming soon!");
+                    navigate('/ai-coach');
                 }}
                 className="w-full bg-gray-800 text-white font-bold py-4 px-6 rounded-xl hover:bg-gray-900 transition duration-300 flex items-center justify-center gap-3 shadow-md"
             >

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { HashRouter, Routes, Route, Outlet, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -15,6 +14,15 @@ import ProfileScreen from './screens/ProfileScreen';
 import BottomNavBar from './components/BottomNavBar';
 import FoodHistoryScreen from './screens/FoodHistoryScreen';
 import OnboardingScreen from './screens/OnboardingScreen';
+import BodyHistoryScreen from './screens/BodyHistoryScreen';
+import FaceHistoryScreen from './screens/FaceHistoryScreen';
+import LeaderboardScreen from './screens/LeaderboardScreen';
+import DiscoverGroupsScreen from './screens/DiscoverGroupsScreen';
+import GroupDetailScreen from './screens/GroupDetailScreen';
+import CreatePostScreen from './screens/CreatePostScreen';
+import CreateGroupScreen from './screens/CreateGroupScreen';
+import AICoachScreen from './screens/AICoachScreen';
+import ForegroundNotificationHandler from './components/ForegroundNotificationHandler';
 
 const AppLoader: React.FC = () => (
     <div className="flex items-center justify-center h-screen bg-gray-50">
@@ -47,6 +55,7 @@ const ProtectedLayout: React.FC = () => {
     
     return (
         <div className="relative min-h-screen bg-white pb-20 md:pb-0">
+            <ForegroundNotificationHandler />
             <Outlet />
             <BottomNavBar />
         </div>
@@ -98,8 +107,16 @@ const App: React.FC = () => {
                     <Route path="/scanner/face" element={<FaceScannerScreen />} />
                     <Route path="/scanner/food" element={<FoodScannerScreen />} />
                     <Route path="/food-history" element={<FoodHistoryScreen />} />
+                    <Route path="/body-history" element={<BodyHistoryScreen />} />
+                    <Route path="/face-history" element={<FaceHistoryScreen />} />
                     <Route path="/community" element={<CommunityScreen />} />
+                    <Route path="/create-post" element={<CreatePostScreen />} />
+                    <Route path="/create-group" element={<CreateGroupScreen />} />
                     <Route path="/profile" element={<ProfileScreen />} />
+                    <Route path="/leaderboard" element={<LeaderboardScreen />} />
+                    <Route path="/discover-groups" element={<DiscoverGroupsScreen />} />
+                    <Route path="/groups/:groupId" element={<GroupDetailScreen />} />
+                    <Route path="/ai-coach" element={<AICoachScreen />} />
                 </Route>
                  {/* Redirect to dashboard if logged in and at root */}
                 <Route path="*" element={<Navigate to="/dashboard" />} />

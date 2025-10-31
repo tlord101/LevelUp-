@@ -1,6 +1,5 @@
-
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { Camera, Upload, Apple, Clock, ChevronRight, Loader2, X } from 'lucide-react';
+import { Camera, Upload, Apple, Clock, ChevronRight, Loader2, X, Share2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { uploadImage, saveNutritionScan, getNutritionScans } from '../services/firebaseService';
 import { NutritionScanResult, NutritionScan } from '../types';
@@ -72,13 +71,18 @@ const CameraView: React.FC<{ onCapture: (blob: Blob) => void; onClose: () => voi
             }, 'image/jpeg', 0.9);
         }
     };
+
+    const handleClose = () => {
+        hapticTap();
+        onClose();
+    };
     
     return (
         <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-center">
             <canvas ref={canvasRef} className="hidden"></canvas>
             <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover"></video>
             <div className="absolute inset-0 bg-black/20 flex flex-col items-center justify-between p-6">
-                <button onClick={onClose} className="self-start text-white bg-black/50 p-2 rounded-full"><X size={24} /></button>
+                <button onClick={handleClose} className="self-start text-white bg-black/50 p-2 rounded-full"><X size={24} /></button>
                 <div className="w-full max-w-sm text-center">
                     <p className="text-white font-semibold text-lg bg-black/50 py-2 px-4 rounded-xl">Position your meal in the center</p>
                 </div>
@@ -95,7 +99,7 @@ const FoodScannerScreen: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [scans, setScans] = useState<NutritionScan[]>([]);
-    const [latestScanResult, setLatestScanResult] = useState<NutritionScanResult | null>(null);
+    const [latestScanData, setLatestScanData] = useState<{ result: NutritionScanResult; imageUrl: string } | null>(null);
     const [showCamera, setShowCamera] = useState(false);
     
     const { user, addXP } = useAuth();
@@ -164,7 +168,7 @@ const FoodScannerScreen: React.FC = () => {
 
         setIsLoading(true);
         setError(null);
-        setLatestScanResult(null);
+        setLatestScanData(null);
 
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
@@ -231,7 +235,7 @@ const FoodScannerScreen: React.FC = () => {
 
             addXP(15);
             hapticSuccess();
-            setLatestScanResult(parsedResult);
+            setLatestScanData({ result: parsedResult, imageUrl });
             await fetchScans(); // Refetch to update stats
 
         } catch (err: any) {
@@ -243,6 +247,22 @@ const FoodScannerScreen: React.FC = () => {
             setImageFile(null);
             setImagePreview(null);
         }
+    };
+
+    const handleShare = () => {
+        if (!latestScanData) return;
+        hapticTap();
+        const { result, imageUrl } = latestScanData;
+        const shareContent = `Just scanned my meal with LevelUp! 🍽️\nIt was ${result.foodName} with about ${result.calories.toFixed(0)} calories. Keeping track of my nutrition! #LevelUp #FoodScan #HealthyEating`;
+        
+        navigate('/create-post', { 
+            state: { 
+                shareData: {
+                    content: shareContent,
+                    imageUrl: imageUrl,
+                }
+            } 
+        });
     };
 
 
@@ -309,11 +329,18 @@ const FoodScannerScreen: React.FC = () => {
 
             <div className="bg-white p-4 rounded-xl shadow-sm">
                 <h2 className="font-bold text-gray-800 mb-2">Last Scan Result</h2>
-                {latestScanResult ? (
+                {latestScanData ? (
                     <div>
-                        <p className="font-semibold text-lg capitalize">{latestScanResult.foodName}</p>
-                        <p className="text-sm text-gray-500">{latestScanResult.calories.toFixed(0)} Calories</p>
+                        <p className="font-semibold text-lg capitalize">{latestScanData.result.foodName}</p>
+                        <p className="text-sm text-gray-500">{latestScanData.result.calories.toFixed(0)} Calories</p>
                         <p className="text-xs text-green-600 font-medium">+15 XP Awarded!</p>
+                        <button 
+                            onClick={handleShare}
+                            className="w-full mt-3 flex items-center justify-center gap-2 py-2 bg-purple-100 text-purple-700 font-semibold rounded-lg hover:bg-purple-200 transition"
+                        >
+                            <Share2 size={16} />
+                            Share to Feed
+                        </button>
                     </div>
                 ) : <p className="text-sm text-gray-500">Your latest scan will appear here.</p>}
             </div>

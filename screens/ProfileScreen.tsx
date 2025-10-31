@@ -1,8 +1,9 @@
+
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { signOutUser } from '../services/firebaseService';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, Scan, Smile } from 'lucide-react';
 import { hapticTap } from '../utils/haptics';
 
 const ProfileScreen: React.FC = () => {
@@ -20,7 +21,7 @@ const ProfileScreen: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 p-4">
+    <div className="space-y-4 p-4 pb-24">
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Your Profile</h1>
         <p className="mt-2 text-lg text-gray-600">Manage your account and preferences.</p>
@@ -69,6 +70,28 @@ const ProfileScreen: React.FC = () => {
       >
         <BookOpen size={20} />
         Food Scan History
+      </button>
+
+      <button
+        onClick={() => {
+            hapticTap();
+            navigate('/body-history');
+        }}
+        className="w-full flex items-center justify-center gap-2 bg-white text-gray-800 font-bold py-3 px-6 rounded-lg hover:bg-gray-100 transition duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 border border-gray-200 shadow-sm"
+      >
+        <Scan size={20} />
+        Body Scan History
+      </button>
+
+      <button
+        onClick={() => {
+            hapticTap();
+            navigate('/face-history');
+        }}
+        className="w-full flex items-center justify-center gap-2 bg-white text-gray-800 font-bold py-3 px-6 rounded-lg hover:bg-gray-100 transition duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 border border-gray-200 shadow-sm"
+      >
+        <Smile size={20} />
+        Face Scan History
       </button>
       
       <button
