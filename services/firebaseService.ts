@@ -25,7 +25,8 @@ export const createOrUpdateUserProfile = async (user: User, additionalData: Part
     const profileData = {
       uid: user.uid,
       email: user.email,
-      displayName: additionalData.displayName || user.displayName || 'New User',
+      // FIX: Changed displayName to display_name to match the UserProfile type.
+      displayName: additionalData.display_name || user.displayName || 'New User',
       age: additionalData.age || null,
       gender: additionalData.gender || null,
       height: null,
@@ -207,11 +208,12 @@ export const getNutritionScans = async (userId: string): Promise<NutritionScan[]
 
     // Sort scans by date in descending order on the client
     scans.sort((a, b) => {
-        const timeA = a.createdAt && typeof (a.createdAt as Timestamp).toDate === 'function'
-            ? (a.createdAt as Timestamp).toDate().getTime()
+        // FIX: Changed createdAt to created_at to match the NutritionScan type.
+        const timeA = a.created_at && typeof (a.created_at as Timestamp).toDate === 'function'
+            ? (a.created_at as Timestamp).toDate().getTime()
             : 0;
-        const timeB = b.createdAt && typeof (b.createdAt as Timestamp).toDate === 'function'
-            ? (b.createdAt as Timestamp).toDate().getTime()
+        const timeB = b.created_at && typeof (b.created_at as Timestamp).toDate === 'function'
+            ? (b.created_at as Timestamp).toDate().getTime()
             : 0;
         return timeB - timeA;
     });
@@ -243,11 +245,12 @@ export const getBodyScans = async (userId: string): Promise<BodyScan[]> => {
 
     // Sort scans by date in descending order on the client
     scans.sort((a, b) => {
-        const timeA = a.createdAt && typeof (a.createdAt as Timestamp).toDate === 'function'
-            ? (a.createdAt as Timestamp).toDate().getTime()
+        // FIX: Changed createdAt to created_at to match the BodyScan type.
+        const timeA = a.created_at && typeof (a.created_at as Timestamp).toDate === 'function'
+            ? (a.created_at as Timestamp).toDate().getTime()
             : 0;
-        const timeB = b.createdAt && typeof (b.createdAt as Timestamp).toDate === 'function'
-            ? (b.createdAt as Timestamp).toDate().getTime()
+        const timeB = b.created_at && typeof (b.created_at as Timestamp).toDate === 'function'
+            ? (b.created_at as Timestamp).toDate().getTime()
             : 0;
         return timeB - timeA;
     });
@@ -279,11 +282,12 @@ export const getFaceScans = async (userId: string): Promise<FaceScan[]> => {
 
     // Sort scans by date in descending order on the client
     scans.sort((a, b) => {
-        const timeA = a.createdAt && typeof (a.createdAt as Timestamp).toDate === 'function'
-            ? (a.createdAt as Timestamp).toDate().getTime()
+        // FIX: Changed createdAt to created_at to match the FaceScan type.
+        const timeA = a.created_at && typeof (a.created_at as Timestamp).toDate === 'function'
+            ? (a.created_at as Timestamp).toDate().getTime()
             : 0;
-        const timeB = b.createdAt && typeof (b.createdAt as Timestamp).toDate === 'function'
-            ? (b.createdAt as Timestamp).toDate().getTime()
+        const timeB = b.created_at && typeof (b.created_at as Timestamp).toDate === 'function'
+            ? (b.created_at as Timestamp).toDate().getTime()
             : 0;
         return timeB - timeA;
     });
@@ -347,11 +351,12 @@ export const getUserGroups = async (userId: string): Promise<Group[]> => {
     
     // Sort groups by date in descending order on the client
     groups.sort((a, b) => {
-        const timeA = a.createdAt && typeof (a.createdAt as Timestamp).toDate === 'function'
-            ? (a.createdAt as Timestamp).toDate().getTime()
+        // FIX: Changed createdAt to created_at to match the Group type.
+        const timeA = a.created_at && typeof (a.created_at as Timestamp).toDate === 'function'
+            ? (a.created_at as Timestamp).toDate().getTime()
             : 0;
-        const timeB = b.createdAt && typeof (b.createdAt as Timestamp).toDate === 'function'
-            ? (b.createdAt as Timestamp).toDate().getTime()
+        const timeB = b.created_at && typeof (b.created_at as Timestamp).toDate === 'function'
+            ? (b.created_at as Timestamp).toDate().getTime()
             : 0;
         return timeB - timeA;
     });

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getNutritionScans } from '../services/firebaseService';
+import { getNutritionScans } from '../services/supabaseService';
 import { NutritionScan } from '../types';
 import { ArrowLeft, Calendar, Flame } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -16,7 +16,7 @@ const FoodHistoryScreen: React.FC = () => {
     const fetchScans = async () => {
       if (user) {
         try {
-          const userScans = await getNutritionScans(user.uid);
+          const userScans = await getNutritionScans(user.id);
           setScans(userScans);
         } catch (error) {
           console.error("Failed to fetch food scans:", error);
@@ -29,11 +29,9 @@ const FoodHistoryScreen: React.FC = () => {
     fetchScans();
   }, [user]);
 
-  const formatDate = (timestamp: any) => {
-    if (!timestamp || !timestamp.toDate) {
-      return 'Just now';
-    }
-    return timestamp.toDate().toLocaleDateString('en-US', {
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'Just now';
+    return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -42,7 +40,7 @@ const FoodHistoryScreen: React.FC = () => {
 
   const ScanCard: React.FC<{ scan: NutritionScan }> = ({ scan }) => (
     <div className="bg-white rounded-xl shadow-md overflow-hidden flex items-center p-4 space-x-4">
-      <img src={scan.imageURL} alt={scan.results.foodName} className="w-20 h-20 object-cover rounded-lg flex-shrink-0" />
+      <img src={scan.image_url} alt={scan.results.foodName} className="w-20 h-20 object-cover rounded-lg flex-shrink-0" />
       <div className="flex-grow">
         <h3 className="font-bold text-lg text-gray-800 capitalize">{scan.results.foodName}</h3>
         <div className="flex items-center text-sm text-gray-500 mt-1">
@@ -51,7 +49,7 @@ const FoodHistoryScreen: React.FC = () => {
         </div>
         <div className="flex items-center text-xs text-gray-400 mt-2">
           <Calendar size={12} className="mr-1" />
-          <span>{formatDate(scan.createdAt)}</span>
+          <span>{formatDate(scan.created_at)}</span>
         </div>
       </div>
     </div>

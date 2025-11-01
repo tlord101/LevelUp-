@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send } from 'lucide-react';
@@ -29,7 +28,7 @@ const AICoachScreen: React.FC = () => {
                 const chatInstance = ai.chats.create({
                     model: 'gemini-2.5-flash',
                     config: {
-                        systemInstruction: `You are LevelUp AI, a friendly and motivating personal coach for the LevelUp app. Your goal is to help users with their fitness, nutrition, and wellness journey. Be encouraging, provide actionable advice, and keep responses concise and easy to understand. The user's name is ${userProfile?.displayName || 'User'}.`,
+                        systemInstruction: `You are LevelUp AI, a friendly and motivating personal coach for the LevelUp app. Your goal is to help users with their fitness, nutrition, and wellness journey. Be encouraging, provide actionable advice, and keep responses concise and easy to understand. The user's name is ${userProfile?.display_name || 'User'}.`,
                     },
                 });
                 setChat(chatInstance);

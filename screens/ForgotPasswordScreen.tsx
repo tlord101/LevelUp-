@@ -1,8 +1,7 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { sendPasswordReset } from '../services/firebaseService';
+import { sendPasswordReset } from '../services/supabaseService';
 import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
 
 const ForgotPasswordScreen: React.FC = () => {

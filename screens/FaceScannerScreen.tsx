@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Camera, Upload, Smile, Clock, ChevronRight, Loader2, X, Sparkles, Share2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { uploadImage, saveFaceScan, getFaceScans } from '../services/firebaseService';
+import { uploadImage, saveFaceScan, getFaceScans } from '../services/supabaseService';
 import { FaceScanResult, FaceScan } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { GoogleGenAI, Type } from '@google/genai';
@@ -106,7 +106,7 @@ const FaceScannerScreen: React.FC = () => {
     const fetchScans = useCallback(async () => {
         if (user) {
             try {
-                const userScans = await getFaceScans(user.uid);
+                const userScans = await getFaceScans(user.id);
                 setScans(userScans);
             } catch (err) {
                 console.error("Failed to fetch scans", err);
@@ -122,7 +122,7 @@ const FaceScannerScreen: React.FC = () => {
     const scansThisWeek = useMemo(() => {
         const oneWeekAgo = new Date();
         oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-        return scans.filter(s => s.createdAt && (s.createdAt as any).toDate() > oneWeekAgo).length;
+        return scans.filter(s => new Date(s.created_at) > oneWeekAgo).length;
     }, [scans]);
 
 
@@ -202,8 +202,8 @@ const FaceScannerScreen: React.FC = () => {
                 recommendations: analysisData.recommendations,
             };
 
-            const imageUrl = await uploadImage(imageFile, user.uid);
-            await saveFaceScan(user.uid, imageUrl, parsedResult);
+            const imageUrl = await uploadImage(imageFile, user.id, 'scans');
+            await saveFaceScan(user.id, imageUrl, parsedResult);
 
             addXP(18);
             hapticSuccess();
@@ -318,7 +318,7 @@ const FaceScannerScreen: React.FC = () => {
                 </div>
                 {scans.length > 0 ? (
                     <div className="flex items-center gap-3">
-                        <img src={scans[0].imageURL} alt="Last face scan" className="w-12 h-12 object-cover rounded-lg" />
+                        <img src={scans[0].image_url} alt="Last face scan" className="w-12 h-12 object-cover rounded-lg" />
                         <div>
                             <p className="font-semibold">Clarity: {scans[0].results.skinAnalysis.clarity}</p>
                             <p className="text-sm text-gray-500">Hydration: {scans[0].results.skinAnalysis.hydration}</p>

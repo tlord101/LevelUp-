@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Loader2, UserPlus, LogOut } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { hapticTap, hapticSuccess } from '../utils/haptics';
-import { getGroupDetails, joinGroup, leaveGroup } from '../services/firebaseService';
+import { getGroupDetails, joinGroup, leaveGroup } from '../services/supabaseService';
 import { Group } from '../types';
 import { useAuth } from '../context/AuthContext';
 
@@ -24,7 +24,7 @@ const GroupDetailScreen: React.FC = () => {
                 const groupData = await getGroupDetails(groupId);
                 setGroup(groupData);
                 if (groupData && user) {
-                    setIsMember(groupData.members.includes(user.uid));
+                    setIsMember(groupData.members.includes(user.id));
                 }
             } catch (error) {
                 console.error("Failed to fetch group details:", error);
@@ -44,17 +44,17 @@ const GroupDetailScreen: React.FC = () => {
         try {
             if (isMember) {
                 // Cannot leave if you are the owner
-                if (group.ownerId === user.uid) {
+                if (group.owner_id === user.id) {
                     alert("As the owner, you cannot leave the group. You must delete it instead (feature coming soon).");
                     setIsUpdatingMembership(false);
                     return;
                 }
-                await leaveGroup(groupId, user.uid);
-                setGroup(prev => prev ? { ...prev, members: prev.members.filter(id => id !== user.uid) } : null);
+                await leaveGroup(groupId, user.id);
+                setGroup(prev => prev ? { ...prev, members: prev.members.filter(id => id !== user.id) } : null);
                 setIsMember(false);
             } else {
-                await joinGroup(groupId, user.uid);
-                setGroup(prev => prev ? { ...prev, members: [...prev.members, user.uid] } : null);
+                await joinGroup(groupId);
+                setGroup(prev => prev ? { ...prev, members: [...prev.members, user.id] } : null);
                 setIsMember(true);
             }
             hapticSuccess();

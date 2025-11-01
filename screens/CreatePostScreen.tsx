@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Image as ImageIcon, X, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { uploadPostImage, createPost } from '../services/firebaseService';
+import { uploadImage, createPost } from '../services/supabaseService';
 import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
 
 const CreatePostScreen: React.FC = () => {
@@ -63,7 +63,7 @@ const CreatePostScreen: React.FC = () => {
             hapticError();
             return;
         }
-        if (!user || !userProfile?.displayName) {
+        if (!user || !userProfile?.display_name) {
             setError("You must be logged in to post.");
             hapticError();
             return;
@@ -78,13 +78,13 @@ const CreatePostScreen: React.FC = () => {
 
             if (imageFile) {
                 // If a user selected a new file, upload it. This takes precedence.
-                finalImageUrl = await uploadPostImage(imageFile, user.uid);
+                finalImageUrl = await uploadImage(imageFile, user.id, 'posts');
             } else if (imageUrlFromShare) {
                 // Otherwise, use the URL that came from the share action.
                 finalImageUrl = imageUrlFromShare;
             }
 
-            await createPost(user.uid, userProfile.displayName, content, finalImageUrl);
+            await createPost(user.id, userProfile.display_name, content, finalImageUrl);
             
             hapticSuccess();
             navigate('/community');
@@ -117,15 +117,15 @@ const CreatePostScreen: React.FC = () => {
 
             <main className="flex-grow p-4 space-y-4">
                 <div className="flex items-start gap-3">
-                    {userProfile?.displayName && (
+                    {userProfile?.display_name && (
                          <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white text-xl font-bold flex-shrink-0">
-                            {userProfile.displayName.charAt(0).toUpperCase()}
+                            {userProfile.display_name.charAt(0).toUpperCase()}
                         </div>
                     )}
                     <textarea
                         value={content}
                         onChange={(e) => setContent(e.target.value)}
-                        placeholder={`What's on your mind, ${userProfile?.displayName || 'User'}?`}
+                        placeholder={`What's on your mind, ${userProfile?.display_name || 'User'}?`}
                         className="w-full p-3 border-none focus:ring-0 text-gray-800 placeholder-gray-400 resize-none text-lg bg-gray-50 rounded-lg"
                         rows={6}
                     />

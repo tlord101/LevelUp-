@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
-import { signUpWithEmail, signInWithGoogle, signInWithApple } from '../services/firebaseService';
+import { signUpWithEmail, signInWithOAuth } from '../services/supabaseService';
 import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
 
 const GoogleIcon = () => (
@@ -45,6 +45,8 @@ const SignupScreen: React.FC = () => {
         try {
             await signUpWithEmail(email, password);
             hapticSuccess();
+            // AuthProvider will detect the new user and redirect to dashboard
+            // after the profile is created by the trigger.
             navigate('/dashboard');
         } catch (err: any) {
             setError(err.message);
@@ -59,11 +61,9 @@ const SignupScreen: React.FC = () => {
         setLoading(true);
         setError(null);
         try {
-            const signInMethod = provider === 'google' ? signInWithGoogle : signInWithApple;
-            await signInMethod();
+            await signInWithOAuth(provider);
             hapticSuccess();
-            // AuthProvider will detect the new user and ProtectedLayout will redirect to onboarding if needed.
-            navigate('/dashboard');
+            // AuthProvider will handle the redirect upon successful sign-in
         } catch (err: any) {
             setError(err.message);
             hapticError();

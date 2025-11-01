@@ -1,8 +1,7 @@
-
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
-import { signInWithEmail, signInWithGoogle, signInWithApple } from '../services/firebaseService';
+import { signInWithEmail, signInWithOAuth } from '../services/supabaseService';
 import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
 
 const GoogleIcon = () => (
@@ -52,10 +51,9 @@ const LoginScreen: React.FC = () => {
         setLoading(true);
         setError(null);
         try {
-            const signInMethod = provider === 'google' ? signInWithGoogle : signInWithApple;
-            await signInMethod();
+            await signInWithOAuth(provider);
             hapticSuccess();
-            navigate('/dashboard');
+            // AuthProvider will handle the redirect
         } catch (err: any) {
             setError(err.message);
             hapticError();

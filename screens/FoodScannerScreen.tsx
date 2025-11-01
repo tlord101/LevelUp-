@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Camera, Upload, Apple, Clock, ChevronRight, Loader2, X, Share2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { uploadImage, saveNutritionScan, getNutritionScans } from '../services/firebaseService';
+import { uploadImage, saveNutritionScan, getNutritionScans } from '../services/supabaseService';
 import { NutritionScanResult, NutritionScan } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { GoogleGenAI, Type } from '@google/genai';
@@ -109,7 +109,7 @@ const FoodScannerScreen: React.FC = () => {
     const fetchScans = useCallback(async () => {
         if (user) {
             try {
-                const userScans = await getNutritionScans(user.uid);
+                const userScans = await getNutritionScans(user.id);
                 setScans(userScans);
             } catch (err) {
                 console.error("Failed to fetch scans", err);
@@ -126,7 +126,7 @@ const FoodScannerScreen: React.FC = () => {
         const oneWeekAgo = new Date();
         oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
-        const recentScans = scans.filter(s => s.createdAt && (s.createdAt as any).toDate() > oneWeekAgo);
+        const recentScans = scans.filter(s => new Date(s.created_at) > oneWeekAgo);
         
         return recentScans.reduce((acc, scan) => {
             acc.calories += scan.results.calories;
@@ -140,7 +140,7 @@ const FoodScannerScreen: React.FC = () => {
     const caloriesToday = useMemo(() => {
         const today = new Date().setHours(0, 0, 0, 0);
         return scans
-            .filter(s => s.createdAt && (s.createdAt as any).toDate().setHours(0, 0, 0, 0) === today)
+            .filter(s => new Date(s.created_at).setHours(0, 0, 0, 0) === today)
             .reduce((sum, scan) => sum + scan.results.calories, 0);
     }, [scans]);
     
@@ -230,8 +230,8 @@ const FoodScannerScreen: React.FC = () => {
                 },
             };
 
-            const imageUrl = await uploadImage(imageFile, user.uid);
-            await saveNutritionScan(user.uid, imageUrl, parsedResult);
+            const imageUrl = await uploadImage(imageFile, user.id, 'scans');
+            await saveNutritionScan(user.id, imageUrl, parsedResult);
 
             addXP(15);
             hapticSuccess();
@@ -378,7 +378,7 @@ const FoodScannerScreen: React.FC = () => {
                 </div>
                 {scans.length > 0 ? (
                     <div className="flex items-center gap-3">
-                        <img src={scans[0].imageURL} alt={scans[0].results.foodName} className="w-12 h-12 object-cover rounded-lg" />
+                        <img src={scans[0].image_url} alt={scans[0].results.foodName} className="w-12 h-12 object-cover rounded-lg" />
                         <div>
                             <p className="font-semibold capitalize">{scans[0].results.foodName}</p>
                             <p className="text-sm text-gray-500">{scans[0].results.calories.toFixed(0)} Calories</p>

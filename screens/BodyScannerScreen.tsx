@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Camera, Upload, Dumbbell, Clock, ChevronRight, Loader2, X, Share2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { uploadImage, saveBodyScan, getBodyScans } from '../services/firebaseService';
+import { uploadImage, saveBodyScan, getBodyScans } from '../services/supabaseService';
 import { BodyScanResult, BodyScan } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { GoogleGenAI, Type } from '@google/genai';
@@ -106,7 +106,7 @@ const BodyScannerScreen: React.FC = () => {
     const fetchScans = useCallback(async () => {
         if (user) {
             try {
-                const userScans = await getBodyScans(user.uid);
+                const userScans = await getBodyScans(user.id);
                 setScans(userScans);
             } catch (err) {
                 console.error("Failed to fetch scans", err);
@@ -122,7 +122,7 @@ const BodyScannerScreen: React.FC = () => {
     const weeklyAverageBFP = useMemo(() => {
         const oneWeekAgo = new Date();
         oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-        const recentScans = scans.filter(s => s.createdAt && (s.createdAt as any).toDate() > oneWeekAgo);
+        const recentScans = scans.filter(s => new Date(s.created_at) > oneWeekAgo);
         if (recentScans.length === 0) return 0;
         const totalBFP = recentScans.reduce((sum, scan) => sum + scan.results.bodyFatPercentage, 0);
         return totalBFP / recentScans.length;
@@ -197,8 +197,8 @@ const BodyScannerScreen: React.FC = () => {
                 recommendations: analysisData.recommendations,
             };
 
-            const imageUrl = await uploadImage(imageFile, user.uid);
-            await saveBodyScan(user.uid, imageUrl, parsedResult);
+            const imageUrl = await uploadImage(imageFile, user.id, 'scans');
+            await saveBodyScan(user.id, imageUrl, parsedResult);
 
             addXP(20);
             hapticSuccess();
@@ -300,7 +300,7 @@ const BodyScannerScreen: React.FC = () => {
                 <h2 className="font-bold text-gray-800 mb-3">Weekly Averages</h2>
                 <div className="flex gap-3">
                      <StatCard label="Avg. Body Fat" value={`${weeklyAverageBFP.toFixed(1)}%`} color="#8b5cf6" />
-                     <StatCard label="Scans This Week" value={scans.filter(s => s.createdAt && (s.createdAt as any).toDate() > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length.toString()} color="#3b82f6" />
+                     <StatCard label="Scans This Week" value={scans.filter(s => new Date(s.created_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length.toString()} color="#3b82f6" />
                 </div>
             </div>
 
@@ -313,7 +313,7 @@ const BodyScannerScreen: React.FC = () => {
                 </div>
                 {scans.length > 0 ? (
                     <div className="flex items-center gap-3">
-                        <img src={scans[0].imageURL} alt="Last body scan" className="w-12 h-12 object-cover rounded-lg" />
+                        <img src={scans[0].image_url} alt="Last body scan" className="w-12 h-12 object-cover rounded-lg" />
                         <div>
                             <p className="font-semibold">Posture: {scans[0].results.postureAnalysis}</p>
                             <p className="text-sm text-gray-500">BFP: {scans[0].results.bodyFatPercentage.toFixed(1)}%</p>

@@ -22,7 +22,6 @@ import GroupDetailScreen from './screens/GroupDetailScreen';
 import CreatePostScreen from './screens/CreatePostScreen';
 import CreateGroupScreen from './screens/CreateGroupScreen';
 import AICoachScreen from './screens/AICoachScreen';
-import ForegroundNotificationHandler from './components/ForegroundNotificationHandler';
 
 const AppLoader: React.FC = () => (
     <div className="flex items-center justify-center h-screen bg-gray-50">
@@ -33,6 +32,7 @@ const AppLoader: React.FC = () => (
 // This layout protects the main app routes.
 // It ensures the user is logged in AND has completed onboarding.
 const ProtectedLayout: React.FC = () => {
+    // FIX: Removed a large block of erroneous text and restored the useAuth hook call.
     const { user, userProfile, loading } = useAuth();
 
     if (loading) {
@@ -49,13 +49,12 @@ const ProtectedLayout: React.FC = () => {
     }
 
     // If user is logged in but hasn't completed onboarding, redirect them.
-    if (!userProfile.onboardingCompleted) {
+    if (!userProfile.onboarding_completed) {
         return <Navigate to="/onboarding" replace />;
     }
     
     return (
         <div className="relative min-h-screen bg-white pb-20 md:pb-0">
-            <ForegroundNotificationHandler />
             <Outlet />
             <BottomNavBar />
         </div>
@@ -79,7 +78,7 @@ const OnboardingRouteWrapper: React.FC = () => {
     }
     
     // If onboarding is already completed, don't show it again. Redirect to dashboard.
-    if (userProfile.onboardingCompleted) {
+    if (userProfile.onboarding_completed) {
         return <Navigate to="/dashboard" replace />;
     }
     

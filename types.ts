@@ -1,5 +1,3 @@
-import { Timestamp, FieldValue } from 'firebase/firestore';
-
 export enum UserGoal {
   FITNESS = 'fitness',
   BEAUTY = 'beauty',
@@ -8,18 +6,18 @@ export enum UserGoal {
 }
 
 export interface UserProfile {
-  uid: string;
+  id: string;
   email: string | null;
-  displayName: string | null;
+  display_name: string | null;
   age: number | null;
   gender: string | null;
   height: number | null; // in cm
   weight: number | null; // in kg
-  skinType: string | null;
+  skin_type: string | null;
   allergies: string[] | null;
   goal: UserGoal;
-  onboardingCompleted?: boolean;
-  createdAt: Timestamp | FieldValue;
+  onboarding_completed?: boolean;
+  created_at: string;
   level: number;
   xp: number;
   stats: {
@@ -28,15 +26,10 @@ export interface UserProfile {
     energy: number;
     willpower: number;
   };
-  fitnessGoals?: string[];
-  bodyType?: string;
-  activityLevel?: string;
-  healthConditions?: string[];
-  notificationToken?: string | null;
-  notificationPreferences?: {
-    dailyReminders: boolean;
-    communityUpdates: boolean;
-  };
+  fitness_goals?: string[];
+  body_type?: string;
+  activity_level?: string;
+  health_conditions?: string[];
 }
 
 export interface NutritionScanResult {
@@ -52,10 +45,10 @@ export interface NutritionScanResult {
 
 export interface NutritionScan {
   id: string;
-  userId: string;
-  imageURL: string;
+  user_id: string;
+  image_url: string;
   results: NutritionScanResult;
-  createdAt: Timestamp | FieldValue;
+  created_at: string;
 }
 
 export interface BodyScanResult {
@@ -66,10 +59,10 @@ export interface BodyScanResult {
 
 export interface BodyScan {
   id:string;
-  userId: string;
-  imageURL: string;
+  user_id: string;
+  image_url: string;
   results: BodyScanResult;
-  createdAt: Timestamp | FieldValue;
+  created_at: string;
 }
 
 export interface FaceScanResult {
@@ -83,21 +76,21 @@ export interface FaceScanResult {
 
 export interface FaceScan {
   id: string;
-  userId: string;
-  imageURL: string;
+  user_id: string;
+  image_url: string;
   results: FaceScanResult;
-  createdAt: Timestamp | FieldValue;
+  created_at: string;
 }
 
 export interface Post {
   id: string;
-  userId: string;
-  authorDisplayName: string;
+  user_id: string;
+  author_display_name: string;
   content: string;
-  imageUrl?: string;
-  createdAt: Timestamp | FieldValue;
+  image_url?: string;
+  created_at: string;
   likes: string[]; // Array of user IDs who liked the post
-  commentCount: number;
+  comment_count: number;
 }
 
 export interface Group {
@@ -105,7 +98,7 @@ export interface Group {
   name: string;
   description: string;
   icon: string; // emoji
-  ownerId: string;
+  owner_id: string;
   members: string[]; // array of user uids
-  createdAt: Timestamp | FieldValue;
+  created_at: string;
 }

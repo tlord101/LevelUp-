@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getFaceScans } from '../services/firebaseService';
+import { getFaceScans } from '../services/supabaseService';
 import { FaceScan } from '../types';
 import { ArrowLeft, Calendar, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -17,7 +16,7 @@ const FaceHistoryScreen: React.FC = () => {
     const fetchScans = async () => {
       if (user) {
         try {
-          const userScans = await getFaceScans(user.uid);
+          const userScans = await getFaceScans(user.id);
           setScans(userScans);
         } catch (error) {
           console.error("Failed to fetch face scans:", error);
@@ -30,11 +29,9 @@ const FaceHistoryScreen: React.FC = () => {
     fetchScans();
   }, [user]);
 
-  const formatDate = (timestamp: any) => {
-    if (!timestamp || !timestamp.toDate) {
-      return 'Just now';
-    }
-    return timestamp.toDate().toLocaleDateString('en-US', {
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'Just now';
+    return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -43,7 +40,7 @@ const FaceHistoryScreen: React.FC = () => {
 
   const ScanCard: React.FC<{ scan: FaceScan }> = ({ scan }) => (
     <div className="bg-white rounded-xl shadow-md overflow-hidden flex items-center p-4 space-x-4">
-      <img src={scan.imageURL} alt="Face scan" className="w-20 h-20 object-cover rounded-lg flex-shrink-0" />
+      <img src={scan.image_url} alt="Face scan" className="w-20 h-20 object-cover rounded-lg flex-shrink-0" />
       <div className="flex-grow">
         <h3 className="font-bold text-lg text-gray-800 capitalize">Skin Analysis</h3>
         <div className="flex items-center text-sm text-gray-500 mt-1">
@@ -52,7 +49,7 @@ const FaceHistoryScreen: React.FC = () => {
         </div>
         <div className="flex items-center text-xs text-gray-400 mt-2">
           <Calendar size={12} className="mr-1" />
-          <span>{formatDate(scan.createdAt)}</span>
+          <span>{formatDate(scan.created_at)}</span>
         </div>
       </div>
     </div>

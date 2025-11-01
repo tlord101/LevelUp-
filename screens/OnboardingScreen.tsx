@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Flame } from 'lucide-react';
@@ -25,7 +24,7 @@ const onboardingSteps = [
         title: "Fitness Goals",
         subtitle: "What do you want to achieve? (Select all that apply)",
         type: 'multi-select-list',
-        key: 'fitnessGoals',
+        key: 'fitness_goals',
         options: ["Lose Weight", "Build Muscle", "Improve Endurance", "Get Stronger", "Increase Flexibility", "Better Sleep", "Reduce Stress", "General Health"]
     },
     {
@@ -33,7 +32,7 @@ const onboardingSteps = [
         title: "Body Type",
         subtitle: "Which describes you best?",
         type: 'single-select-list',
-        key: 'bodyType',
+        key: 'body_type',
         options: [
             { title: "Ectomorph", description: "Naturally lean, fast metabolism" },
             { title: "Mesomorph", description: "Athletic build, gains muscle easily" },
@@ -46,7 +45,7 @@ const onboardingSteps = [
         title: "Activity Level",
         subtitle: "How active are you currently?",
         type: 'single-select-list',
-        key: 'activityLevel',
+        key: 'activity_level',
         options: [
             { title: "Sedentary", description: "Little to no exercise" },
             { title: "Light", description: "Light exercise 1-3 days/week" },
@@ -60,7 +59,7 @@ const onboardingSteps = [
         title: "Health Conditions",
         subtitle: "Do you have any health conditions we should know about? (Optional)",
         type: 'multi-select-list',
-        key: 'healthConditions',
+        key: 'health_conditions',
         options: ["None", "Diabetes", "Heart Condition", "High Blood Pressure", "Asthma", "Joint Problems", "Back Problems", "Other"]
     },
 ];
@@ -68,13 +67,13 @@ const onboardingSteps = [
 const OnboardingScreen: React.FC = () => {
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState({
-        displayName: '',
+        display_name: '',
         age: '',
         gender: '',
-        fitnessGoals: [] as string[],
-        bodyType: '',
-        activityLevel: '',
-        healthConditions: [] as string[],
+        fitness_goals: [] as string[],
+        body_type: '',
+        activity_level: '',
+        health_conditions: [] as string[],
     });
     const navigate = useNavigate();
     const { updateUserProfileData } = useAuth();
@@ -102,7 +101,7 @@ const OnboardingScreen: React.FC = () => {
             await updateUserProfileData({
                 ...formData,
                 age: parseInt(formData.age, 10) || null,
-                onboardingCompleted: true,
+                onboarding_completed: true,
             });
             hapticSuccess();
             navigate('/dashboard');
@@ -123,7 +122,7 @@ const OnboardingScreen: React.FC = () => {
         } else if (type.startsWith('multi-select')) {
             let currentValues = formData[key] as string[];
             
-            if (key === 'healthConditions') {
+            if (key === 'health_conditions') {
                 if (option === 'None') {
                     currentValues = currentValues.includes('None') ? [] : ['None'];
                 } else {
@@ -145,15 +144,15 @@ const OnboardingScreen: React.FC = () => {
     const isNextDisabled = useMemo(() => {
         switch(step) {
             case 1:
-                return !formData.displayName || !formData.age || isNaN(parseInt(formData.age, 10)) || parseInt(formData.age, 10) <= 0;
+                return !formData.display_name || !formData.age || isNaN(parseInt(formData.age, 10)) || parseInt(formData.age, 10) <= 0;
             case 2:
                 return !formData.gender;
             case 3:
-                return formData.fitnessGoals.length === 0;
+                return formData.fitness_goals.length === 0;
             case 4:
-                return !formData.bodyType;
+                return !formData.body_type;
             case 5:
-                return !formData.activityLevel;
+                return !formData.activity_level;
             case 6:
                  return false; // Optional step
             default:
@@ -188,8 +187,8 @@ const OnboardingScreen: React.FC = () => {
                     {currentStepData.type === 'inputs' && (
                         <div className="space-y-6">
                             <div>
-                                <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 mb-1">What's your name?</label>
-                                <input type="text" name="displayName" id="displayName" placeholder="Enter your full name" value={formData.displayName} onChange={handleInputChange} className="block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-purple-500 focus:border-purple-500" />
+                                <label htmlFor="display_name" className="block text-sm font-medium text-gray-700 mb-1">What's your name?</label>
+                                <input type="text" name="display_name" id="display_name" placeholder="Enter your full name" value={formData.display_name} onChange={handleInputChange} className="block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-purple-500 focus:border-purple-500" />
                             </div>
                             <div>
                                 <label htmlFor="age" className="block text-sm font-medium text-gray-700 mb-1">How old are you?</label>
