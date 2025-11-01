@@ -154,12 +154,14 @@ const FaceScannerScreen: React.FC = () => {
             const base64Image = await blobToBase64(imageFile);
             const imagePart = { inlineData: { mimeType: imageFile.type, data: base64Image } };
 
+            const prompt = "Analyze the photo of the person's face to assess their skin health. Provide a concise analysis of their skin's hydration, clarity, and radiance, and give 2-3 actionable recommendations for skincare. If the image does not contain a face suitable for analysis, indicate that.";
+
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: {
                     parts: [
                         imagePart,
-                        { text: "Analyze the person's face in this photo for skin health. Provide a concise analysis of their skin's hydration, clarity, and radiance. Also, provide 2-3 actionable skincare recommendations. If the image is not a clear photo of a face, please indicate that." }
+                        { text: prompt }
                     ]
                 },
                 config: {
@@ -167,13 +169,13 @@ const FaceScannerScreen: React.FC = () => {
                     responseSchema: {
                         type: Type.OBJECT,
                         properties: {
-                            isFace: { type: Type.BOOLEAN, description: 'Is a clear face visible for analysis?' },
+                            isFace: { type: Type.BOOLEAN, description: 'Is a face clearly visible for analysis?' },
                             skinAnalysis: {
                                 type: Type.OBJECT,
                                 properties: {
-                                    hydration: { type: Type.STRING, description: '"Good", "Fair", or "Poor"' },
-                                    clarity: { type: Type.STRING, description: '"Clear", "Minor Blemishes", or "Congested"' },
-                                    radiance: { type: Type.STRING, description: '"Radiant" or "Dull"' }
+                                    hydration: { type: Type.STRING, description: 'Rate the skin hydration as "Good", "Fair", or "Poor".' },
+                                    clarity: { type: Type.STRING, description: 'Rate the skin clarity as "Clear", "Minor Blemishes", or "Congested".' },
+                                    radiance: { type: Type.STRING, description: 'Rate the skin radiance as "Radiant" or "Dull".' }
                                 },
                                 required: ['hydration', 'clarity', 'radiance']
                             },
@@ -192,9 +194,9 @@ const FaceScannerScreen: React.FC = () => {
             const analysisData = JSON.parse(jsonStr);
 
             if (!analysisData.isFace) {
-                throw new Error("Could not detect a clear face in the image. Please try a different photo.");
+                throw new Error("Could not detect a face in the image. Please try a clearer, front-facing photo.");
             }
-            
+
             const parsedResult: FaceScanResult = {
                 skinAnalysis: analysisData.skinAnalysis,
                 recommendations: analysisData.recommendations,
@@ -210,7 +212,7 @@ const FaceScannerScreen: React.FC = () => {
 
         } catch (err: any) {
             console.error("Analysis failed:", err);
-            setError(err.message || "An unexpected error occurred with Gemini. Please try again.");
+            setError(err.message || "An unexpected error occurred with the AI analysis. Please try again.");
             hapticError();
         } finally {
             setIsLoading(false);
@@ -276,7 +278,7 @@ const FaceScannerScreen: React.FC = () => {
                     className="w-full mt-3 flex items-center justify-center gap-2 py-3 bg-orange-500 text-white font-bold rounded-lg shadow-sm hover:bg-orange-600 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
                 >
                     {isLoading ? <Loader2 className="animate-spin" size={20} /> : <Sparkles size={20} />}
-                    {isLoading ? 'Analyzing...' : 'Analyze with Gemini'}
+                    {isLoading ? 'Analyzing...' : 'Analyze My Skin'}
                 </button>
                 {error && <p className="text-red-500 text-sm text-center mt-2">{error}</p>}
             </div>
