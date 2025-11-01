@@ -1,5 +1,5 @@
 import { supabase } from '../config/supabase';
-import { NutritionScanResult, BodyScanResult, FaceScanResult, NutritionScan, BodyScan, FaceScan, Post, Group } from '../types';
+import { NutritionScanResult, BodyScanResult, FaceScanResult, NutritionScan, BodyScan, FaceScan, Post, Group, Comment } from '../types';
 import { Provider } from '@supabase/supabase-js';
 
 
@@ -122,6 +122,8 @@ export const createPost = async (userId: string, authorDisplayName: string, cont
         author_display_name: authorDisplayName,
         content,
         image_url: imageUrl,
+        likes: [],
+        comment_count: 0,
     });
     if (error) throw error;
 };
@@ -133,6 +135,53 @@ export const getPosts = async (): Promise<Post[]> => {
         .order('created_at', { ascending: false });
     if (error) throw error;
     return data;
+};
+
+export const likePost = async (postId: string): Promise<void> => {
+    const { error } = await supabase.rpc('like_post', { post_id_to_like: postId });
+    if (error) throw error;
+};
+
+export const unlikePost = async (postId: string): Promise<void> => {
+    const { error } = await supabase.rpc('unlike_post', { post_id_to_unlike: postId });
+    if (error) throw error;
+};
+
+export const getCommentsForPost = async (postId: string): Promise<Comment[]> => {
+    const { data, error } = await supabase
+        .from('comments')
+        .select('*')
+        .eq('post_id', postId)
+        .order('created_at', { ascending: true });
+    if (error) throw error;
+    return data;
+};
+
+export const createComment = async (postId: string, userId: string, authorDisplayName: string, content: string): Promise<Comment> => {
+    // 1. Insert the new comment
+    const { data: newComment, error: insertError } = await supabase
+        .from('comments')
+        .insert({
+            post_id: postId,
+            user_id: userId,
+            author_display_name: authorDisplayName,
+            content: content
+        })
+        .select()
+        .single();
+    
+    if (insertError) throw insertError;
+
+    // 2. Increment the comment count on the post
+    const { error: rpcError } = await supabase.rpc('increment_comment_count', { post_id_to_update: postId });
+
+    if (rpcError) {
+        // This is a bit tricky. The comment was created, but the count failed.
+        // For now, we'll log the error and still return the comment.
+        console.error("Failed to increment comment count:", rpcError);
+    }
+    
+    return newComment;
 };
 
 export const createGroup = async (name: string, description: string, icon: string, ownerId: string) => {
@@ -181,7 +230,7 @@ export const joinGroup = async (groupId: string): Promise<void> => {
     if (error) throw error;
 };
 
-export const leaveGroup = async (groupId: string, userId: string): Promise<void> => {
+export const leaveGroup = async (groupId: string): Promise<void> => {
     const { error } = await supabase.rpc('leave_group', { group_id_to_leave: groupId });
     if (error) throw error;
 };

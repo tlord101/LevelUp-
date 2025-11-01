@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { UserProfile, NutritionScan, BodyScan, FaceScan, Post, Group } from '../types';
+import { UserProfile, NutritionScan, BodyScan, FaceScan, Post, Group, Comment } from '../types';
 
 // IMPORTANT: Replace with your project's URL and anon key.
 // You can find these in your Supabase project's API settings.
@@ -33,6 +33,10 @@ interface Database {
         Row: Post;
         Insert: Omit<Post, 'id' | 'created_at' | 'likes' | 'comment_count'>;
       };
+      comments: {
+        Row: Comment;
+        Insert: Omit<Comment, 'id' | 'created_at'>;
+      };
       groups: {
         Row: Group;
         Insert: Omit<Group, 'id' | 'created_at' | 'members'>;
@@ -45,6 +49,18 @@ interface Database {
       };
       leave_group: {
         Args: { group_id_to_leave: string };
+        Returns: void;
+      };
+      like_post: {
+        Args: { post_id_to_like: string };
+        Returns: void;
+      };
+      unlike_post: {
+        Args: { post_id_to_unlike: string };
+        Returns: void;
+      };
+      increment_comment_count: {
+        Args: { post_id_to_update: string };
         Returns: void;
       };
     };

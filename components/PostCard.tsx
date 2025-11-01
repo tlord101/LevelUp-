@@ -1,11 +1,62 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Heart, MessageCircle, MoreHorizontal } from 'lucide-react';
 import { hapticTap } from '../utils/haptics';
 import { Post } from '../types';
 import { formatRelativeTime } from '../utils/formatDate';
+import { useAuth } from '../context/AuthContext';
+import { likePost, unlikePost } from '../services/supabaseService';
+import CommentSection from './CommentSection';
 
 
 const PostCard: React.FC<{ post: Post }> = ({ post }) => {
+    const { user } = useAuth();
+    // Initialize state from props to reflect if the current user has liked the post
+    const [isLiked, setIsLiked] = useState(user ? post.likes.includes(user.id) : false);
+    const [likeCount, setLikeCount] = useState(post.likes.length);
+    const [commentCount, setCommentCount] = useState(post.comment_count);
+    const [commentsVisible, setCommentsVisible] = useState(false);
+
+
+    const handleLikeToggle = async () => {
+        if (!user) {
+            alert("You need to be logged in to like posts.");
+            return;
+        }
+        hapticTap();
+
+        // Optimistic UI update for a responsive feel
+        const originalIsLiked = isLiked;
+        const originalLikeCount = likeCount;
+
+        setIsLiked(!isLiked);
+        setLikeCount(likeCount + (!isLiked ? 1 : -1));
+
+        try {
+            if (!isLiked) {
+                await likePost(post.id);
+            } else {
+                await unlikePost(post.id);
+            }
+        } catch (error: any) {
+            console.error("Failed to update like status:", error);
+            // Revert UI on API call failure
+            setIsLiked(originalIsLiked);
+            setLikeCount(originalLikeCount);
+            const errorMessage = error?.message || "Could not update like status. Please try again.";
+            alert(errorMessage);
+        }
+    };
+
+    const handleCommentPosted = () => {
+        // Optimistically update the comment count
+        setCommentCount(prev => prev + 1);
+    };
+
+    const toggleComments = () => {
+        hapticTap();
+        setCommentsVisible(!commentsVisible);
+    };
+
     return (
         <div className="bg-white rounded-xl shadow-sm">
             {/* Header */}
@@ -25,18 +76,27 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
 
             {/* Actions */}
             <div className="flex justify-around p-2 border-t border-gray-100">
-                <button onClick={hapticTap} className="flex items-center gap-2 text-gray-600 hover:text-red-500 p-2 rounded-lg transition-colors">
-                    <Heart size={20} />
-                    <span className="text-sm font-semibold">{post.likes.length}</span>
+                <button 
+                    onClick={handleLikeToggle} 
+                    className={`flex items-center gap-2 p-2 rounded-lg transition-colors ${
+                        isLiked ? 'text-red-500' : 'text-gray-600 hover:text-red-500'
+                    }`}
+                >
+                    <Heart size={20} className={isLiked ? 'fill-current' : ''} />
+                    <span className="text-sm font-semibold">{likeCount}</span>
                 </button>
-                <button onClick={hapticTap} className="flex items-center gap-2 text-gray-600 hover:text-blue-500 p-2 rounded-lg transition-colors">
+                <button onClick={toggleComments} className="flex items-center gap-2 text-gray-600 hover:text-blue-500 p-2 rounded-lg transition-colors">
                     <MessageCircle size={20} />
-                     <span className="text-sm font-semibold">{post.comment_count}</span>
+                     <span className="text-sm font-semibold">{commentCount}</span>
                 </button>
                 <button onClick={hapticTap} className="flex items-center gap-2 text-gray-600 hover:text-gray-800 p-2 rounded-lg transition-colors">
                     <MoreHorizontal size={20} />
                 </button>
             </div>
+             {/* Comment Section */}
+            {commentsVisible && (
+                <CommentSection postId={post.id} onCommentPosted={handleCommentPosted} />
+            )}
         </div>
     );
 };

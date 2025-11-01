@@ -49,7 +49,9 @@ const GroupDetailScreen: React.FC = () => {
                     setIsUpdatingMembership(false);
                     return;
                 }
-                await leaveGroup(groupId, user.id);
+                // FIX: The `leaveGroup` function expects only one argument (the groupId).
+                // The user ID is handled by the authenticated Supabase session.
+                await leaveGroup(groupId);
                 setGroup(prev => prev ? { ...prev, members: prev.members.filter(id => id !== user.id) } : null);
                 setIsMember(false);
             } else {

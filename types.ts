@@ -93,6 +93,15 @@ export interface Post {
   comment_count: number;
 }
 
+export interface Comment {
+  id: string;
+  post_id: string;
+  user_id: string;
+  author_display_name: string;
+  content: string;
+  created_at: string;
+}
+
 export interface Group {
   id: string;
   name: string;
