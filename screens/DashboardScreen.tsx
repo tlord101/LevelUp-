@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { dailyMissions, Mission } from '../services/missions';
-import { Settings, Trophy, Target, Apple, Dumbbell, Sparkles, ChevronRight } from 'lucide-react';
+import { Settings, Trophy, Target, Apple, Dumbbell, Sparkles, ChevronRight, UtensilsCrossed } from 'lucide-react';
 import AvatarDisplay from '../components/AvatarDisplay';
 import { useNavigate } from 'react-router-dom';
 import { hapticTap } from '../utils/haptics';
@@ -74,6 +74,22 @@ const DashboardScreen: React.FC = () => {
             </div>
 
             <AvatarDisplay level={userProfile.level} stats={userProfile.stats} />
+            
+            <div
+                onClick={() => { hapticTap(); navigate('/nutrition-tracker'); }}
+                className="bg-green-50 border border-green-200 p-4 rounded-xl shadow-sm flex items-center justify-between cursor-pointer hover:bg-green-100/70"
+            >
+                <div className="flex items-center gap-4">
+                    <div className="bg-green-100 p-3 rounded-full">
+                        <UtensilsCrossed className="w-6 h-6 text-green-600" />
+                    </div>
+                    <div>
+                        <p className="font-bold text-green-800">Today's Nutrition</p>
+                        <p className="text-sm text-green-600">Log meals and track your macros</p>
+                    </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-green-500" />
+            </div>
 
             <div>
                 <h2 className="text-xl font-bold text-gray-800 mb-3">Your Stats</h2>

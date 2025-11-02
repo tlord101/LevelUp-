@@ -1,13 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { signOutUser } from '../services/supabaseService';
-import { useNavigate } from 'react-router-dom';
-import { BookOpen, Scan, Smile } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Clock, UserPlus, Gift, Wallet, Settings as SettingsIcon, Sun, Moon } from 'lucide-react';
 import { hapticTap } from '../utils/haptics';
 
 const ProfileScreen: React.FC = () => {
   const { userProfile } = useAuth();
   const navigate = useNavigate();
+  const [isDarkMode, setIsDarkMode] = useState(true);
 
   const handleLogout = async () => {
     hapticTap();
@@ -18,87 +19,81 @@ const ProfileScreen: React.FC = () => {
       console.error('Failed to log out:', error);
     }
   };
+  
+  const toggleTheme = () => {
+      hapticTap();
+      setIsDarkMode(!isDarkMode);
+  }
+
+  const menuItems = [
+    { label: 'Learn and earn', icon: Clock, path: '/dashboard', badge: null },
+    { label: 'Invite friends', icon: UserPlus, path: '/community', badge: null },
+    { label: 'Send a gift', icon: Gift, path: '#', badge: '$10' },
+    { label: 'Get wallet', icon: Wallet, path: '#', badge: null },
+    { label: 'Setting', icon: SettingsIcon, path: '#', badge: null },
+  ];
+
+  // Using a map for theme classes for cleaner code
+  const theme = {
+    bg: isDarkMode ? 'bg-gray-900' : 'bg-white',
+    textPrimary: isDarkMode ? 'text-white' : 'text-gray-900',
+    textSecondary: isDarkMode ? 'text-gray-400' : 'text-gray-500',
+    divider: isDarkMode ? 'border-gray-700' : 'border-gray-200',
+    buttonBg: isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-100 hover:bg-gray-200',
+    buttonText: isDarkMode ? 'text-white' : 'text-gray-800',
+    badgeBg: 'bg-yellow-400',
+    badgeText: 'text-black',
+    containerBg: isDarkMode ? 'bg-gray-800' : 'bg-gray-200',
+  };
+  
+  // A placeholder image URL that resembles the one in the screenshot
+  const profileImageUrl = "https://i.pinimg.com/736x/03/65/0a/03650a358248c8a272b0c39f284e3d64.jpg";
 
   return (
-    <div className="space-y-4 p-4 pb-24">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Your Profile</h1>
-        <p className="mt-2 text-lg text-gray-600">Manage your account and preferences.</p>
+    <div className={`min-h-screen p-4 flex items-center justify-center ${theme.containerBg} transition-colors duration-300`}>
+      {/* Absolute positioned theme toggle button */}
+      <div className="absolute top-6 right-6 z-20">
+        <button onClick={toggleTheme} className={`p-3 rounded-full ${isDarkMode ? 'bg-yellow-400 text-gray-900' : 'bg-gray-800 text-white'} transition-colors duration-300`}>
+          {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+        </button>
       </div>
 
-      {userProfile && (
-        <div className="bg-white shadow-md rounded-lg p-6 space-y-4">
-          <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white text-2xl font-bold">
-                  {userProfile.display_name?.charAt(0).toUpperCase()}
-              </div>
-              <div>
-                  <h2 className="text-xl font-semibold text-gray-800">{userProfile.display_name}</h2>
-                  <p className="text-sm text-gray-500">{userProfile.email}</p>
-              </div>
-          </div>
-          <div className="border-t border-gray-200 pt-4">
-            <dl className="grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2">
-              <div className="sm:col-span-1">
-                <dt className="text-sm font-medium text-gray-500">Goal</dt>
-                <dd className="mt-1 text-sm text-gray-900 capitalize">{userProfile.goal}</dd>
-              </div>
-              <div className="sm:col-span-1">
-                <dt className="text-sm font-medium text-gray-500">Level</dt>
-                <dd className="mt-1 text-sm text-gray-900">{userProfile.level}</dd>
-              </div>
-              <div className="sm:col-span-1">
-                <dt className="text-sm font-medium text-gray-500">Gender</dt>
-                <dd className="mt-1 text-sm text-gray-900 capitalize">{userProfile.gender || 'Not set'}</dd>
-              </div>
-              <div className="sm:col-span-1">
-                <dt className="text-sm font-medium text-gray-500">Age</dt>
-                <dd className="mt-1 text-sm text-gray-900">{userProfile.age || 'Not set'}</dd>
-              </div>
-            </dl>
-          </div>
+      {/* Profile Card Container */}
+      <div className={`${theme.bg} w-full max-w-sm rounded-[40px] shadow-2xl p-8 flex flex-col h-[90vh] max-h-[750px] transition-colors duration-300`}>
+        
+        {/* Profile Header */}
+        <div className="flex flex-col items-center text-center">
+            <img 
+                src={profileImageUrl} 
+                alt="Profile Avatar" 
+                className="w-24 h-24 rounded-full object-cover border-4 border-gray-500/50 mb-4" 
+            />
+            <h2 className={`text-2xl font-bold ${theme.textPrimary}`}>{userProfile?.display_name || 'Bardia Adibi'}</h2>
+            <p className={`text-sm ${theme.textSecondary}`}>{userProfile?.email || 'bardiaadb@gmail.com'}</p>
         </div>
-      )}
 
-      <button
-        onClick={() => {
-            hapticTap();
-            navigate('/food-history');
-        }}
-        className="w-full flex items-center justify-center gap-2 bg-white text-gray-800 font-bold py-3 px-6 rounded-lg hover:bg-gray-100 transition duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 border border-gray-200 shadow-sm"
-      >
-        <BookOpen size={20} />
-        Food Scan History
-      </button>
+        <hr className={`my-8 ${theme.divider}`} />
+        
+        {/* Menu Items */}
+        <nav className="flex-grow space-y-5">
+          {menuItems.map((item, index) => (
+            <Link to={item.path} key={index} className="flex items-center justify-between group" onClick={hapticTap}>
+                <div className="flex items-center gap-4">
+                    <item.icon className={theme.textSecondary} size={24} />
+                    <span className={`font-medium ${theme.textPrimary}`}>{item.label}</span>
+                </div>
+                {item.badge && (
+                    <span className={`px-3 py-1 text-xs font-bold rounded-full ${theme.badgeBg} ${theme.badgeText}`}>{item.badge}</span>
+                )}
+            </Link>
+          ))}
+        </nav>
 
-      <button
-        onClick={() => {
-            hapticTap();
-            navigate('/body-history');
-        }}
-        className="w-full flex items-center justify-center gap-2 bg-white text-gray-800 font-bold py-3 px-6 rounded-lg hover:bg-gray-100 transition duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 border border-gray-200 shadow-sm"
-      >
-        <Scan size={20} />
-        Body Scan History
-      </button>
-
-      <button
-        onClick={() => {
-            hapticTap();
-            navigate('/face-history');
-        }}
-        className="w-full flex items-center justify-center gap-2 bg-white text-gray-800 font-bold py-3 px-6 rounded-lg hover:bg-gray-100 transition duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 border border-gray-200 shadow-sm"
-      >
-        <Smile size={20} />
-        Face Scan History
-      </button>
-      
-      <button
-        onClick={handleLogout}
-        className="w-full bg-red-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-red-600 transition duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-      >
-        Log Out
-      </button>
+        {/* Sign Out Button */}
+        <button onClick={handleLogout} className={`w-full py-4 rounded-full font-bold text-lg transition-colors ${theme.buttonBg} ${theme.buttonText}`}>
+          Sign out
+        </button>
+      </div>
     </div>
   );
 };

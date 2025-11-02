@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Camera, Upload, Dumbbell, Clock, ChevronRight, Loader2, X, Share2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { uploadImage, saveBodyScan, getBodyScans } from '../services/supabaseService';
@@ -6,81 +7,10 @@ import { BodyScanResult, BodyScan } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { GoogleGenAI, Type } from '@google/genai';
 import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
+import { blobToBase64 } from '../utils/imageUtils';
+import { useImageScanner } from '../hooks/useImageScanner';
+import CameraView from '../components/CameraView';
 
-const blobToBase64 = (blob: Blob): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            if (typeof reader.result !== 'string') {
-                return reject(new Error('Failed to read blob as a data URL.'));
-            }
-            const base64String = reader.result.split(',')[1];
-            resolve(base64String);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-    });
-};
-
-const CameraView: React.FC<{ onCapture: (blob: Blob) => void; onClose: () => void; }> = ({ onCapture, onClose }) => {
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-
-    useEffect(() => {
-        let stream: MediaStream;
-        const startCamera = async () => {
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-                if (videoRef.current) {
-                    videoRef.current.srcObject = stream;
-                }
-            } catch (err) {
-                console.error("Camera access denied:", err);
-                alert("Camera access was denied. Please enable it in your browser settings.");
-                onClose();
-            }
-        };
-        startCamera();
-        return () => {
-            stream?.getTracks().forEach(track => track.stop());
-        };
-    }, [onClose]);
-
-    const handleCapture = () => {
-        if (videoRef.current && canvasRef.current) {
-            const video = videoRef.current;
-            const canvas = canvasRef.current;
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            canvas.getContext('2d')?.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-            canvas.toBlob((blob) => {
-                if (blob) {
-                    hapticTap();
-                    onCapture(blob);
-                }
-            }, 'image/jpeg', 0.9);
-        }
-    };
-
-    const handleClose = () => {
-        hapticTap();
-        onClose();
-    };
-    
-    return (
-        <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-center">
-            <canvas ref={canvasRef} className="hidden"></canvas>
-            <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" style={{ transform: 'scaleX(-1)' }}></video>
-            <div className="absolute inset-0 bg-black/20 flex flex-col items-center justify-between p-6">
-                <button onClick={handleClose} className="self-start text-white bg-black/50 p-2 rounded-full"><X size={24} /></button>
-                <div className="w-full max-w-sm text-center">
-                    <p className="text-white font-semibold text-lg bg-black/50 py-2 px-4 rounded-xl">Position your full body in the frame</p>
-                </div>
-                <button onClick={handleCapture} className="w-20 h-20 bg-white rounded-full border-4 border-white/50 ring-4 ring-black/30"></button>
-            </div>
-        </div>
-    );
-};
 
 const StatCard: React.FC<{ label: string; value: string; color: string; }> = ({ label, value, color }) => (
     <div className="flex-1 p-3 rounded-lg text-center" style={{ backgroundColor: `${color}1A`}}>
@@ -91,17 +21,15 @@ const StatCard: React.FC<{ label: string; value: string; color: string; }> = ({ 
 
 
 const BodyScannerScreen: React.FC = () => {
-    const [imageFile, setImageFile] = useState<File | Blob | null>(null);
-    const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [scans, setScans] = useState<BodyScan[]>([]);
     const [latestScanData, setLatestScanData] = useState<{ result: BodyScanResult; imageUrl: string } | null>(null);
-    const [showCamera, setShowCamera] = useState(false);
     
     const { user, addXP } = useAuth();
     const navigate = useNavigate();
-    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const scanner = useImageScanner(() => setError(null));
 
     const fetchScans = useCallback(async () => {
         if (user) {
@@ -129,24 +57,8 @@ const BodyScannerScreen: React.FC = () => {
     }, [scans]);
 
 
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            setImageFile(file);
-            setImagePreview(URL.createObjectURL(file));
-            setError(null);
-        }
-    };
-    
-    const handleCapture = (blob: Blob) => {
-        setImageFile(blob);
-        setImagePreview(URL.createObjectURL(blob));
-        setShowCamera(false);
-        setError(null);
-    };
-
     const handleAnalyze = async () => {
-        if (!imageFile || !user) return;
+        if (!scanner.imageFile || !user) return;
 
         setIsLoading(true);
         setError(null);
@@ -154,8 +66,8 @@ const BodyScannerScreen: React.FC = () => {
 
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-            const base64Image = await blobToBase64(imageFile);
-            const imagePart = { inlineData: { mimeType: imageFile.type, data: base64Image } };
+            const base64Image = await blobToBase64(scanner.imageFile);
+            const imagePart = { inlineData: { mimeType: scanner.imageFile.type, data: base64Image } };
 
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
@@ -197,7 +109,7 @@ const BodyScannerScreen: React.FC = () => {
                 recommendations: analysisData.recommendations,
             };
 
-            const imageUrl = await uploadImage(imageFile, user.id, 'scans');
+            const imageUrl = await uploadImage(scanner.imageFile, user.id, 'scans');
             await saveBodyScan(user.id, imageUrl, parsedResult);
 
             addXP(20);
@@ -211,8 +123,7 @@ const BodyScannerScreen: React.FC = () => {
             hapticError();
         } finally {
             setIsLoading(false);
-            setImageFile(null);
-            setImagePreview(null);
+            scanner.reset();
         }
     };
 
@@ -235,7 +146,7 @@ const BodyScannerScreen: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 p-4 pb-24 space-y-5">
-            {showCamera && <CameraView onCapture={handleCapture} onClose={() => setShowCamera(false)} />}
+            {scanner.showCamera && <CameraView onCapture={scanner.handleCapture} onClose={scanner.closeCamera} promptText="Position your full body in the frame" />}
             
             <header className="text-center">
                 <h1 className="text-2xl font-bold text-gray-800">Body Scanner</h1>
@@ -246,8 +157,8 @@ const BodyScannerScreen: React.FC = () => {
                 <div 
                     className="relative flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50"
                 >
-                    {imagePreview ? (
-                        <img src={imagePreview} alt="Selected for analysis" className="w-full h-full object-cover rounded-lg" />
+                    {scanner.imagePreview ? (
+                        <img src={scanner.imagePreview} alt="Selected for analysis" className="w-full h-full object-cover rounded-lg" />
                     ) : (
                         <>
                             <Upload className="w-10 h-10 text-gray-400 mb-2" />
@@ -256,20 +167,20 @@ const BodyScannerScreen: React.FC = () => {
                         </>
                     )}
                 </div>
-                <input type="file" accept="image/jpeg,image/png" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
+                <input type="file" accept="image/jpeg,image/png" ref={scanner.fileInputRef} onChange={scanner.handleFileChange} className="hidden" />
 
                 <div className="grid grid-cols-2 gap-3 mt-4">
-                    <button onClick={() => { hapticTap(); setShowCamera(true); }} className="flex items-center justify-center gap-2 py-3 bg-purple-600 text-white font-semibold rounded-lg shadow-sm hover:bg-purple-700 transition">
+                    <button onClick={() => { hapticTap(); scanner.openCamera(); }} className="flex items-center justify-center gap-2 py-3 bg-purple-600 text-white font-semibold rounded-lg shadow-sm hover:bg-purple-700 transition">
                         <Camera size={20} /> Use Camera
                     </button>
-                    <button onClick={() => { hapticTap(); fileInputRef.current?.click(); }} className="flex items-center justify-center gap-2 py-3 bg-white text-purple-700 font-semibold rounded-lg border border-purple-200 hover:bg-purple-50 transition">
+                    <button onClick={() => { hapticTap(); scanner.triggerFileInput(); }} className="flex items-center justify-center gap-2 py-3 bg-white text-purple-700 font-semibold rounded-lg border border-purple-200 hover:bg-purple-50 transition">
                         <Upload size={20} /> Upload Photo
                     </button>
                 </div>
 
                 <button
                     onClick={() => { hapticTap(); handleAnalyze(); }}
-                    disabled={!imageFile || isLoading}
+                    disabled={!scanner.imageFile || isLoading}
                     className="w-full mt-3 flex items-center justify-center gap-2 py-3 bg-blue-600 text-white font-bold rounded-lg shadow-sm hover:bg-blue-700 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
                 >
                     {isLoading ? <Loader2 className="animate-spin" size={20} /> : <Dumbbell size={20} />}

@@ -30,6 +30,7 @@ export interface UserProfile {
   body_type?: string;
   activity_level?: string;
   health_conditions?: string[];
+  calorie_goal?: number;
 }
 
 export interface NutritionScanResult {
@@ -109,5 +110,16 @@ export interface Group {
   icon: string; // emoji
   owner_id: string;
   members: string[]; // array of user uids
+  created_at: string;
+}
+
+export interface NutritionLog {
+  id: string;
+  user_id: string;
+  food_name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
   created_at: string;
 }

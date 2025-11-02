@@ -22,6 +22,7 @@ import GroupDetailScreen from './screens/GroupDetailScreen';
 import CreatePostScreen from './screens/CreatePostScreen';
 import CreateGroupScreen from './screens/CreateGroupScreen';
 import AICoachScreen from './screens/AICoachScreen';
+import NutritionTrackerScreen from './screens/NutritionTrackerScreen';
 
 const AppLoader: React.FC = () => (
     <div className="flex items-center justify-center h-screen bg-gray-50">
@@ -105,6 +106,7 @@ const App: React.FC = () => {
                     <Route path="/scanner/body" element={<BodyScannerScreen />} />
                     <Route path="/scanner/face" element={<FaceScannerScreen />} />
                     <Route path="/scanner/food" element={<FoodScannerScreen />} />
+                    <Route path="/nutrition-tracker" element={<NutritionTrackerScreen />} />
                     <Route path="/food-history" element={<FoodHistoryScreen />} />
                     <Route path="/body-history" element={<BodyHistoryScreen />} />
                     <Route path="/face-history" element={<FaceHistoryScreen />} />

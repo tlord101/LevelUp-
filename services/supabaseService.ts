@@ -1,5 +1,5 @@
 import { supabase } from '../config/supabase';
-import { NutritionScanResult, BodyScanResult, FaceScanResult, NutritionScan, BodyScan, FaceScan, Post, Group, Comment } from '../types';
+import { NutritionScanResult, BodyScanResult, FaceScanResult, NutritionScan, BodyScan, FaceScan, Post, Group, Comment, NutritionLog } from '../types';
 import { Provider } from '@supabase/supabase-js';
 
 
@@ -109,6 +109,31 @@ export const getFaceScans = async (userId: string): Promise<FaceScan[]> => {
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data;
+};
+
+// --- DATABASE: NUTRITION LOGS ---
+
+export const logNutritionIntake = async (userId: string, logData: Omit<NutritionLog, 'id' | 'user_id' | 'created_at'>) => {
+    const { error } = await supabase.from('daily_nutrition_logs').insert({
+        user_id: userId,
+        ...logData,
+    });
+    if (error) throw error;
+};
+
+export const getTodaysNutritionLogs = async (userId: string): Promise<NutritionLog[]> => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const { data, error } = await supabase
+        .from('daily_nutrition_logs')
+        .select('*')
+        .eq('user_id', userId)
+        .gte('created_at', today.toISOString())
+        .order('created_at', { ascending: true });
+
     if (error) throw error;
     return data;
 };
@@ -233,4 +258,85 @@ export const joinGroup = async (groupId: string): Promise<void> => {
 export const leaveGroup = async (groupId: string): Promise<void> => {
     const { error } = await supabase.rpc('leave_group', { group_id_to_leave: groupId });
     if (error) throw error;
+};
+
+// --- DATABASE: AI COACH FUNCTIONS ---
+
+export const getUserStats = async (userId: string) => {
+    const { data, error } = await supabase
+        .from('profiles')
+        .select('level, xp, stats')
+        .eq('id', userId)
+        .single();
+    if (error) throw error;
+    return data;
+};
+
+export const getLatestScan = async (userId:string, scanType: 'nutrition' | 'body' | 'face') => {
+    let tableName: 'nutrition_scans' | 'body_scans' | 'face_scans';
+
+    switch(scanType) {
+        case 'nutrition':
+            tableName = 'nutrition_scans';
+            break;
+        case 'body':
+            tableName = 'body_scans';
+            break;
+        case 'face':
+            tableName = 'face_scans';
+            break;
+        default:
+            throw new Error('Invalid scan type');
+    }
+
+    const { data, error } = await supabase
+        .from(tableName)
+        .select('results, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+    
+    if (error) {
+        if (error.code === 'PGRST116') { // PostgREST error for "exact one row not found"
+            return { message: `No ${scanType} scans found for this user.`};
+        }
+        throw error;
+    }
+    return data;
+}
+
+export const getWeeklyNutritionSummary = async (userId: string) => {
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+    const { data, error } = await supabase
+        .from('nutrition_scans')
+        .select('results')
+        .eq('user_id', userId)
+        .gte('created_at', oneWeekAgo.toISOString());
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+        return { message: 'No nutrition scans found in the last week.' };
+    }
+
+    const summary = data.reduce((acc, scan) => {
+        const results = scan.results as NutritionScanResult;
+        acc.totalCalories += results.calories;
+        acc.totalProtein += results.macros.protein;
+        acc.totalCarbs += results.macros.carbs;
+        acc.totalFat += results.macros.fat;
+        acc.scanCount += 1;
+        return acc;
+    }, { totalCalories: 0, totalProtein: 0, totalCarbs: 0, totalFat: 0, scanCount: 0 });
+
+    return {
+        scanCount: summary.scanCount,
+        averageCalories: summary.totalCalories / summary.scanCount,
+        averageProtein: summary.totalProtein / summary.scanCount,
+        averageCarbs: summary.totalCarbs / summary.scanCount,
+        averageFat: summary.totalFat / summary.scanCount,
+    };
 };

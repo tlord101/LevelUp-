@@ -1,18 +1,47 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send } from 'lucide-react';
-import { GoogleGenAI, Chat } from '@google/genai';
+import { GoogleGenAI, Chat, FunctionDeclaration, Type, Part } from '@google/genai';
 import { useAuth } from '../context/AuthContext';
 import { hapticTap } from '../utils/haptics';
+import { getUserStats, getLatestScan, getWeeklyNutritionSummary } from '../services/supabaseService';
 
 interface Message {
     role: 'user' | 'model';
     text: string;
 }
 
+const tools: FunctionDeclaration[] = [
+    {
+        name: 'get_user_stats',
+        description: "Retrieves the user's current game-like stats, such as level, experience points (XP), strength, glow, energy, and willpower.",
+        parameters: { type: Type.OBJECT, properties: {} }
+    },
+    {
+        name: 'get_latest_scan',
+        description: 'Gets the results of the most recent body, face, or nutrition scan the user has performed.',
+        parameters: {
+            type: Type.OBJECT,
+            properties: {
+                scan_type: {
+                    type: Type.STRING,
+                    description: "The type of scan to retrieve. Can be 'nutrition', 'body', or 'face'.",
+                    enum: ['nutrition', 'body', 'face']
+                }
+            },
+            required: ['scan_type']
+        }
+    },
+    {
+        name: 'get_weekly_nutrition_summary',
+        description: "Calculates and returns the user's average nutritional intake (calories, protein, carbs, fat) based on all their food scans from the last 7 days.",
+        parameters: { type: Type.OBJECT, properties: {} }
+    }
+];
+
 const AICoachScreen: React.FC = () => {
     const navigate = useNavigate();
-    const { userProfile } = useAuth();
+    const { user, userProfile } = useAuth();
     const [chat, setChat] = useState<Chat | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
     const [userInput, setUserInput] = useState('');
@@ -28,7 +57,8 @@ const AICoachScreen: React.FC = () => {
                 const chatInstance = ai.chats.create({
                     model: 'gemini-2.5-flash',
                     config: {
-                        systemInstruction: `You are LevelUp AI, a friendly and motivating personal coach for the LevelUp app. Your goal is to help users with their fitness, nutrition, and wellness journey. Be encouraging, provide actionable advice, and keep responses concise and easy to understand. The user's name is ${userProfile?.display_name || 'User'}.`,
+                        systemInstruction: `You are LevelUp AI, a friendly and motivating personal coach for the LevelUp app. Your goal is to help users with their fitness, nutrition, and wellness journey. Be encouraging, provide actionable advice, and keep responses concise and easy to understand. The user's name is ${userProfile?.display_name || 'User'}. When you use your tools to get data, present it to the user in a natural, conversational way.`,
+                        tools: [{functionDeclarations: tools}]
                     },
                 });
                 setChat(chatInstance);
@@ -54,42 +84,80 @@ const AICoachScreen: React.FC = () => {
     }, [userInput]);
 
     const handleSendMessage = async () => {
-        if (!userInput.trim() || isLoading || !chat) return;
-
+        if (!userInput.trim() || isLoading || !chat || !user) return;
+    
         hapticTap();
         const userMessage: Message = { role: 'user', text: userInput };
         setMessages(prev => [...prev, userMessage]);
         const currentInput = userInput;
         setUserInput('');
         setIsLoading(true);
-
+    
         try {
-            const stream = await chat.sendMessageStream({ message: currentInput });
-            
-            let modelResponse = '';
-            // Add a placeholder for the model's response
-            setMessages(prev => [...prev, { role: 'model', text: '' }]);
-
-            for await (const chunk of stream) {
-                modelResponse += chunk.text;
-                setMessages(prev => {
-                    const newMessages = [...prev];
-                    newMessages[newMessages.length - 1] = { role: 'model', text: modelResponse };
-                    return newMessages;
-                });
+            let response = await chat.sendMessage({ message: currentInput });
+    
+            // Check for function calls
+            if (response.functionCalls && response.functionCalls.length > 0) {
+                
+                const modelThinkingMessage: Message = { role: 'model', text: '...' };
+                setMessages(prev => [...prev, modelThinkingMessage]);
+                
+                const functionResponseParts: Part[] = [];
+    
+                for (const fc of response.functionCalls) {
+                    let result;
+                    try {
+                        switch (fc.name) {
+                            case 'get_user_stats':
+                                result = await getUserStats(user.id);
+                                break;
+                            case 'get_latest_scan':
+                                const scanType = fc.args.scan_type as 'nutrition' | 'body' | 'face';
+                                result = await getLatestScan(user.id, scanType);
+                                break;
+                            case 'get_weekly_nutrition_summary':
+                                result = await getWeeklyNutritionSummary(user.id);
+                                break;
+                            default:
+                                result = { error: `Function ${fc.name} not found.` };
+                        }
+                        functionResponseParts.push({
+                            functionResponse: {
+                                name: fc.name,
+                                response: result,
+                            },
+                        });
+                    } catch (e: any) {
+                        functionResponseParts.push({
+                           functionResponse: {
+                                name: fc.name,
+                                response: { error: e.message },
+                           }
+                        });
+                    }
+                }
+    
+                // Send function responses back to the model as parts of a new message
+                response = await chat.sendMessage({ message: functionResponseParts });
             }
-        } catch (error) {
-            console.error('Error sending message:', error);
+    
+            // Update the UI with the final text response
+            const modelResponseMessage: Message = { role: 'model', text: response.text };
+    
             setMessages(prev => {
                 const newMessages = [...prev];
                 const lastMessage = newMessages[newMessages.length - 1];
-                if (lastMessage.role === 'model') {
-                    lastMessage.text = "Sorry, I'm having trouble connecting right now.";
+                if (lastMessage && lastMessage.role === 'model' && lastMessage.text === '...') {
+                    newMessages[newMessages.length - 1] = modelResponseMessage;
                 } else {
-                    newMessages.push({ role: 'model', text: "Sorry, I'm having trouble connecting right now." });
+                    newMessages.push(modelResponseMessage);
                 }
                 return newMessages;
             });
+    
+        } catch (error) {
+            console.error('Error sending message:', error);
+            setMessages(prev => [...prev, { role: 'model', text: "Sorry, I encountered an error. Please try again." }]);
         } finally {
             setIsLoading(false);
         }
@@ -115,11 +183,11 @@ const AICoachScreen: React.FC = () => {
                 {messages.map((msg, index) => (
                     <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                         <div className={`max-w-xs md:max-w-md lg:max-w-lg px-4 py-3 rounded-2xl ${msg.role === 'user' ? 'bg-purple-600 text-white rounded-br-lg' : 'bg-white text-gray-800 rounded-bl-lg shadow-sm border border-gray-200'}`}>
-                           <p className="whitespace-pre-wrap">{msg.text || '...'}</p>
+                           <p className="whitespace-pre-wrap">{msg.text}</p>
                         </div>
                     </div>
                 ))}
-                {isLoading && messages[messages.length-1]?.role === 'user' && (
+                 {isLoading && messages[messages.length-1]?.role !== 'model' && (
                      <div className="flex justify-start">
                         <div className="max-w-xs px-4 py-3 rounded-2xl bg-white text-gray-800 rounded-bl-lg shadow-sm border border-gray-200">
                            <div className="flex items-center gap-2">

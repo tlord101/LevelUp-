@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { UserProfile, NutritionScan, BodyScan, FaceScan, Post, Group, Comment } from '../types';
+import { UserProfile, NutritionScan, BodyScan, FaceScan, Post, Group, Comment, NutritionLog } from '../types';
 
 // IMPORTANT: Replace with your project's URL and anon key.
 // You can find these in your Supabase project's API settings.
@@ -13,7 +13,7 @@ interface Database {
   public: {
     Tables: {
       profiles: {
-        Row: UserProfile;
+        Row: UserProfile & { calorie_goal: number | null };
         Insert: Partial<UserProfile>;
         Update: Partial<UserProfile>;
       };
@@ -40,6 +40,10 @@ interface Database {
       groups: {
         Row: Group;
         Insert: Omit<Group, 'id' | 'created_at' | 'members'>;
+      };
+      daily_nutrition_logs: {
+        Row: NutritionLog;
+        Insert: Omit<NutritionLog, 'id' | 'created_at' | 'user_id'> & { user_id?: string };
       }
     };
     Functions: {
