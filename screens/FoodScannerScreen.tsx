@@ -1,9 +1,10 @@
 
-import React, { useState, useCallback } from 'react';
-import { Camera, Upload, Apple, Loader2, ArrowLeft, CheckCircle } from 'lucide-react';
+
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Camera, Upload, Apple, Clock, ChevronRight, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { uploadImage, saveNutritionScan, logNutritionIntake } from '../services/supabaseService';
-import { NutritionScanResult } from '../types';
+import { uploadImage, saveNutritionScan, getNutritionScans, logNutritionIntake } from '../services/supabaseService';
+import { NutritionScanResult, NutritionScan } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { GoogleGenAI, Type } from '@google/genai';
 import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
@@ -11,34 +12,78 @@ import { blobToBase64 } from '../utils/imageUtils';
 import { useImageScanner } from '../hooks/useImageScanner';
 import CameraView from '../components/CameraView';
 
+const StatCard: React.FC<{ label: string; value: string; color: string; }> = ({ label, value, color }) => (
+    <div className="flex-1 p-3 rounded-lg text-center" style={{ backgroundColor: `${color}1A`}}>
+        <p className={`text-lg font-bold`} style={{ color }}>{value}</p>
+        <p className="text-xs text-gray-600">{label}</p>
+    </div>
+);
+
 const FoodScannerScreen: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [scanResult, setScanResult] = useState<NutritionScanResult | null>(null);
-    
+    const [scans, setScans] = useState<NutritionScan[]>([]);
+   
     const { user, addXP } = useAuth();
     const navigate = useNavigate();
 
-    const resetComponentState = useCallback(() => {
-        setError(null);
-        setScanResult(null);
-        setIsLoading(false);
-        scanner.reset();
-    }, []);
-
     const scanner = useImageScanner(() => {
-        // When a new image is selected, reset everything except the image itself
         setError(null);
-        setScanResult(null);
-        setIsLoading(false);
     });
 
-    const handleAnalyze = async () => {
+    const fetchScans = useCallback(async () => {
+        if (user) {
+            try {
+                const userScans = await getNutritionScans(user.id);
+                setScans(userScans);
+            } catch (err) {
+                console.error("Failed to fetch scans", err);
+                setError("Could not load your scan history.");
+            }
+        }
+    }, [user]);
+
+    useEffect(() => {
+        fetchScans();
+    }, [fetchScans]);
+
+    const weeklyAverageCalories = useMemo(() => {
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+        const recentScans = scans.filter(s => new Date(s.created_at) > oneWeekAgo);
+        if (recentScans.length === 0) return 0;
+        
+        // FIX: Explicitly set the generic type for the reduce accumulator to Record<string, number>.
+        // This ensures TypeScript correctly infers the types for `acc` and its properties,
+        // resolving errors with arithmetic operations on `unknown` types.
+        const dailyTotals = recentScans.reduce<Record<string, number>>((acc, scan) => {
+            const date = new Date(scan.created_at).toDateString();
+            const currentCalories = acc[date] || 0;
+            const results = scan.results as NutritionScanResult;
+            return {
+                ...acc,
+                [date]: currentCalories + (results.calories || 0),
+            };
+        }, {});
+
+        const numberOfDays = Object.keys(dailyTotals).length;
+        if (numberOfDays === 0) return 0;
+        
+        const totalCalories = Object.values(dailyTotals).reduce((sum, calories) => sum + calories, 0);
+
+        return totalCalories / numberOfDays;
+    }, [scans]);
+
+    const handleAnalyzeAndLog = async () => {
         if (!scanner.imageFile || !user) return;
+        
         setIsLoading(true);
         setError(null);
         hapticTap();
+        
         try {
+            // Step 1: Get AI Analysis
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
             const base64Image = await blobToBase64(scanner.imageFile);
             const imagePart = { inlineData: { mimeType: scanner.imageFile.type, data: base64Image } };
@@ -69,109 +114,64 @@ const FoodScannerScreen: React.FC = () => {
                 }
             });
 
-            const analysisData = JSON.parse(response.text.trim());
+            const analysisData: NutritionScanResult = JSON.parse(response.text.trim());
             if (!analysisData.isFood) {
                 throw new Error("The image does not appear to contain food.");
             }
-            setScanResult(analysisData);
+            
+            // Step 2: Upload Image & Save Scan Data
+            const imageUrl = await uploadImage(scanner.imageFile, user.id, 'scans');
+            await saveNutritionScan(user.id, imageUrl, analysisData);
+            await logNutritionIntake(user.id, {
+                food_name: analysisData.foodName,
+                calories: analysisData.calories,
+                protein: analysisData.macros.protein,
+                carbs: analysisData.macros.carbs,
+                fat: analysisData.macros.fat,
+            });
+
+            addXP(15);
             hapticSuccess();
+            
+            // Step 3: Navigate to Detail View
+            const newScanForNav: NutritionScan = {
+                 id: `new-${Date.now()}`,
+                 user_id: user.id,
+                 image_url: imageUrl,
+                 results: analysisData,
+                 created_at: new Date().toISOString(),
+            };
+            navigate('/history/food/detail', { state: { scan: newScanForNav }});
+
         } catch (err: any) {
             console.error("Analysis failed:", err);
             setError(err.message || "An unexpected error occurred. Please try again.");
             hapticError();
         } finally {
             setIsLoading(false);
+            scanner.reset();
         }
     };
 
-    const handleLogMeal = async () => {
-        if (!scanner.imageFile || !user || !scanResult) return;
-        setIsLoading(true);
-        hapticTap();
-        try {
-            const imageUrl = await uploadImage(scanner.imageFile, user.id, 'scans');
-            // Save to permanent history for viewing with images
-            await saveNutritionScan(user.id, imageUrl, scanResult);
-            // Log the nutritional data for daily tracking
-            await logNutritionIntake(user.id, {
-                food_name: scanResult.foodName,
-                calories: scanResult.calories,
-                protein: scanResult.macros.protein,
-                carbs: scanResult.macros.carbs,
-                fat: scanResult.macros.fat,
-            });
-            addXP(15);
-            hapticSuccess();
-            navigate('/nutrition-tracker');
-        } catch (err: any) {
-            console.error("Failed to log meal:", err);
-            setError(err.message || "Could not save your meal. Please try again.");
-            hapticError();
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    if (scanResult) {
-        return (
-            <div className="min-h-screen bg-white flex flex-col p-4 space-y-4">
-                <header className="flex items-center">
-                    <button onClick={resetComponentState} className="p-2 rounded-full hover:bg-gray-100">
-                        <ArrowLeft size={24} className="text-gray-800" />
-                    </button>
-                    <h1 className="text-xl font-bold text-gray-900 mx-auto">Confirm Meal</h1>
-                </header>
-                <div className="flex-grow flex flex-col items-center">
-                    <img src={scanner.imagePreview!} alt="Scanned food" className="w-full max-w-sm rounded-xl shadow-lg" />
-                    <div className="text-center mt-4">
-                        <h2 className="text-3xl font-bold capitalize">{scanResult.foodName}</h2>
-                        <p className="text-5xl font-extrabold text-green-600 my-2">{scanResult.calories.toFixed(0)}</p>
-                        <p className="text-gray-500 font-medium -mt-1">Estimated Calories</p>
-                    </div>
-                    <div className="w-full max-w-sm grid grid-cols-3 gap-3 mt-6">
-                        <div className="bg-blue-500 text-white text-center font-semibold py-3 rounded-lg shadow-sm">
-                            Protein
-                        </div>
-                        <div className="bg-amber-500 text-white text-center font-semibold py-3 rounded-lg shadow-sm">
-                            Carbs
-                        </div>
-                        <div className="bg-pink-500 text-white text-center font-semibold py-3 rounded-lg shadow-sm">
-                            Fat
-                        </div>
-                    </div>
-                </div>
-                {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-                <button
-                    onClick={handleLogMeal}
-                    disabled={isLoading}
-                    className="w-full flex items-center justify-center gap-3 py-4 bg-green-600 text-white text-lg font-bold rounded-xl shadow-sm hover:bg-green-700 transition disabled:bg-gray-300"
-                >
-                    {isLoading ? <Loader2 className="animate-spin" /> : <CheckCircle />}
-                    Log This Meal
-                </button>
-            </div>
-        );
-    }
 
     return (
         <div className="min-h-screen bg-gray-50 p-4 pb-24 space-y-5">
-            {scanner.showCamera && <CameraView onCapture={scanner.handleCapture} onClose={() => { hapticTap(); scanner.closeCamera(); }} facingMode="environment" promptText="Position your meal in the center" />}
+            {scanner.showCamera && <CameraView onCapture={scanner.handleCapture} onClose={scanner.closeCamera} facingMode="environment" promptText="Position your meal in the center" />}
+            
             <header className="text-center">
-                <h1 className="text-2xl font-bold text-gray-800">Scan Meal</h1>
-                <p className="text-gray-500">Log nutrition by taking a photo</p>
+                <h1 className="text-2xl font-bold text-gray-800">Food Scanner</h1>
+                <p className="text-gray-500">Analyze & log meals by taking a photo</p>
             </header>
+
             <div className="bg-white p-4 rounded-xl shadow-sm">
-                <div 
-                    onClick={() => scanner.triggerFileInput()}
-                    className="relative flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50"
-                >
+                <div className="relative flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
                     {scanner.imagePreview ? (
-                        <img src={scanner.imagePreview} alt="Selected food" className="w-full h-full object-cover rounded-lg" />
+                        <img src={scanner.imagePreview} alt="Selected for analysis" className="w-full h-full object-cover rounded-lg" />
                     ) : (
                         <>
                             <Upload className="w-10 h-10 text-gray-400 mb-2" />
-                            <p className="text-sm font-semibold text-gray-700">Click to select a food photo</p>
-                            <p className="text-xs text-gray-500">Or use your camera</p>
+                            <p className="text-sm font-semibold text-gray-700">Select a photo of your meal</p>
+                            <p className="text-xs text-gray-500">For best results, show one dish</p>
                         </>
                     )}
                 </div>
@@ -185,18 +185,43 @@ const FoodScannerScreen: React.FC = () => {
                         <Upload size={20} /> Upload Photo
                     </button>
                 </div>
-            </div>
-            {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-            {scanner.imagePreview && (
+
                 <button
-                    onClick={handleAnalyze}
+                    onClick={handleAnalyzeAndLog}
                     disabled={!scanner.imageFile || isLoading}
-                    className="w-full mt-3 flex items-center justify-center gap-2 py-4 bg-teal-500 text-white font-bold rounded-lg shadow-lg hover:bg-teal-600 transition disabled:bg-gray-300"
+                    className="w-full mt-3 flex items-center justify-center gap-2 py-3 bg-teal-500 text-white font-bold rounded-lg shadow-sm hover:bg-teal-600 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
                 >
-                    {isLoading ? <Loader2 className="animate-spin" size={24} /> : <Apple size={24} />}
-                    {isLoading ? 'Analyzing...' : 'Analyze Food'}
+                    {isLoading ? <Loader2 className="animate-spin" size={20} /> : <Apple size={20} />}
+                    {isLoading ? 'Analyzing & Logging...' : 'Analyze & Log Meal'}
                 </button>
-            )}
+                {error && <p className="text-red-500 text-sm text-center mt-2">{error}</p>}
+            </div>
+
+            <div className="bg-white p-4 rounded-xl shadow-sm">
+                <h2 className="font-bold text-gray-800 mb-3">Weekly Stats</h2>
+                <div className="flex gap-3">
+                     <StatCard label="Avg. Daily Cals" value={`${weeklyAverageCalories.toFixed(0)}`} color="#0ea5e9" />
+                     <StatCard label="Scans This Week" value={scans.filter(s => new Date(s.created_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length.toString()} color="#f97316" />
+                </div>
+            </div>
+            
+            <div className="bg-white p-4 rounded-xl shadow-sm">
+                 <div className="flex justify-between items-center mb-2">
+                    <h2 className="font-bold text-gray-800 flex items-center gap-2"><Clock size={18}/> Scan History</h2>
+                    <button onClick={() => { hapticTap(); navigate('/food-history'); }} className="flex items-center text-sm font-semibold text-purple-600 hover:text-purple-800">
+                        View All <ChevronRight size={16} />
+                    </button>
+                </div>
+                {scans.length > 0 ? (
+                    <div className="flex items-center gap-3">
+                        <img src={scans[0].image_url} alt="Last food scan" className="w-12 h-12 object-cover rounded-lg" />
+                        <div>
+                            <p className="font-semibold capitalize">{scans[0].results.foodName}</p>
+                            <p className="text-sm text-gray-500">Calories: {scans[0].results.calories.toFixed(0)}</p>
+                        </div>
+                    </div>
+                ) : <p className="text-sm text-gray-500">No scans yet</p>}
+            </div>
         </div>
     );
 };

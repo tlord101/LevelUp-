@@ -141,12 +141,13 @@ export const getTodaysNutritionLogs = async (userId: string): Promise<NutritionL
 
 // --- DATABASE: COMMUNITY (POSTS & GROUPS) ---
 
-export const createPost = async (userId: string, authorDisplayName: string, content: string, imageUrl?: string) => {
+export const createPost = async (userId: string, authorDisplayName: string, content: string, imageUrl?: string, groupId?: string | null) => {
     const { error } = await supabase.from('posts').insert({
         user_id: userId,
         author_display_name: authorDisplayName,
         content,
         image_url: imageUrl,
+        group_id: groupId,
         likes: [],
         comment_count: 0,
     });
@@ -157,6 +158,17 @@ export const getPosts = async (): Promise<Post[]> => {
     const { data, error } = await supabase
         .from('posts')
         .select('*')
+        .is('group_id', null) // Only fetch posts not associated with a group for the main feed
+        .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data;
+};
+
+export const getPostsForGroup = async (groupId: string): Promise<Post[]> => {
+    const { data, error } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('group_id', groupId)
         .order('created_at', { ascending: false });
     if (error) throw error;
     return data;

@@ -42,6 +42,8 @@ export interface NutritionScanResult {
     fat: number;
   };
   confidence?: number;
+  // FIX: Added optional isFood property to align with Gemini response schema.
+  isFood?: boolean;
 }
 
 export interface NutritionScan {
@@ -55,6 +57,7 @@ export interface NutritionScan {
 export interface BodyScanResult {
   postureAnalysis: string;
   bodyFatPercentage: number;
+  bodyRating: number;
   recommendations: string[];
 }
 
@@ -66,13 +69,20 @@ export interface BodyScan {
   created_at: string;
 }
 
+export interface ProductRecommendation {
+  productType: string;
+  productName: string;
+  reason: string;
+}
+
 export interface FaceScanResult {
   skinAnalysis: {
     hydration: string;
     clarity: string;
     radiance: string;
   };
-  recommendations: string[];
+  skinRating: number;
+  recommendations: ProductRecommendation[];
 }
 
 export interface FaceScan {
@@ -89,6 +99,7 @@ export interface Post {
   author_display_name: string;
   content: string;
   image_url?: string;
+  group_id?: string | null;
   created_at: string;
   likes: string[]; // Array of user IDs who liked the post
   comment_count: number;

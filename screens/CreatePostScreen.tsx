@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Image as ImageIcon, X, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { uploadImage, createPost } from '../services/supabaseService';
+// FIX: Imported `uploadImage` which is used for handling post image uploads.
+import { createPost, uploadImage } from '../services/supabaseService';
 import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
 
 const CreatePostScreen: React.FC = () => {
@@ -12,7 +13,8 @@ const CreatePostScreen: React.FC = () => {
     const [imageUrlFromShare, setImageUrlFromShare] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    
+    const [groupId, setGroupId] = useState<string | null>(null);
+
     const { user, userProfile } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
@@ -20,15 +22,21 @@ const CreatePostScreen: React.FC = () => {
 
     useEffect(() => {
         const shareData = location.state?.shareData;
+        const groupIdFromState = location.state?.groupId;
+
+        if (groupIdFromState) {
+            setGroupId(groupIdFromState);
+        }
+
         if (shareData) {
             setContent(shareData.content || '');
             if (shareData.imageUrl) {
                 setImageUrlFromShare(shareData.imageUrl);
                 setImagePreview(shareData.imageUrl);
             }
-            // Clear the state so it's not reused on back/forward navigation
-            window.history.replaceState({}, document.title);
         }
+        // Clear the state so it's not reused on back/forward navigation
+        window.history.replaceState({}, document.title);
     }, [location.state]);
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -77,17 +85,20 @@ const CreatePostScreen: React.FC = () => {
             let finalImageUrl: string | undefined = undefined;
 
             if (imageFile) {
-                // If a user selected a new file, upload it. This takes precedence.
-                finalImageUrl = await uploadImage(imageFile, user.id, 'posts');
+                const blob = imageFile as Blob;
+                finalImageUrl = await uploadImage(blob, user.id, 'posts');
             } else if (imageUrlFromShare) {
-                // Otherwise, use the URL that came from the share action.
                 finalImageUrl = imageUrlFromShare;
             }
 
-            await createPost(user.id, userProfile.display_name, content, finalImageUrl);
+            await createPost(user.id, userProfile.display_name, content, finalImageUrl, groupId);
             
             hapticSuccess();
-            navigate('/community');
+            if (groupId) {
+                navigate(`/groups/${groupId}`);
+            } else {
+                navigate('/community');
+            }
         } catch (err: any) {
             console.error("Failed to create post:", err);
             setError("Could not create post. Please try again.");
@@ -105,7 +116,7 @@ const CreatePostScreen: React.FC = () => {
                 <button onClick={() => { hapticTap(); navigate(-1); }} className="p-2 rounded-full hover:bg-gray-100">
                     <ArrowLeft size={24} className="text-gray-800" />
                 </button>
-                <h1 className="text-xl font-bold text-gray-900">Create Post</h1>
+                <h1 className="text-xl font-bold text-gray-900">{groupId ? 'New Group Post' : 'Create Post'}</h1>
                 <button 
                     onClick={handlePost}
                     disabled={isPostButtonDisabled}

@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Camera, Upload, Clock, ChevronRight, Loader2, Share2, Sparkles } from 'lucide-react';
+import { Camera, Upload, Clock, ChevronRight, Loader2, Sparkles, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { uploadImage, saveFaceScan, getFaceScans } from '../services/supabaseService';
 import { FaceScanResult, FaceScan } from '../types';
@@ -11,10 +10,29 @@ import { blobToBase64 } from '../utils/imageUtils';
 import { useImageScanner } from '../hooks/useImageScanner';
 import CameraView from '../components/CameraView';
 
-const StatCard: React.FC<{ label: string; value: string; color: string; }> = ({ label, value, color }) => (
-    <div className="flex-1 p-3 rounded-lg text-center" style={{ backgroundColor: `${color}1A`}}>
-        <p className={`text-lg font-bold`} style={{ color }}>{value}</p>
-        <p className="text-xs text-gray-600">{label}</p>
+const ImageSlot: React.FC<{
+    scanner: ReturnType<typeof useImageScanner>;
+    label: string;
+    onCameraClick: () => void;
+}> = ({ scanner, label, onCameraClick }) => (
+    <div className="flex flex-col items-center gap-2 flex-1">
+        <p className="font-semibold text-gray-700 text-sm">{label}</p>
+        <div className="w-full h-32 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
+            {scanner.imagePreview ? (
+                <img src={scanner.imagePreview} alt={`${label} preview`} className="w-full h-full object-cover" />
+            ) : (
+                <User className="w-10 h-10 text-gray-400" />
+            )}
+        </div>
+        <input type="file" accept="image/jpeg,image/png" ref={scanner.fileInputRef} onChange={scanner.handleFileChange} className="hidden" />
+        <div className="flex items-center gap-2">
+            <button onClick={() => { hapticTap(); onCameraClick(); }} className="p-2 bg-pink-100 text-pink-600 rounded-full hover:bg-pink-200 transition">
+                <Camera size={18} />
+            </button>
+            <button onClick={() => { hapticTap(); scanner.triggerFileInput(); }} className="p-2 bg-gray-200 text-gray-600 rounded-full hover:bg-gray-300 transition">
+                <Upload size={18} />
+            </button>
+        </div>
     </div>
 );
 
@@ -23,12 +41,13 @@ const FaceScannerScreen: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [scans, setScans] = useState<FaceScan[]>([]);
-    const [latestScanData, setLatestScanData] = useState<{ result: FaceScanResult; imageUrl: string } | null>(null);
     
     const { user, addXP } = useAuth();
     const navigate = useNavigate();
 
-    const scanner = useImageScanner(() => setError(null));
+    const frontScanner = useImageScanner(() => setError(null));
+    const leftScanner = useImageScanner(() => setError(null));
+    const rightScanner = useImageScanner(() => setError(null));
 
     const fetchScans = useCallback(async () => {
         if (user) {
@@ -45,41 +64,80 @@ const FaceScannerScreen: React.FC = () => {
     useEffect(() => {
         fetchScans();
     }, [fetchScans]);
+    
+    const createCompositeImage = (): Promise<Blob> => {
+        return new Promise((resolve, reject) => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            if (!ctx || !frontScanner.imageFile || !leftScanner.imageFile || !rightScanner.imageFile) {
+                return reject(new Error('Canvas context or images not available'));
+            }
 
-    const scansThisWeek = useMemo(() => {
-        const oneWeekAgo = new Date();
-        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-        return scans.filter(s => new Date(s.created_at) > oneWeekAgo).length;
-    }, [scans]);
+            const frontImage = new Image();
+            const leftImage = new Image();
+            const rightImage = new Image();
+
+            let loadedCount = 0;
+            const onImageLoad = () => {
+                loadedCount++;
+                if (loadedCount === 3) {
+                    const maxHeight = Math.max(frontImage.height, leftImage.height, rightImage.height);
+                    canvas.height = maxHeight;
+                    canvas.width = (leftImage.width * (maxHeight / leftImage.height)) + (frontImage.width * (maxHeight / frontImage.height)) + (rightImage.width * (maxHeight / rightImage.height));
+
+                    let currentX = 0;
+                    const leftW = leftImage.width * (maxHeight / leftImage.height);
+                    ctx.drawImage(leftImage, currentX, 0, leftW, maxHeight);
+                    currentX += leftW;
+                    
+                    const frontW = frontImage.width * (maxHeight / frontImage.height);
+                    ctx.drawImage(frontImage, currentX, 0, frontW, maxHeight);
+                    currentX += frontW;
+
+                    const rightW = rightImage.width * (maxHeight / rightImage.height);
+                    ctx.drawImage(rightImage, currentX, 0, rightW, maxHeight);
+
+                    canvas.toBlob(blob => {
+                        if (blob) resolve(blob);
+                        else reject(new Error('Canvas to Blob conversion failed'));
+                    }, 'image/jpeg', 0.9);
+                }
+            };
+            
+            frontImage.onload = leftImage.onload = rightImage.onload = onImageLoad;
+            frontImage.onerror = leftImage.onerror = rightImage.onerror = () => reject(new Error('Image loading failed'));
+
+            frontImage.src = URL.createObjectURL(frontScanner.imageFile);
+            leftImage.src = URL.createObjectURL(leftScanner.imageFile);
+            rightImage.src = URL.createObjectURL(rightScanner.imageFile);
+        });
+    };
 
     const handleAnalyze = async () => {
-        if (!scanner.imageFile || !user) return;
+        if (!frontScanner.imageFile || !leftScanner.imageFile || !rightScanner.imageFile || !user) return;
 
         setIsLoading(true);
         setError(null);
-        setLatestScanData(null);
+        hapticTap();
 
         try {
+            const compositeBlob = await createCompositeImage();
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-            const base64Image = await blobToBase64(scanner.imageFile);
-            const imagePart = { inlineData: { mimeType: scanner.imageFile.type, data: base64Image } };
+            const base64Image = await blobToBase64(compositeBlob);
+            const imagePart = { inlineData: { mimeType: 'image/jpeg', data: base64Image } };
 
-            const prompt = "Analyze the photo of the person's face to assess their skin health. Provide a concise analysis of their skin's hydration, clarity, and radiance, and give 2-3 actionable recommendations for skincare. If the image does not contain a face suitable for analysis, indicate that.";
+            const prompt = "Analyze the person in this image, which contains three views of their face (left profile, front view, and right profile), to provide a comprehensive skin health assessment. Provide a rating of their skin from 1 to 10. Also provide a concise analysis of their skin's hydration, clarity, and radiance. Finally, provide 3 specific, actionable skincare product recommendations. For each recommendation, include the product type (e.g., cleanser, serum, moisturizer), a well-known example brand/product name (e.g., 'CeraVe Hydrating Cleanser', 'The Ordinary Niacinamide 10% + Zinc 1%'), and a brief reason for the recommendation. If the image does not contain a face suitable for analysis, indicate that.";
 
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
-                contents: {
-                    parts: [
-                        imagePart,
-                        { text: prompt }
-                    ]
-                },
+                contents: { parts: [ imagePart, { text: prompt } ] },
                 config: {
                     responseMimeType: "application/json",
                     responseSchema: {
                         type: Type.OBJECT,
                         properties: {
                             isFace: { type: Type.BOOLEAN, description: 'Is a face clearly visible for analysis?' },
+                            skinRating: { type: Type.NUMBER, description: 'A rating of the user\'s overall skin health on a scale of 1 to 10.' },
                             skinAnalysis: {
                                 type: Type.OBJECT,
                                 properties: {
@@ -91,11 +149,18 @@ const FaceScannerScreen: React.FC = () => {
                             },
                             recommendations: {
                                 type: Type.ARRAY,
-                                items: { type: Type.STRING },
-                                description: 'A list of 2-3 actionable skincare recommendations.'
+                                items: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        productType: { type: Type.STRING },
+                                        productName: { type: Type.STRING },
+                                        reason: { type: Type.STRING }
+                                    },
+                                    required: ['productType', 'productName', 'reason']
+                                }
                             }
                         },
-                        required: ['isFace', 'skinAnalysis', 'recommendations']
+                        required: ['isFace', 'skinRating', 'skinAnalysis', 'recommendations']
                     }
                 }
             });
@@ -104,21 +169,29 @@ const FaceScannerScreen: React.FC = () => {
             const analysisData = JSON.parse(jsonStr);
 
             if (!analysisData.isFace) {
-                throw new Error("Could not detect a face in the image. Please try a clearer, front-facing photo.");
+                throw new Error("Could not detect a face in the images. Please try clearer photos.");
             }
 
             const parsedResult: FaceScanResult = {
+                skinRating: analysisData.skinRating,
                 skinAnalysis: analysisData.skinAnalysis,
                 recommendations: analysisData.recommendations,
             };
 
-            const imageUrl = await uploadImage(scanner.imageFile, user.id, 'scans');
+            const imageUrl = await uploadImage(compositeBlob, user.id, 'scans');
             await saveFaceScan(user.id, imageUrl, parsedResult);
 
-            addXP(18);
+            addXP(25); // Increased XP for a more detailed scan
             hapticSuccess();
-            setLatestScanData({ result: parsedResult, imageUrl });
-            await fetchScans();
+            
+            const newScanForNav: FaceScan = {
+                id: `new-${Date.now()}`,
+                user_id: user.id,
+                image_url: imageUrl,
+                results: parsedResult,
+                created_at: new Date().toISOString(),
+            };
+            navigate('/history/face/detail', { state: { scan: newScanForNav } });
 
         } catch (err: any) {
             console.error("Analysis failed:", err);
@@ -126,96 +199,41 @@ const FaceScannerScreen: React.FC = () => {
             hapticError();
         } finally {
             setIsLoading(false);
-            scanner.reset();
+            frontScanner.reset();
+            leftScanner.reset();
+            rightScanner.reset();
         }
     };
-
-    const handleShare = () => {
-        if (!latestScanData) return;
-        hapticTap();
-        const { result, imageUrl } = latestScanData;
-        const shareContent = `Just did a skin scan with LevelUp! ✨\nMy skin radiance is looking ${result.skinAnalysis.radiance.toLowerCase()} and clarity is ${result.skinAnalysis.clarity.toLowerCase()}. Time to glow! #LevelUp #Skincare #GlowUp`;
-        
-        navigate('/create-post', { 
-            state: { 
-                shareData: {
-                    content: shareContent,
-                    imageUrl: imageUrl,
-                }
-            } 
-        });
-    };
-
+    
+    const allImagesProvided = frontScanner.imageFile && leftScanner.imageFile && rightScanner.imageFile;
 
     return (
         <div className="min-h-screen bg-gray-50 p-4 pb-24 space-y-5">
-            {scanner.showCamera && <CameraView onCapture={scanner.handleCapture} onClose={scanner.closeCamera} facingMode="user" promptText="Position your face in the center" />}
+            {frontScanner.showCamera && <CameraView onCapture={frontScanner.handleCapture} onClose={frontScanner.closeCamera} facingMode="user" promptText="Position your face in the center" />}
+            {leftScanner.showCamera && <CameraView onCapture={leftScanner.handleCapture} onClose={leftScanner.closeCamera} facingMode="user" promptText="Position your left profile" />}
+            {rightScanner.showCamera && <CameraView onCapture={rightScanner.handleCapture} onClose={rightScanner.closeCamera} facingMode="user" promptText="Position your right profile" />}
             
             <header className="text-center">
                 <h1 className="text-2xl font-bold text-gray-800">Face Scanner</h1>
-                <p className="text-gray-500">Analyze your skin health for a better glow</p>
+                <p className="text-gray-500">Provide three photos for a complete analysis</p>
             </header>
             
-            <div className="bg-white p-4 rounded-xl shadow-sm">
-                <div 
-                    className="relative flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50"
-                >
-                    {scanner.imagePreview ? (
-                        <img src={scanner.imagePreview} alt="Selected for analysis" className="w-full h-full object-cover rounded-lg" />
-                    ) : (
-                        <>
-                            <Upload className="w-10 h-10 text-gray-400 mb-2" />
-                            <p className="text-sm font-semibold text-gray-700">Select a clear face photo</p>
-                            <p className="text-xs text-gray-500">For best results, use good lighting</p>
-                        </>
-                    )}
-                </div>
-                <input type="file" accept="image/jpeg,image/png" ref={scanner.fileInputRef} onChange={scanner.handleFileChange} className="hidden" />
-
-                <div className="grid grid-cols-2 gap-3 mt-4">
-                    <button onClick={() => { hapticTap(); scanner.openCamera(); }} className="flex items-center justify-center gap-2 py-3 bg-pink-600 text-white font-semibold rounded-lg shadow-sm hover:bg-pink-700 transition">
-                        <Camera size={20} /> Use Camera
-                    </button>
-                    <button onClick={() => { hapticTap(); scanner.triggerFileInput(); }} className="flex items-center justify-center gap-2 py-3 bg-white text-pink-700 font-semibold rounded-lg border border-pink-200 hover:bg-pink-50 transition">
-                        <Upload size={20} /> Upload Photo
-                    </button>
+            <div className="bg-white p-4 rounded-xl shadow-sm space-y-4">
+                <div className="flex justify-between items-start gap-3">
+                    <ImageSlot scanner={leftScanner} label="Left Profile" onCameraClick={leftScanner.openCamera} />
+                    <ImageSlot scanner={frontScanner} label="Front View" onCameraClick={frontScanner.openCamera} />
+                    <ImageSlot scanner={rightScanner} label="Right Profile" onCameraClick={rightScanner.openCamera} />
                 </div>
 
                 <button
-                    onClick={() => { hapticTap(); handleAnalyze(); }}
-                    disabled={!scanner.imageFile || isLoading}
+                    onClick={handleAnalyze}
+                    disabled={!allImagesProvided || isLoading}
                     className="w-full mt-3 flex items-center justify-center gap-2 py-3 bg-orange-500 text-white font-bold rounded-lg shadow-sm hover:bg-orange-600 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
                 >
-                    {isLoading ? <Loader2 className="animate-spin" size={20} /> : <Sparkles size={20} />}
+                    {isLoading ? <Loader2 className="animate-spin" /> : <Sparkles size={20} />}
                     {isLoading ? 'Analyzing...' : 'Analyze My Skin'}
                 </button>
                 {error && <p className="text-red-500 text-sm text-center mt-2">{error}</p>}
-            </div>
-
-            <div className="bg-white p-4 rounded-xl shadow-sm">
-                <h2 className="font-bold text-gray-800 mb-2">Last Scan Result</h2>
-                {latestScanData ? (
-                    <div className="space-y-2">
-                        <p className="font-semibold text-lg">{latestScanData.result.skinAnalysis.radiance} <span className="text-base font-normal text-gray-600">Radiance</span></p>
-                        <p className="font-semibold text-lg">{latestScanData.result.skinAnalysis.clarity} <span className="text-base font-normal text-gray-600">Clarity</span></p>
-                         <p className="text-xs text-green-600 font-medium">+18 XP Awarded!</p>
-                        <button 
-                            onClick={handleShare}
-                            className="w-full mt-2 flex items-center justify-center gap-2 py-2 bg-purple-100 text-purple-700 font-semibold rounded-lg hover:bg-purple-200 transition"
-                        >
-                            <Share2 size={16} />
-                            Share to Feed
-                        </button>
-                    </div>
-                ) : <p className="text-sm text-gray-500">Your latest skin analysis will appear here.</p>}
-            </div>
-
-            <div className="bg-white p-4 rounded-xl shadow-sm">
-                <h2 className="font-bold text-gray-800 mb-3">Weekly Stats</h2>
-                <div className="flex gap-3">
-                     <StatCard label="Scans This Week" value={scansThisWeek.toString()} color="#ec4899" />
-                     <StatCard label="Total Scans" value={scans.length.toString()} color="#f97316" />
-                </div>
             </div>
 
             <div className="bg-white p-4 rounded-xl shadow-sm">

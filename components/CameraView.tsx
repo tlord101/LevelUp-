@@ -67,7 +67,7 @@ const CameraView: React.FC<CameraViewProps> = ({
         <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-center">
             <canvas ref={canvasRef} className="hidden"></canvas>
             <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" style={videoStyle}></video>
-            <div className="absolute inset-0 bg-black/20 flex flex-col items-center justify-between p-6">
+            <div className="absolute inset-0 bg-black/20 flex flex-col items-center justify-between p-6 pb-24 md:pb-6">
                 <button onClick={handleClose} className="self-start text-white bg-black/50 p-2 rounded-full"><X size={24} /></button>
                 <div className="w-full max-w-sm text-center">
                     <p className="text-white font-semibold text-lg bg-black/50 py-2 px-4 rounded-xl">{promptText}</p>

@@ -1,12 +1,7 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Settings, Plus, Scan, Smile, UtensilsCrossed } from 'lucide-react';
+import { Home, Settings, Plus, Scan, Smile, UtensilsCrossed, Users, Sparkles } from 'lucide-react';
 import { hapticTap } from '../utils/haptics';
-
-const navItems = [
-  { path: '/dashboard', label: 'Dashboard', icon: Home },
-  { path: '/profile', label: 'Settings', icon: Settings },
-];
 
 const scannerItems = [
   { path: '/scanner/body', label: 'Body Scan', icon: Scan },
@@ -55,8 +50,9 @@ const BottomNavBar: React.FC = () => {
         <nav className="relative max-w-lg mx-auto bg-black/40 backdrop-blur-lg border border-white/20 rounded-full shadow-2xl">
           <div className="flex justify-around items-center p-2">
             
-            {/* Left Nav Item */}
+            {/* Left Nav Items */}
             <NavItem path="/dashboard" icon={Home} />
+            <NavItem path="/community" icon={Users} />
 
             {/* Central Menu Button */}
             <div className="relative">
@@ -83,7 +79,8 @@ const BottomNavBar: React.FC = () => {
               </button>
             </div>
             
-            {/* Right Nav Item */}
+            {/* Right Nav Items */}
+            <NavItem path="/ai-coach" icon={Sparkles} />
             <NavItem path="/profile" icon={Settings} />
 
           </div>

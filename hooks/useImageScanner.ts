@@ -1,4 +1,3 @@
-
 // FIX: Import React to use types like React.ChangeEvent
 import React, { useState, useRef, useCallback } from 'react';
 

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Camera, Upload, Dumbbell, Clock, ChevronRight, Loader2, X, Share2 } from 'lucide-react';
+import { Camera, Upload, Dumbbell, Clock, ChevronRight, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { uploadImage, saveBodyScan, getBodyScans } from '../services/supabaseService';
 import { BodyScanResult, BodyScan } from '../types';
@@ -24,7 +24,6 @@ const BodyScannerScreen: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [scans, setScans] = useState<BodyScan[]>([]);
-    const [latestScanData, setLatestScanData] = useState<{ result: BodyScanResult; imageUrl: string } | null>(null);
     
     const { user, addXP } = useAuth();
     const navigate = useNavigate();
@@ -62,7 +61,7 @@ const BodyScannerScreen: React.FC = () => {
 
         setIsLoading(true);
         setError(null);
-        setLatestScanData(null);
+        hapticTap();
 
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
@@ -74,7 +73,7 @@ const BodyScannerScreen: React.FC = () => {
                 contents: {
                     parts: [
                         imagePart,
-                        { text: "Analyze the full-body photo of the person to assess their posture and estimate their body composition. Provide a concise posture analysis, an estimated body fat percentage, and 2-3 actionable recommendations for improvement. The photo should show their entire body. If the image does not contain a person suitable for analysis, indicate that." }
+                        { text: "Analyze the full-body photo of the person to assess their posture and estimate their body composition. Provide a rating of their overall physique and posture on a scale of 1 to 10. Also provide a concise posture analysis, an estimated body fat percentage, and 2-3 actionable recommendations for improvement. The photo should show their entire body. If the image does not contain a person suitable for analysis, indicate that." }
                     ]
                 },
                 config: {
@@ -85,13 +84,14 @@ const BodyScannerScreen: React.FC = () => {
                             isPerson: { type: Type.BOOLEAN, description: 'Is a person clearly visible for analysis?' },
                             postureAnalysis: { type: Type.STRING, description: 'A brief analysis of the person\'s posture (e.g., "Good", "Forward Head", "Rounded Shoulders").' },
                             bodyFatPercentage: { type: Type.NUMBER, description: 'An estimated body fat percentage.' },
+                            bodyRating: { type: Type.NUMBER, description: 'A rating of the user\'s overall physique and posture on a scale of 1 to 10.' },
                             recommendations: {
                                 type: Type.ARRAY,
                                 items: { type: Type.STRING },
                                 description: 'A list of 2-3 actionable recommendations based on the analysis.'
                             }
                         },
-                        required: ['isPerson', 'postureAnalysis', 'bodyFatPercentage', 'recommendations']
+                        required: ['isPerson', 'postureAnalysis', 'bodyFatPercentage', 'bodyRating', 'recommendations']
                     }
                 }
             });
@@ -106,16 +106,23 @@ const BodyScannerScreen: React.FC = () => {
             const parsedResult: BodyScanResult = {
                 postureAnalysis: analysisData.postureAnalysis,
                 bodyFatPercentage: analysisData.bodyFatPercentage,
+                bodyRating: analysisData.bodyRating,
                 recommendations: analysisData.recommendations,
             };
 
             const imageUrl = await uploadImage(scanner.imageFile, user.id, 'scans');
             await saveBodyScan(user.id, imageUrl, parsedResult);
-
             addXP(20);
             hapticSuccess();
-            setLatestScanData({ result: parsedResult, imageUrl });
-            await fetchScans();
+            
+            const newScanForNav: BodyScan = {
+                id: `new-${Date.now()}`,
+                user_id: user.id,
+                image_url: imageUrl,
+                results: parsedResult,
+                created_at: new Date().toISOString(),
+            };
+            navigate('/history/body/detail', { state: { scan: newScanForNav } });
 
         } catch (err: any) {
             console.error("Analysis failed:", err);
@@ -125,22 +132,6 @@ const BodyScannerScreen: React.FC = () => {
             setIsLoading(false);
             scanner.reset();
         }
-    };
-
-    const handleShare = () => {
-        if (!latestScanData) return;
-        hapticTap();
-        const { result, imageUrl } = latestScanData;
-        const shareContent = `Just did a body scan with LevelUp! 💪\nMy posture is rated as "${result.postureAnalysis}" and my estimated body fat is ${result.bodyFatPercentage.toFixed(1)}%. Ready to improve! #LevelUp #FitnessJourney #BodyScan`;
-        
-        navigate('/create-post', { 
-            state: { 
-                shareData: {
-                    content: shareContent,
-                    imageUrl: imageUrl,
-                }
-            } 
-        });
     };
 
 
@@ -179,7 +170,7 @@ const BodyScannerScreen: React.FC = () => {
                 </div>
 
                 <button
-                    onClick={() => { hapticTap(); handleAnalyze(); }}
+                    onClick={handleAnalyze}
                     disabled={!scanner.imageFile || isLoading}
                     className="w-full mt-3 flex items-center justify-center gap-2 py-3 bg-blue-600 text-white font-bold rounded-lg shadow-sm hover:bg-blue-700 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
                 >
@@ -187,24 +178,6 @@ const BodyScannerScreen: React.FC = () => {
                     {isLoading ? 'Analyzing...' : 'Analyze with Gemini'}
                 </button>
                 {error && <p className="text-red-500 text-sm text-center mt-2">{error}</p>}
-            </div>
-
-            <div className="bg-white p-4 rounded-xl shadow-sm">
-                <h2 className="font-bold text-gray-800 mb-2">Last Scan Result</h2>
-                {latestScanData ? (
-                    <div className="space-y-2">
-                        <p className="font-semibold text-lg">{latestScanData.result.bodyFatPercentage.toFixed(1)}% <span className="text-base font-normal text-gray-600">Body Fat (Est.)</span></p>
-                        <p className="font-semibold text-lg">{latestScanData.result.postureAnalysis} <span className="text-base font-normal text-gray-600">Posture</span></p>
-                        <p className="text-xs text-green-600 font-medium">+20 XP Awarded!</p>
-                        <button 
-                            onClick={handleShare}
-                            className="w-full mt-2 flex items-center justify-center gap-2 py-2 bg-purple-100 text-purple-700 font-semibold rounded-lg hover:bg-purple-200 transition"
-                        >
-                            <Share2 size={16} />
-                            Share to Feed
-                        </button>
-                    </div>
-                ) : <p className="text-sm text-gray-500">Your latest analysis will appear here.</p>}
             </div>
 
             <div className="bg-white p-4 rounded-xl shadow-sm">

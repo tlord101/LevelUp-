@@ -38,8 +38,16 @@ const BodyHistoryScreen: React.FC = () => {
     });
   };
 
+  const handleScanClick = (scan: BodyScan) => {
+    hapticTap();
+    navigate('/history/body/detail', { state: { scan } });
+  };
+
   const ScanCard: React.FC<{ scan: BodyScan }> = ({ scan }) => (
-    <div className="bg-white rounded-xl shadow-md overflow-hidden flex items-center p-4 space-x-4">
+    <button
+      onClick={() => handleScanClick(scan)}
+      className="w-full bg-white rounded-xl shadow-md overflow-hidden flex items-center p-4 space-x-4 text-left transition-transform duration-200 hover:scale-[1.02]"
+    >
       <img src={scan.image_url} alt="Body scan" className="w-20 h-20 object-cover rounded-lg flex-shrink-0" />
       <div className="flex-grow">
         <h3 className="font-bold text-lg text-gray-800 capitalize">{scan.results.postureAnalysis} Posture</h3>
@@ -52,13 +60,13 @@ const BodyHistoryScreen: React.FC = () => {
           <span>{formatDate(scan.created_at)}</span>
         </div>
       </div>
-    </div>
+    </button>
   );
 
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="sticky top-0 bg-white/80 backdrop-blur-sm border-b border-gray-200 p-4 flex items-center z-10">
-        <button onClick={() => { hapticTap(); navigate(-1); }} className="mr-4 p-2 rounded-full hover:bg-gray-100">
+        <button onClick={() => { hapticTap(); navigate('/scanner/body'); }} className="mr-4 p-2 rounded-full hover:bg-gray-100">
           <ArrowLeft size={24} className="text-gray-800" />
         </button>
         <h1 className="text-xl font-bold text-gray-900">Body Scan History</h1>
