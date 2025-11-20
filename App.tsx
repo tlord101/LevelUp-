@@ -28,6 +28,7 @@ import FoodScanDetailScreen from './screens/FoodScanDetailScreen';
 import BodyScanDetailScreen from './screens/BodyScanDetailScreen';
 import FaceScanDetailScreen from './screens/FaceScanDetailScreen';
 import LiveCoachScreen from './screens/LiveCoachScreen';
+import { supabase } from './config/supabase';
 
 const AppLoader: React.FC = () => (
     <div className="flex items-center justify-center h-screen bg-gray-50">
@@ -48,9 +49,24 @@ const ProtectedLayout: React.FC = () => {
         return <Navigate to="/login" replace />;
     }
 
-    // Also wait for profile to be loaded
+    // If user is logged in but no profile found (and loading is done),
+    // show an error screen instead of infinite loading.
     if (!userProfile) {
-        return <AppLoader />;
+        return (
+             <div className="flex flex-col items-center justify-center h-screen bg-gray-50 p-4 text-center">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                    <span className="text-2xl">⚠️</span>
+                </div>
+                <h2 className="text-xl font-bold text-gray-800 mb-2">Profile Error</h2>
+                <p className="text-gray-600 mb-6">We couldn't load your profile data. Please try signing out and back in.</p>
+                <button 
+                    onClick={async () => { await supabase.auth.signOut(); window.location.reload(); }}
+                    className="bg-gray-800 text-white px-6 py-3 rounded-xl font-semibold hover:bg-gray-900 shadow-lg"
+                >
+                    Sign Out & Retry
+                </button>
+            </div>
+        );
     }
 
     // If user is logged in but hasn't completed onboarding, redirect them.
@@ -79,7 +95,19 @@ const OnboardingRouteWrapper: React.FC = () => {
     }
 
     if (!userProfile) {
-        return <AppLoader />;
+        // Same error handling as ProtectedLayout
+         return (
+             <div className="flex flex-col items-center justify-center h-screen bg-gray-50 p-4 text-center">
+                <h2 className="text-xl font-bold text-gray-800 mb-2">Setup Error</h2>
+                <p className="text-gray-600 mb-6">Your user profile is missing. Please sign out.</p>
+                <button 
+                    onClick={async () => { await supabase.auth.signOut(); window.location.reload(); }}
+                    className="bg-gray-800 text-white px-6 py-3 rounded-xl font-semibold hover:bg-gray-900"
+                >
+                    Sign Out
+                </button>
+            </div>
+        );
     }
     
     // If onboarding is already completed, don't show it again. Redirect to dashboard.

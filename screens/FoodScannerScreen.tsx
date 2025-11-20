@@ -126,6 +126,7 @@ const FoodScannerScreen: React.FC = () => {
                 protein: analysisData.macros.protein,
                 carbs: analysisData.macros.carbs,
                 fat: analysisData.macros.fat,
+                consumed: true // Scanned means consumed
             });
 
             // Reward user with XP and Energy stat update

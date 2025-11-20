@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getTodaysNutritionLogs, logNutritionIntake } from '../services/supabaseService';
 import { NutritionLog, MealPlanItem, ActivityLogItem, NutritionScan } from '../types';
-import { ArrowLeft, Plus, Settings, X, Loader2, Utensils, Flame, Droplets, Activity, Zap, ChefHat, Sparkles, Calendar } from 'lucide-react';
+import { ArrowLeft, Plus, Settings, X, Loader2, Utensils, Flame, Droplets, Activity, Zap, ChefHat, Sparkles, Calendar, CheckCircle } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
 import { GoogleGenAI, Type } from '@google/genai';
@@ -94,6 +95,7 @@ const NutritionTrackerScreen: React.FC = () => {
     // Meal Plan State
     const [mealPlan, setMealPlan] = useState<MealPlanItem[]>([]);
     const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
+    const [isAcceptingPlan, setIsAcceptingPlan] = useState(false);
     
     // Scheduling State
     const [selectedMealForSchedule, setSelectedMealForSchedule] = useState<MealPlanItem | null>(null);
@@ -152,10 +154,14 @@ const NutritionTrackerScreen: React.FC = () => {
     const dailyTotals = useMemo(() => {
         return logs.reduce(
             (acc, log) => {
-                acc.calories += log.calories;
-                acc.protein += log.protein;
-                acc.carbs += log.carbs;
-                acc.fat += log.fat;
+                // Only include logs that are marked as consumed (or undefined/null which implies consumed for legacy data)
+                // Scheduled items will be false.
+                if (log.consumed !== false) {
+                    acc.calories += log.calories;
+                    acc.protein += log.protein;
+                    acc.carbs += log.carbs;
+                    acc.fat += log.fat;
+                }
                 return acc;
             },
             { calories: 0, protein: 0, carbs: 0, fat: 0 }
@@ -220,6 +226,7 @@ const NutritionTrackerScreen: React.FC = () => {
                 Dietary preferences: ${userProfile?.allergies?.join(', ') || 'None'}.
                 
                 Generate a suggested meal plan for the rest of the day (1-3 meals/snacks) to help them meet these targets.
+                Assign a 'mealType' to each item (Breakfast, Lunch, Dinner, or Snack) based on what makes sense for a typical day structure.
                 Output strictly valid JSON.
             `;
 
@@ -239,6 +246,11 @@ const NutritionTrackerScreen: React.FC = () => {
                                         name: { type: Type.STRING },
                                         calories: { type: Type.NUMBER },
                                         description: { type: Type.STRING },
+                                        mealType: { 
+                                            type: Type.STRING,
+                                            enum: ['Breakfast', 'Lunch', 'Dinner', 'Snack'],
+                                            description: "The category of the meal."
+                                        },
                                         macros: {
                                             type: Type.OBJECT,
                                             properties: {
@@ -250,7 +262,7 @@ const NutritionTrackerScreen: React.FC = () => {
                                         },
                                         reason: { type: Type.STRING }
                                     },
-                                    required: ['name', 'calories', 'description', 'macros', 'reason']
+                                    required: ['name', 'calories', 'description', 'mealType', 'macros', 'reason']
                                 }
                             }
                         },
@@ -300,6 +312,52 @@ const NutritionTrackerScreen: React.FC = () => {
         }
     };
 
+    const handleAcceptPlan = async () => {
+        if (!user || mealPlan.length === 0) return;
+
+        setIsAcceptingPlan(true);
+        hapticTap();
+
+        try {
+            const today = new Date();
+            
+            // Process all meals in parallel
+            const promises = mealPlan.map(meal => {
+                // Default hours based on mealType
+                let hour = 12;
+                if (meal.mealType === 'Breakfast') hour = 8;
+                else if (meal.mealType === 'Lunch') hour = 13;
+                else if (meal.mealType === 'Dinner') hour = 19;
+                else if (meal.mealType === 'Snack') hour = 16;
+
+                const scheduledTime = new Date(today);
+                scheduledTime.setHours(hour, 0, 0, 0);
+
+                return logNutritionIntake(user.id, {
+                    food_name: meal.name,
+                    calories: meal.calories,
+                    protein: meal.macros.protein,
+                    carbs: meal.macros.carbs,
+                    fat: meal.macros.fat,
+                    created_at: scheduledTime.toISOString(),
+                    consumed: false // Scheduled, not yet consumed
+                });
+            });
+
+            await Promise.all(promises);
+            
+            hapticSuccess();
+            // Navigate to schedule to show the result
+            navigate('/meal-schedule');
+        } catch (error) {
+            console.error("Failed to accept plan:", error);
+            hapticError();
+            alert("Failed to save meal plan. Please try again.");
+        } finally {
+            setIsAcceptingPlan(false);
+        }
+    };
+
     const handleOpenSchedule = () => {
         hapticTap();
         navigate('/meal-schedule');
@@ -317,9 +375,6 @@ const NutritionTrackerScreen: React.FC = () => {
         hapticTap();
         const scheduledTime = new Date();
         scheduledTime.setHours(timeOffsetHours, 0, 0, 0);
-        // If the time has passed today, maybe schedule for tomorrow? 
-        // For simplicity, we'll keep it today but ensure the timestamp is correct.
-        // Actually, let's just set the hour on today's date.
         
         try {
             await logNutritionIntake(user.id, {
@@ -328,7 +383,8 @@ const NutritionTrackerScreen: React.FC = () => {
                 protein: selectedMealForSchedule.macros.protein,
                 carbs: selectedMealForSchedule.macros.carbs,
                 fat: selectedMealForSchedule.macros.fat,
-                created_at: scheduledTime.toISOString()
+                created_at: scheduledTime.toISOString(),
+                consumed: false // Scheduled
             });
             
             hapticSuccess();
@@ -474,6 +530,9 @@ const NutritionTrackerScreen: React.FC = () => {
                                                 <Utensils size={32} />
                                             </div>
                                         )}
+                                        <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md text-white px-3 py-1 rounded-full text-xs font-bold">
+                                            {meal.mealType}
+                                        </div>
                                         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 pt-10">
                                             <h4 className="text-white font-bold text-lg leading-tight">{meal.name}</h4>
                                             <p className="text-white/80 text-xs mt-1">{meal.calories} kcal • {meal.macros.protein}g Protein</p>
@@ -492,20 +551,32 @@ const NutritionTrackerScreen: React.FC = () => {
                                             </div>
                                             <button 
                                                 onClick={() => handleOpenScheduleModal(meal)}
-                                                className="bg-purple-100 text-purple-600 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide hover:bg-purple-200 transition flex items-center gap-1"
+                                                className="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide hover:bg-gray-200 transition flex items-center gap-1"
                                             >
-                                                <Calendar size={12} /> Add to Schedule
+                                                <Calendar size={12} /> Schedule
                                             </button>
                                         </div>
                                     </div>
                                 </div>
                             ))}
-                             <button 
-                                onClick={generateMealPlan}
-                                className="w-full bg-gray-100 text-gray-600 font-semibold py-3 rounded-xl hover:bg-gray-200 transition text-sm"
-                            >
-                                Regenerate Plan
-                            </button>
+                            
+                            <div className="flex gap-3 pt-2">
+                                <button 
+                                    onClick={generateMealPlan}
+                                    disabled={isGeneratingPlan || isAcceptingPlan}
+                                    className="flex-1 bg-gray-100 text-gray-600 font-semibold py-3 rounded-xl hover:bg-gray-200 transition text-sm disabled:opacity-50"
+                                >
+                                    {isGeneratingPlan ? <Loader2 className="animate-spin mx-auto" size={18}/> : 'Regenerate'}
+                                </button>
+                                <button 
+                                    onClick={handleAcceptPlan}
+                                    disabled={isGeneratingPlan || isAcceptingPlan}
+                                    className="flex-[2] bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 transition text-sm shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
+                                >
+                                    {isAcceptingPlan ? <Loader2 className="animate-spin" size={18}/> : <CheckCircle size={18} />}
+                                    Accept & Schedule Plan
+                                </button>
+                            </div>
                         </div>
                     )}
                 </section>

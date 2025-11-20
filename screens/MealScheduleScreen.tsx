@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar as CalendarIcon, Utensils, Edit2, CheckCircle2, Clock, Trash2, Save, X, Loader2 } from 'lucide-react';
+import { ArrowLeft, Calendar as CalendarIcon, Utensils, Edit2, CheckCircle2, Clock, Trash2, Save, X, Loader2, Circle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { getNutritionLogsForDate, deleteNutritionLog, updateNutritionLog } from '../services/supabaseService';
 import { NutritionLog } from '../types';
@@ -96,6 +96,21 @@ const MealScheduleScreen: React.FC = () => {
             items: groups[label] || []
         })).filter(group => group.items.length > 0);
     }, [logs]);
+
+    const handleToggleConsumed = async (log: NutritionLog) => {
+        hapticTap();
+        try {
+            const isCurrentlyConsumed = log.consumed !== false;
+            await updateNutritionLog(log.id, { consumed: !isCurrentlyConsumed });
+            hapticSuccess();
+            
+            // Optimistically update local state
+            setLogs(prev => prev.map(l => l.id === log.id ? { ...l, consumed: !isCurrentlyConsumed } : l));
+        } catch (error) {
+            console.error("Failed to toggle meal status:", error);
+            hapticError();
+        }
+    };
 
     const handleEditClick = (log: NutritionLog) => {
         hapticTap();
@@ -228,11 +243,15 @@ const MealScheduleScreen: React.FC = () => {
                                     {/* Content */}
                                     {isSingleItem ? (
                                         // Single Item View (Standalone Card)
-                                        <div className="flex-grow bg-white p-4 rounded-2xl shadow-sm border border-gray-100 group transition-transform active:scale-[0.98] flex justify-between items-start">
+                                        <div className={`flex-grow p-4 rounded-2xl shadow-sm border group transition-transform active:scale-[0.98] flex justify-between items-start ${
+                                            group.items[0].consumed !== false ? 'bg-green-50 border-green-200' : 'bg-white border-gray-100'
+                                        }`}>
                                             <div>
-                                                <p className="font-bold text-gray-900 text-lg capitalize leading-tight mb-1">{group.items[0].food_name}</p>
+                                                <p className={`font-bold text-lg capitalize leading-tight mb-1 ${group.items[0].consumed !== false ? 'text-green-800' : 'text-gray-900'}`}>
+                                                    {group.items[0].food_name}
+                                                </p>
                                                 <div className="flex items-center gap-2">
-                                                    <span className="font-bold text-orange-500">{group.items[0].calories} kcal</span>
+                                                    <span className={`font-bold ${group.items[0].consumed !== false ? 'text-green-600' : 'text-orange-500'}`}>{group.items[0].calories} kcal</span>
                                                     <span className="text-gray-300">|</span>
                                                     <div className="flex gap-2 text-xs text-gray-500">
                                                         <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-teal-400"></span> {group.items[0].protein}g P</span>
@@ -241,12 +260,20 @@ const MealScheduleScreen: React.FC = () => {
                                                     </div>
                                                 </div>
                                             </div>
-                                            <button 
-                                                onClick={() => handleEditClick(group.items[0])}
-                                                className="text-gray-300 hover:text-purple-600 transition-colors p-2 -mr-2 -mt-2"
-                                            >
-                                                <Edit2 size={18} />
-                                            </button>
+                                            <div className="flex flex-col gap-2">
+                                                <button 
+                                                    onClick={() => handleToggleConsumed(group.items[0])}
+                                                    className={`p-2 rounded-full transition-colors ${group.items[0].consumed !== false ? 'text-green-500 hover:bg-green-100' : 'text-gray-300 hover:bg-gray-100'}`}
+                                                >
+                                                    {group.items[0].consumed !== false ? <CheckCircle2 size={24} className="fill-current" /> : <Circle size={24} />}
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleEditClick(group.items[0])}
+                                                    className="text-gray-300 hover:text-purple-600 transition-colors p-2"
+                                                >
+                                                    <Edit2 size={18} />
+                                                </button>
+                                            </div>
                                         </div>
                                     ) : (
                                         // Group View (Summary Card)
@@ -258,28 +285,35 @@ const MealScheduleScreen: React.FC = () => {
                                                      </div>
                                                      <span className="font-bold text-gray-800">{totalCalories} kcal total</span>
                                                 </div>
-                                                <CheckCircle2 size={16} className="text-green-500" />
                                             </div>
                                             
                                             <div className="space-y-4">
                                                 {group.items.map(item => (
-                                                    <div key={item.id} className="flex justify-between items-start">
+                                                    <div key={item.id} className={`flex justify-between items-center p-2 rounded-lg transition-colors ${item.consumed !== false ? 'bg-green-50/50' : ''}`}>
                                                         <div>
-                                                            <p className="font-medium text-gray-900 capitalize">{item.food_name}</p>
+                                                            <p className={`font-medium capitalize ${item.consumed !== false ? 'text-green-800 line-through decoration-green-500/50' : 'text-gray-900'}`}>
+                                                                {item.food_name}
+                                                            </p>
                                                             <div className="flex gap-2 text-xs text-gray-500 mt-0.5">
                                                                 <span>{item.calories} kcal</span>
                                                                 <span>•</span>
                                                                 <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-teal-400"></span> {item.protein}g P</span>
-                                                                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span> {item.carbs}g C</span>
-                                                                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-yellow-400"></span> {item.fat}g F</span>
                                                             </div>
                                                         </div>
-                                                        <button 
-                                                            onClick={() => handleEditClick(item)}
-                                                            className="text-gray-300 hover:text-purple-600 transition-colors p-2 -mr-2"
-                                                        >
-                                                            <Edit2 size={16} />
-                                                        </button>
+                                                        <div className="flex items-center gap-2">
+                                                            <button 
+                                                                onClick={() => handleToggleConsumed(item)}
+                                                                className={`p-1.5 rounded-full transition-colors ${item.consumed !== false ? 'text-green-500 hover:bg-green-100' : 'text-gray-300 hover:bg-gray-100'}`}
+                                                            >
+                                                                {item.consumed !== false ? <CheckCircle2 size={20} className="fill-current" /> : <Circle size={20} />}
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => handleEditClick(item)}
+                                                                className="text-gray-300 hover:text-purple-600 transition-colors p-1.5"
+                                                            >
+                                                                <Edit2 size={16} />
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 ))}
                                             </div>

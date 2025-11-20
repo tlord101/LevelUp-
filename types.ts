@@ -1,4 +1,5 @@
 
+
 export enum UserGoal {
   FITNESS = 'fitness',
   BEAUTY = 'beauty',
@@ -134,12 +135,14 @@ export interface NutritionLog {
   carbs: number;
   fat: number;
   created_at: string;
+  consumed?: boolean;
 }
 
 export interface MealPlanItem {
   name: string;
   calories: number;
   description: string;
+  mealType: string; // 'Breakfast', 'Lunch', 'Dinner', 'Snack'
   macros: {
     protein: number;
     carbs: number;
