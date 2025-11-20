@@ -1,11 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { dailyMissions, Mission } from '../services/missions';
-import { Settings, Trophy, Dumbbell, Sparkles, ChevronRight, UtensilsCrossed, Zap, Brain } from 'lucide-react';
+import { Settings, Trophy, Dumbbell, Sparkles, ChevronRight, UtensilsCrossed, Zap, Brain, Bell, Check, X, Clock, Calendar, Target } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { hapticTap } from '../utils/haptics';
+import { hapticTap, hapticSuccess } from '../utils/haptics';
 import { getTodaysNutritionLogs } from '../services/supabaseService';
 import { NutritionLog } from '../types';
+
+// Mock Notification Data
+const mockNotifications = [
+    { id: 1, title: "Daily Plan Ready", message: "Your AI meal plan for today is ready.", time: "10m ago", type: 'plan', read: false },
+    { id: 2, title: "Goal Crushed!", message: "You hit your protein target yesterday.", time: "12h ago", type: 'success', read: false },
+    { id: 3, title: "New Badge Earned", message: "You unlocked the 'Early Bird' badge.", time: "1d ago", type: 'achievement', read: true },
+];
 
 const StatCard: React.FC<{ value: number; label: string, icon: React.ElementType, colorClass: string }> = ({ value, label, icon: Icon, colorClass }) => (
     <div className="bg-white p-3 rounded-xl text-center shadow-md border border-gray-50 flex flex-col items-center justify-center min-h-[100px]">
@@ -27,9 +34,23 @@ const MissionItem: React.FC<{ mission: Mission, onClick: () => void }> = ({ miss
 );
 
 const DashboardScreen: React.FC = () => {
-    const { userProfile } = useAuth();
+    const { user, userProfile } = useAuth();
     const navigate = useNavigate();
     const [nutritionLogs, setNutritionLogs] = useState<NutritionLog[]>([]);
+    const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+    const [notifications, setNotifications] = useState(mockNotifications);
+    const notificationRef = useRef<HTMLDivElement>(null);
+
+    // Close notification dropdown if clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+                setIsNotificationsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     useEffect(() => {
         if (userProfile) {
@@ -48,6 +69,24 @@ const DashboardScreen: React.FC = () => {
         hapticTap();
         navigate('/profile');
     };
+
+    const toggleNotifications = () => {
+        hapticTap();
+        setIsNotificationsOpen(!isNotificationsOpen);
+    };
+
+    const markAllRead = () => {
+        hapticTap();
+        hapticSuccess();
+        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    };
+
+    const getGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return 'Good Morning';
+        if (hour < 18) return 'Good Afternoon';
+        return 'Good Evening';
+    };
     
     if (!userProfile) {
         return <div className="p-6 text-center">Loading profile...</div>;
@@ -55,6 +94,7 @@ const DashboardScreen: React.FC = () => {
     
     const xpForNextLevel = 100;
     const xpProgress = (userProfile.xp / xpForNextLevel) * 100;
+    const unreadCount = notifications.filter(n => !n.read).length;
 
     // Calculate Nutrition Totals
     const dailyTotals = nutritionLogs.reduce((acc, log) => ({
@@ -72,16 +112,87 @@ const DashboardScreen: React.FC = () => {
     const donutCircumference = 2 * Math.PI * 40; // r=40
     const donutProgress = donutCircumference * (1 - Math.min(dailyTotals.calories / calorieGoal, 1));
 
+    // Default avatar if none
+    const avatarUrl = user?.user_metadata?.avatar_url || "https://i.pinimg.com/736x/03/65/0a/03650a358248c8a272b0c39f284e3d64.jpg";
+
     return (
-        <div className="min-h-screen bg-white p-4 pb-24 space-y-6">
-            <header className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Hey, {userProfile.display_name}!</h1>
-                    <p className="text-gray-500">Ready to level up?</p>
+        <div className="min-h-screen bg-gray-50 p-4 pb-24 space-y-6">
+            
+            {/* Modern Header */}
+            <header className="flex justify-between items-center pt-2 pb-2 relative z-30">
+                <div className="flex items-center gap-3" onClick={handleProfileClick}>
+                    <div className="relative">
+                        <img 
+                            src={avatarUrl} 
+                            alt="Profile" 
+                            className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md cursor-pointer" 
+                        />
+                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">{getGreeting()}</span>
+                        <h1 className="text-lg font-extrabold text-gray-900 leading-tight">{userProfile.display_name}</h1>
+                    </div>
                 </div>
-                <button onClick={handleProfileClick} className="p-2 rounded-full hover:bg-gray-100">
-                    <Settings className="w-6 h-6 text-gray-600" />
-                </button>
+
+                <div className="relative" ref={notificationRef}>
+                    <button 
+                        onClick={toggleNotifications} 
+                        className={`p-3 rounded-full transition-all duration-200 ${isNotificationsOpen ? 'bg-purple-100 text-purple-600' : 'bg-white text-gray-600 hover:bg-gray-100 shadow-sm border border-gray-100'}`}
+                    >
+                        <Bell size={22} className={unreadCount > 0 && !isNotificationsOpen ? 'animate-pulse-subtle' : ''} />
+                        {unreadCount > 0 && (
+                            <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+                        )}
+                    </button>
+
+                    {/* Notification Dropdown */}
+                    {isNotificationsOpen && (
+                        <div className="absolute right-0 top-full mt-4 w-80 md:w-96 bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-fade-in-down z-50 origin-top-right">
+                            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-white/50">
+                                <h3 className="font-bold text-gray-800">Notifications</h3>
+                                {unreadCount > 0 && (
+                                    <button onClick={markAllRead} className="text-xs font-semibold text-purple-600 hover:text-purple-700 flex items-center gap-1">
+                                        <Check size={12} /> Mark all read
+                                    </button>
+                                )}
+                            </div>
+                            <div className="max-h-[300px] overflow-y-auto">
+                                {notifications.length === 0 ? (
+                                    <div className="p-8 text-center text-gray-400">
+                                        <Bell size={32} className="mx-auto mb-2 opacity-20" />
+                                        <p className="text-sm">No new notifications</p>
+                                    </div>
+                                ) : (
+                                    notifications.map(notif => (
+                                        <div key={notif.id} className={`p-4 border-b border-gray-50 hover:bg-purple-50/50 transition-colors flex gap-3 ${notif.read ? 'opacity-60' : 'opacity-100'}`}>
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                                notif.type === 'success' ? 'bg-green-100 text-green-600' :
+                                                notif.type === 'achievement' ? 'bg-yellow-100 text-yellow-600' :
+                                                'bg-blue-100 text-blue-600'
+                                            }`}>
+                                                {notif.type === 'success' ? <Check size={18} /> : 
+                                                 notif.type === 'achievement' ? <Trophy size={18} /> : 
+                                                 <Target size={18} />}
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="flex justify-between items-start">
+                                                    <h4 className="text-sm font-bold text-gray-800">{notif.title}</h4>
+                                                    <span className="text-[10px] text-gray-400">{notif.time}</span>
+                                                </div>
+                                                <p className="text-xs text-gray-600 mt-0.5 leading-relaxed">{notif.message}</p>
+                                            </div>
+                                            {!notif.read && <div className="w-2 h-2 bg-purple-500 rounded-full self-center"></div>}
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                            <div className="p-3 bg-gray-50/50 text-center border-t border-gray-100">
+                                <button className="text-xs font-bold text-gray-500 hover:text-gray-800 transition-colors">View Settings</button>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </header>
             
             {/* Level Progress Card */}

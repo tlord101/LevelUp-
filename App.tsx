@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { HashRouter, Routes, Route, Outlet, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -28,6 +29,7 @@ import FoodScanDetailScreen from './screens/FoodScanDetailScreen';
 import BodyScanDetailScreen from './screens/BodyScanDetailScreen';
 import FaceScanDetailScreen from './screens/FaceScanDetailScreen';
 import LiveCoachScreen from './screens/LiveCoachScreen';
+import EditProfileScreen from './screens/EditProfileScreen';
 import { supabase } from './config/supabase';
 
 const AppLoader: React.FC = () => (
@@ -150,6 +152,7 @@ const App: React.FC = () => {
                     <Route path="/create-post" element={<CreatePostScreen />} />
                     <Route path="/create-group" element={<CreateGroupScreen />} />
                     <Route path="/profile" element={<ProfileScreen />} />
+                    <Route path="/edit-profile" element={<EditProfileScreen />} />
                     <Route path="/leaderboard" element={<LeaderboardScreen />} />
                     <Route path="/discover-groups" element={<DiscoverGroupsScreen />} />
                     <Route path="/groups/:groupId" element={<GroupDetailScreen />} />

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { signOutUser } from '../services/supabaseService';
@@ -20,7 +21,7 @@ const ProfileScreen: React.FC = () => {
   };
   
   const menuItems = [
-    { label: 'Edit Profile', icon: UserCircle, path: '#', badge: null },
+    { label: 'Edit Profile', icon: UserCircle, path: '/edit-profile', badge: null },
     { label: 'Food Scan History', icon: UtensilsCrossed, path: '/food-history', badge: null },
     { label: 'Body Scan History', icon: Scan, path: '/body-history', badge: null },
     { label: 'Face Scan History', icon: Smile, path: '/face-history', badge: null },

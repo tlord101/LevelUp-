@@ -1,3 +1,4 @@
+
 import { supabase } from '../config/supabase';
 import { NutritionScanResult, BodyScanResult, FaceScanResult, NutritionScan, BodyScan, FaceScan, Post, Group, Comment, NutritionLog } from '../types';
 import { Provider } from '@supabase/supabase-js';
@@ -40,15 +41,38 @@ export const sendPasswordReset = async (email: string) => {
     if (error) throw error;
 };
 
+export const updatePassword = async (newPassword: string) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw error;
+};
+
+export const updateUserMetadata = async (updates: object) => {
+    const { data, error } = await supabase.auth.updateUser({
+        data: updates
+    });
+    if (error) throw error;
+    return data;
+};
+
 
 // --- STORAGE ---
 
-export const uploadImage = async (file: Blob | File, userId: string, bucket: 'scans' | 'posts'): Promise<string> => {
+export const uploadImage = async (file: Blob | File, userId: string, bucket: string, folder?: string): Promise<string> => {
     const timestamp = new Date().getTime();
-    const filePath = `${userId}/${timestamp}.jpeg`;
+    // Create a clean filename
+    const fileExt = file instanceof File ? file.name.split('.').pop() : 'jpeg';
+    
+    // Construct file path with optional folder
+    const filePath = folder 
+        ? `${userId}/${folder}/${timestamp}.${fileExt}`
+        : `${userId}/${timestamp}.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file);
-    if (uploadError) throw uploadError;
+    
+    if (uploadError) {
+        console.error(`Error uploading to bucket '${bucket}':`, uploadError);
+        throw uploadError;
+    }
 
     const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
     return data.publicUrl;
