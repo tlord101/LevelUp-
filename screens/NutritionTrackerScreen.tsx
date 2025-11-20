@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getTodaysNutritionLogs, logNutritionIntake } from '../services/firebaseService';
 import { NutritionLog, MealPlanItem, ActivityLogItem, NutritionScan } from '../types';
-import { ArrowLeft, Plus, Settings, X, Loader2, Utensils, Flame, Droplets, Activity, Zap, ChefHat, Sparkles, Calendar, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Plus, Settings, X, Loader2, Utensils, Flame, Droplets, Activity, Zap, ChefHat, Sparkles, Calendar, CheckCircle, Clock } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
 import { GoogleGenAI, Type } from '@google/genai';
@@ -544,98 +545,65 @@ const NutritionTrackerScreen: React.FC = () => {
                                         </div>
                                         <div className="flex justify-between items-center pt-3 border-t border-gray-50">
                                             <div className="flex gap-3 text-xs font-semibold text-gray-500">
-                                                <span>P: {meal.macros.protein}g</span>
-                                                <span>C: {meal.macros.carbs}g</span>
-                                                <span>F: {meal.macros.fat}g</span>
+                                                <span className="flex items-center gap-1"><Zap size={12} /> {meal.macros.protein}g P</span>
+                                                <span className="flex items-center gap-1"><Utensils size={12} /> {meal.macros.carbs}g C</span>
+                                                <span className="flex items-center gap-1"><Flame size={12} /> {meal.macros.fat}g F</span>
                                             </div>
-                                            <button 
-                                                onClick={() => handleOpenScheduleModal(meal)}
-                                                className="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide hover:bg-gray-200 transition flex items-center gap-1"
-                                            >
-                                                <Calendar size={12} /> Schedule
-                                            </button>
+                                            <div className="flex gap-2">
+                                                <button 
+                                                    onClick={() => handleOpenScheduleModal(meal)}
+                                                    className="text-purple-600 hover:bg-purple-50 p-2 rounded-full transition"
+                                                    title="Schedule for specific time"
+                                                >
+                                                    <Clock size={18} />
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             ))}
                             
-                            <div className="flex gap-3 pt-2">
-                                <button 
-                                    onClick={generateMealPlan}
-                                    disabled={isGeneratingPlan || isAcceptingPlan}
-                                    className="flex-1 bg-gray-100 text-gray-600 font-semibold py-3 rounded-xl hover:bg-gray-200 transition text-sm disabled:opacity-50"
-                                >
-                                    {isGeneratingPlan ? <Loader2 className="animate-spin mx-auto" size={18}/> : 'Regenerate'}
-                                </button>
-                                <button 
-                                    onClick={handleAcceptPlan}
-                                    disabled={isGeneratingPlan || isAcceptingPlan}
-                                    className="flex-[2] bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 transition text-sm shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
-                                >
-                                    {isAcceptingPlan ? <Loader2 className="animate-spin" size={18}/> : <CheckCircle size={18} />}
-                                    Accept & Schedule Plan
-                                </button>
-                            </div>
+                            <button
+                                onClick={handleAcceptPlan}
+                                disabled={isAcceptingPlan}
+                                className="w-full bg-purple-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-purple-700 transition flex items-center justify-center gap-2 disabled:opacity-70"
+                            >
+                                {isAcceptingPlan ? <Loader2 className="animate-spin" /> : <CheckCircle size={20} />}
+                                {isAcceptingPlan ? 'Saving...' : 'Add All to Schedule'}
+                            </button>
                         </div>
                     )}
                 </section>
-
-                <div className="h-8"></div>
             </main>
 
-            {/* Log Button (Fixed) */}
-             <div className="fixed bottom-24 right-4 z-10">
-                <button
-                    onClick={() => { hapticTap(); navigate('/scanner/food'); }}
-                    className="bg-purple-600 text-white p-4 rounded-full shadow-lg hover:bg-purple-700 hover:scale-105 transition-all duration-300 flex items-center justify-center"
-                >
-                    <Plus size={24} />
-                </button>
-            </div>
-
-            {/* Goal Setting Modal */}
+            {/* Goal Modal */}
             {isGoalModalOpen && (
                 <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-fade-in-down">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-fade-in-up">
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold text-gray-800">Daily Goals</h2>
+                            <h2 className="text-xl font-bold text-gray-800">Daily Calorie Goal</h2>
                             <button onClick={() => setIsGoalModalOpen(false)} className="p-2 rounded-full hover:bg-gray-100">
                                 <X size={20} className="text-gray-600" />
                             </button>
                         </div>
-                        
-                        <div className="space-y-6">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Calorie Target</label>
-                                <div className="relative">
-                                    <input
-                                        type="number"
-                                        value={newGoal}
-                                        onChange={(e) => setNewGoal(parseInt(e.target.value, 10) || 0)}
-                                        className="w-full text-center text-3xl font-bold p-4 border-none bg-gray-50 rounded-2xl focus:ring-2 focus:ring-purple-500 outline-none shadow-inner"
-                                    />
-                                    <span className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 font-medium">kcal</span>
-                                </div>
+                        <div className="mb-6">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Target Calories</label>
+                            <div className="relative">
+                                <input
+                                    type="number"
+                                    value={newGoal}
+                                    onChange={(e) => setNewGoal(parseInt(e.target.value) || 0)}
+                                    className="w-full p-4 bg-gray-50 rounded-xl text-2xl font-bold text-center text-gray-900 border-2 border-transparent focus:border-purple-500 focus:bg-white transition"
+                                />
+                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">kcal</span>
                             </div>
-                            
-                            <div className="bg-purple-50 p-4 rounded-xl">
-                                <p className="text-xs text-purple-700 font-medium text-center">
-                                    Based on this goal, your estimated daily targets are:
-                                </p>
-                                <div className="flex justify-around mt-3 text-center">
-                                    <div><p className="font-bold text-purple-900">{Math.round((newGoal * 0.30) / 4)}g</p><p className="text-[10px] text-purple-600 uppercase">Protein</p></div>
-                                    <div><p className="font-bold text-purple-900">{Math.round((newGoal * 0.40) / 4)}g</p><p className="text-[10px] text-purple-600 uppercase">Carbs</p></div>
-                                    <div><p className="font-bold text-purple-900">{Math.round((newGoal * 0.30) / 9)}g</p><p className="text-[10px] text-purple-600 uppercase">Fats</p></div>
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={handleUpdateGoal}
-                                className="w-full bg-purple-600 text-white font-bold py-4 rounded-xl hover:bg-purple-700 transition shadow-md"
-                            >
-                                Save Changes
-                            </button>
                         </div>
+                        <button 
+                            onClick={handleUpdateGoal}
+                            className="w-full bg-purple-600 text-white font-bold py-3 rounded-xl hover:bg-purple-700 transition shadow-md"
+                        >
+                            Update Goal
+                        </button>
                     </div>
                 </div>
             )}
@@ -644,39 +612,24 @@ const NutritionTrackerScreen: React.FC = () => {
             {isScheduleModalOpen && selectedMealForSchedule && (
                 <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-fade-in-up">
-                        <div className="text-center mb-6">
+                        <div className="flex justify-between items-center mb-4">
                             <h2 className="text-xl font-bold text-gray-800">Schedule Meal</h2>
-                            <p className="text-gray-500 text-sm">When do you plan to eat {selectedMealForSchedule.name}?</p>
-                        </div>
-                        
-                        <div className="space-y-3">
-                            <button onClick={() => confirmAddToSchedule(8)} className="w-full p-4 bg-orange-50 hover:bg-orange-100 rounded-xl flex items-center justify-between group transition-colors">
-                                <span className="font-bold text-orange-800">Breakfast</span>
-                                <span className="text-orange-400 text-sm bg-white px-2 py-1 rounded-md group-hover:text-orange-600">8:00 AM</span>
-                            </button>
-                             <button onClick={() => confirmAddToSchedule(13)} className="w-full p-4 bg-green-50 hover:bg-green-100 rounded-xl flex items-center justify-between group transition-colors">
-                                <span className="font-bold text-green-800">Lunch</span>
-                                <span className="text-green-500 text-sm bg-white px-2 py-1 rounded-md group-hover:text-green-600">1:00 PM</span>
-                            </button>
-                             <button onClick={() => confirmAddToSchedule(16)} className="w-full p-4 bg-blue-50 hover:bg-blue-100 rounded-xl flex items-center justify-between group transition-colors">
-                                <span className="font-bold text-blue-800">Snack</span>
-                                <span className="text-blue-400 text-sm bg-white px-2 py-1 rounded-md group-hover:text-blue-600">4:00 PM</span>
-                            </button>
-                             <button onClick={() => confirmAddToSchedule(19)} className="w-full p-4 bg-purple-50 hover:bg-purple-100 rounded-xl flex items-center justify-between group transition-colors">
-                                <span className="font-bold text-purple-800">Dinner</span>
-                                <span className="text-purple-400 text-sm bg-white px-2 py-1 rounded-md group-hover:text-purple-600">7:00 PM</span>
+                            <button onClick={() => setIsScheduleModalOpen(false)} className="p-2 rounded-full hover:bg-gray-100">
+                                <X size={20} className="text-gray-600" />
                             </button>
                         </div>
+                        <p className="text-gray-600 mb-6">When do you plan to eat <span className="font-bold text-gray-900">{selectedMealForSchedule.name}</span>?</p>
                         
-                        <button 
-                            onClick={() => setIsScheduleModalOpen(false)} 
-                            className="mt-4 w-full py-3 text-gray-500 hover:text-gray-800 font-medium"
-                        >
-                            Cancel
-                        </button>
+                        <div className="grid grid-cols-2 gap-3">
+                            <button onClick={() => confirmAddToSchedule(8)} className="p-3 bg-orange-50 text-orange-700 font-semibold rounded-xl hover:bg-orange-100 transition">Breakfast (8 AM)</button>
+                            <button onClick={() => confirmAddToSchedule(13)} className="p-3 bg-green-50 text-green-700 font-semibold rounded-xl hover:bg-green-100 transition">Lunch (1 PM)</button>
+                            <button onClick={() => confirmAddToSchedule(16)} className="p-3 bg-yellow-50 text-yellow-700 font-semibold rounded-xl hover:bg-yellow-100 transition">Snack (4 PM)</button>
+                            <button onClick={() => confirmAddToSchedule(19)} className="p-3 bg-blue-50 text-blue-700 font-semibold rounded-xl hover:bg-blue-100 transition">Dinner (7 PM)</button>
+                        </div>
                     </div>
                 </div>
             )}
+
         </div>
     );
 };

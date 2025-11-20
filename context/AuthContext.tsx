@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { User, onAuthStateChanged } from 'firebase/auth';
 import { auth, firestore } from '../config/firebase';
@@ -113,12 +114,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
 
         // Update local state
-        setUserProfile({
-            ...currentProfile,
-            xp: newXp,
-            level: newLevel,
-            stats: newStats
-        });
+        // Re-fetch to ensure consistency with Firestore timestamp conversions if needed
+        const updated = await getUserProfile(user.uid);
+        setUserProfile(updated);
 
         if (didLevelUp) {
             hapticSuccess();

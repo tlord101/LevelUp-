@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Loader2, User, Lock, ChevronDown, ChevronUp, Camera, CheckCircle, XCircle, Eye, EyeOff } from 'lucide-react';
@@ -157,7 +158,7 @@ const EditProfileScreen: React.FC = () => {
 
         // Define a timeout to prevent infinite spinning
         const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error("TIMEOUT")), 5000)
+            setTimeout(() => reject(new Error("TIMEOUT")), 10000)
         );
 
         try {

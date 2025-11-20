@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { createComment, getCommentsForPost } from '../services/supabaseService';
+import { createComment, getCommentsForPost } from '../services/firebaseService';
 import { Comment } from '../types';
 import { Loader2, Send } from 'lucide-react';
 import { hapticTap, hapticError, hapticSuccess } from '../utils/haptics';
@@ -44,7 +45,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, onCommentPosted
         hapticTap();
 
         try {
-            const createdComment = await createComment(postId, user.id, userProfile.display_name, newComment.trim());
+            const createdComment = await createComment(postId, user.uid, userProfile.display_name, newComment.trim());
             setComments(prevComments => [...prevComments, createdComment]);
             setNewComment('');
             onCommentPosted(); // Notify parent to update count
