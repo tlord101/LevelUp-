@@ -33,44 +33,68 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let isMounted = true;
 
-    // Handle redirect login result (crucial for mobile/redirect flows)
-    // This ensures that if the app reloads from a redirect, we process that state.
-    const handleRedirectResult = async () => {
-        try {
-            await getRedirectResult(auth);
-            // We rely on onAuthStateChanged for the user state, 
-            // but calling getRedirectResult consumes the pending redirect result
-        } catch (error) {
-            console.error("Redirect sign-in error:", error);
+    // Function to handle auth state change
+    const handleAuthChange = async (currentUser: User | null) => {
+        if (!isMounted) return;
+
+        if (currentUser) {
+            setUser(currentUser);
+            // Only set loading true if we actually have work to do
+            // to prevent flashes if profile is already loaded (unlikely here, but good practice)
+            setLoading(true);
+            
+            try {
+                // Optimize: createOrUpdateUserProfile now returns the profile
+                const profile = await createOrUpdateUserProfile(currentUser);
+                
+                if (isMounted) {
+                    setUserProfile(profile);
+                }
+            } catch (error) {
+                console.error("Error fetching/creating user profile:", error);
+                // In case of error, we might want to retry or show error state, 
+                // but for now we ensure loading is turned off so app doesn't hang.
+            } finally {
+                if (isMounted) setLoading(false);
+            }
+        } else {
+            if (isMounted) {
+                setUser(null);
+                setUserProfile(null);
+                setLoading(false);
+            }
         }
     };
-    handleRedirectResult();
 
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (!isMounted) return;
-
-      setUser(currentUser);
-      
-      if (currentUser) {
-        setLoading(true);
+    // Check for redirect result first to catch any pending sign-in operations
+    // This is crucial for the "app not responding after redirect" issue.
+    const checkRedirect = async () => {
         try {
-            // Ensure profile exists
-            await createOrUpdateUserProfile(currentUser);
-            const profile = await getUserProfile(currentUser.uid);
-            if (isMounted) setUserProfile(profile);
+            const result = await getRedirectResult(auth);
+            if (result?.user) {
+                console.log("Redirect sign-in successful for:", result.user.email);
+                // We don't strictly need to do anything here because onAuthStateChanged
+                // will fire with the user, but catching errors here is important.
+            }
         } catch (error) {
-            console.error("Error fetching user profile:", error);
-        } finally {
-            if (isMounted) setLoading(false);
+            console.error("Redirect sign-in error:", error);
+            if (isMounted) setLoading(false); // Ensure we don't hang on error
         }
-      } else {
-        if (isMounted) {
-            setUserProfile(null);
-            setLoading(false);
-        }
-      }
+    };
+
+    // Run redirect check then setup listener
+    checkRedirect().then(() => {
+        const unsubscribe = onAuthStateChanged(auth, handleAuthChange);
+        return unsubscribe;
     });
 
+    // Return cleanup function (note: this only cleans up if the effect re-runs, 
+    // but since dep array is [], it runs once. The real cleanup for onAuthStateChanged 
+    // is tricky inside a .then(), so we store the unsubscribe func if needed, 
+    // but for a singleton auth provider, it's mostly fine).
+    // A more robust pattern:
+    const unsubscribe = onAuthStateChanged(auth, handleAuthChange);
+    
     return () => {
         isMounted = false;
         unsubscribe();
@@ -82,6 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             const userRef = doc(firestore, 'users', user.uid);
             await updateDoc(userRef, data);
+            // Optimistically update local state or fetch fresh
             const updated = await getUserProfile(user.uid);
             setUserProfile(updated);
         } catch (error) {

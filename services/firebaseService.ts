@@ -50,12 +50,14 @@ const convertTimestampToISO = (data: any) => {
 
 // --- USER PROFILE ---
 
-export const createOrUpdateUserProfile = async (user: User, additionalData: Partial<UserProfile> = {}) => {
+export const createOrUpdateUserProfile = async (user: User, additionalData: Partial<UserProfile> = {}): Promise<UserProfile | null> => {
   const userRef = doc(firestore, 'users', user.uid);
   // Check if the user exists
   const docSnap = await getDoc(userRef);
 
-  if (!docSnap.exists()) {
+  if (docSnap.exists()) {
+    return convertTimestampToISO(docSnap.data()) as UserProfile;
+  } else {
     const profileData = {
       id: user.uid,
       email: user.email,
@@ -84,6 +86,12 @@ export const createOrUpdateUserProfile = async (user: User, additionalData: Part
       },
     };
     await setDoc(userRef, profileData);
+    
+    // Return the new profile data with ISO timestamp for consistent usage
+    return {
+        ...profileData,
+        created_at: new Date().toISOString()
+    } as unknown as UserProfile;
   }
 };
 
