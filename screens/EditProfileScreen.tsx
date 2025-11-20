@@ -1,7 +1,8 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Loader2, User, Lock, ChevronDown, ChevronUp, Camera } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, User, Lock, ChevronDown, ChevronUp, Camera, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { updatePassword, uploadImage, updateUserMetadata } from '../services/supabaseService';
 import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
@@ -48,6 +49,9 @@ const EditProfileScreen: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [passwordLoading, setPasswordLoading] = useState(false);
     const [activeSection, setActiveSection] = useState<'basic' | 'goals' | 'password'>('basic');
+    
+    // Feedback State for swift non-blocking notifications
+    const [feedback, setFeedback] = useState<{ type: 'success' | 'error' | 'warning', message: string } | null>(null);
 
     useEffect(() => {
         if (userProfile) {
@@ -64,6 +68,14 @@ const EditProfileScreen: React.FC = () => {
             setAvatarPreview(user.user_metadata.avatar_url);
         }
     }, [userProfile, user]);
+    
+    // Auto-dismiss feedback
+    useEffect(() => {
+        if (feedback) {
+            const timer = setTimeout(() => setFeedback(null), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [feedback]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -93,25 +105,24 @@ const EditProfileScreen: React.FC = () => {
 
     const handleSaveProfile = async () => {
         if (!formData.display_name.trim() || !formData.age) {
-            alert("Name and Age are required.");
+            setFeedback({ type: 'error', message: "Name and Age are required." });
             return;
         }
 
         setLoading(true);
         hapticTap();
         
+        let avatarUploadFailed = false;
+        
         try {
-            let avatarError = null;
-            // 1. Upload Avatar if changed
+            // 1. Upload Avatar if changed (Try/Catch this separately so it doesn't block profile update)
             if (avatarFile && user) {
                 try {
-                    // Use 'scans' bucket as it is more likely to exist than 'avatars'
-                    // and place inside an 'avatars' folder.
                     const imageUrl = await uploadImage(avatarFile, user.id, 'scans', 'avatars');
                     await updateUserMetadata({ avatar_url: imageUrl });
                 } catch (uploadErr: any) {
                     console.error("Avatar upload failed:", uploadErr);
-                    avatarError = "Could not upload profile photo (Bucket not found or permission denied).";
+                    avatarUploadFailed = true;
                 }
             }
 
@@ -123,19 +134,19 @@ const EditProfileScreen: React.FC = () => {
             
             hapticSuccess();
 
-            // Immediate feedback
-            if (avatarError) {
-                alert(`Profile info saved, but image failed: ${avatarError}`);
+            if (avatarUploadFailed) {
+                 setFeedback({ type: 'warning', message: 'Profile info saved, but photo upload failed.' });
             } else {
-                alert("Profile updated successfully!");
+                 setFeedback({ type: 'success', message: 'Profile updated successfully!' });
             }
             
-            navigate('/profile');
+            // Short delay before navigating back to let user see success
+            setTimeout(() => navigate('/profile'), 1000);
             
         } catch (error: any) {
             console.error("Failed to update profile:", error);
             hapticError();
-            alert(error.message || "Failed to save profile. Please try again.");
+            setFeedback({ type: 'error', message: error.message || "Failed to save profile." });
         } finally {
             setLoading(false);
         }
@@ -144,11 +155,11 @@ const EditProfileScreen: React.FC = () => {
     const handlePasswordChange = async (e: React.FormEvent) => {
         e.preventDefault();
         if (passwords.newPassword !== passwords.confirmPassword) {
-            alert("Passwords do not match.");
+            setFeedback({ type: 'error', message: "Passwords do not match." });
             return;
         }
         if (passwords.newPassword.length < 6) {
-            alert("Password must be at least 6 characters.");
+            setFeedback({ type: 'error', message: "Password must be at least 6 characters." });
             return;
         }
 
@@ -158,11 +169,11 @@ const EditProfileScreen: React.FC = () => {
             await updatePassword(passwords.newPassword);
             hapticSuccess();
             setPasswords({ newPassword: '', confirmPassword: '' });
-            alert("Password updated successfully.");
+            setFeedback({ type: 'success', message: "Password updated successfully." });
         } catch (error: any) {
             console.error("Failed to update password:", error);
             hapticError();
-            alert(error.message || "Failed to update password.");
+            setFeedback({ type: 'error', message: error.message || "Failed to update password." });
         } finally {
             setPasswordLoading(false);
         }
@@ -173,11 +184,22 @@ const EditProfileScreen: React.FC = () => {
         setActiveSection(activeSection === section ? 'basic' : section);
     };
 
-    // Standardized input class: Black text, rounded corners, purple border
     const inputClass = "w-full p-4 bg-white text-black font-medium rounded-2xl border-2 border-purple-200 focus:border-purple-600 focus:ring-4 focus:ring-purple-500/10 outline-none transition-all duration-200 placeholder-gray-500 shadow-sm";
 
     return (
-        <div className="min-h-screen bg-gray-50 pb-24">
+        <div className="min-h-screen bg-gray-50 pb-24 relative">
+            {/* Feedback Toast */}
+            {feedback && (
+                <div className={`fixed top-20 left-1/2 -translate-x-1/2 z-50 w-11/12 max-w-sm p-4 rounded-xl shadow-xl flex items-center gap-3 animate-fade-in-down ${
+                    feedback.type === 'success' ? 'bg-green-500 text-white' : 
+                    feedback.type === 'warning' ? 'bg-orange-500 text-white' : 
+                    'bg-red-500 text-white'
+                }`}>
+                    {feedback.type === 'success' ? <CheckCircle size={24} /> : <AlertCircle size={24} />}
+                    <p className="font-semibold text-sm">{feedback.message}</p>
+                </div>
+            )}
+
             {/* Header */}
             <header className="sticky top-0 bg-white/90 backdrop-blur-sm z-10 p-4 border-b border-gray-200 flex items-center justify-between">
                 <button onClick={() => { hapticTap(); navigate(-1); }} className="p-2 rounded-full hover:bg-gray-100">
