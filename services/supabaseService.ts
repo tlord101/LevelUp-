@@ -46,33 +46,15 @@ export const updatePassword = async (newPassword: string) => {
     if (error) throw error;
 };
 
-export const updateUserMetadata = async (updates: object) => {
-    const { data, error } = await supabase.auth.updateUser({
-        data: updates
-    });
-    if (error) throw error;
-    return data;
-};
-
 
 // --- STORAGE ---
 
-export const uploadImage = async (file: Blob | File, userId: string, bucket: string, folder?: string): Promise<string> => {
+export const uploadImage = async (file: Blob | File, userId: string, bucket: 'scans' | 'posts'): Promise<string> => {
     const timestamp = new Date().getTime();
-    // Create a clean filename
-    const fileExt = file instanceof File ? file.name.split('.').pop() : 'jpeg';
-    
-    // Construct file path with optional folder support
-    const filePath = folder 
-        ? `${userId}/${folder}/${timestamp}.${fileExt}`
-        : `${userId}/${timestamp}.${fileExt}`;
+    const filePath = `${userId}/${timestamp}.jpeg`;
 
     const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file);
-    
-    if (uploadError) {
-        console.error(`Error uploading to bucket '${bucket}':`, uploadError);
-        throw uploadError;
-    }
+    if (uploadError) throw uploadError;
 
     const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
     return data.publicUrl;
@@ -140,12 +122,10 @@ export const getFaceScans = async (userId: string): Promise<FaceScan[]> => {
 // --- DATABASE: NUTRITION LOGS ---
 
 export const logNutritionIntake = async (userId: string, logData: Omit<NutritionLog, 'id' | 'user_id' | 'created_at'> & { created_at?: string }) => {
-    // FIX: We strip 'consumed' property before insert because the 'daily_nutrition_logs' table
-    // might not have the 'consumed' column yet, causing a schema error.
-    const { consumed, ...rest } = logData;
-    const dataToInsert = { ...rest, user_id: userId };
-    
-    const { error } = await supabase.from('daily_nutrition_logs').insert(dataToInsert);
+    const { error } = await supabase.from('daily_nutrition_logs').insert({
+        user_id: userId,
+        ...logData,
+    });
     if (error) throw error;
 };
 
@@ -192,19 +172,9 @@ export const deleteNutritionLog = async (logId: string) => {
 };
 
 export const updateNutritionLog = async (logId: string, updates: Partial<NutritionLog>) => {
-    // Strip 'consumed' field if present, as the column might not exist yet in DB
-    const { consumed, ...cleanUpdates } = updates;
-    
-    // If there are no other updates, we might skip the call or handle accordingly.
-    // For now, if cleanUpdates is empty, we just return to avoid erroring on empty update.
-    if (Object.keys(cleanUpdates).length === 0) {
-        console.warn("Skipping updateNutritionLog: 'consumed' column missing in DB schema.");
-        return;
-    }
-
     const { error } = await supabase
         .from('daily_nutrition_logs')
-        .update(cleanUpdates)
+        .update(updates)
         .eq('id', logId);
     if (error) throw error;
 };

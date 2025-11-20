@@ -1,10 +1,9 @@
 
-
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { signOutUser } from '../services/supabaseService';
 import { useNavigate, Link } from 'react-router-dom';
-import { UserCircle, Bell, UserPlus } from 'lucide-react';
+import { UserCircle, UtensilsCrossed, Scan, Smile, Bell, UserPlus } from 'lucide-react';
 import { hapticTap } from '../utils/haptics';
 
 const ProfileScreen: React.FC = () => {
@@ -23,7 +22,10 @@ const ProfileScreen: React.FC = () => {
   
   const menuItems = [
     { label: 'Edit Profile', icon: UserCircle, path: '/edit-profile', badge: null },
-    { label: 'Notification Settings', icon: Bell, path: '/notification-settings', badge: null },
+    { label: 'Food Scan History', icon: UtensilsCrossed, path: '/food-history', badge: null },
+    { label: 'Body Scan History', icon: Scan, path: '/body-history', badge: null },
+    { label: 'Face Scan History', icon: Smile, path: '/face-history', badge: null },
+    { label: 'Notification Settings', icon: Bell, path: '#', badge: null },
     { label: 'Invite Friends', icon: UserPlus, path: '/community', badge: null },
   ];
 

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -42,7 +41,11 @@ const MyGroups: React.FC = () => {
     };
 
     if (loading) {
-        return null;
+        return (
+            <div className="flex justify-center items-center p-10">
+                <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+            </div>
+        );
     }
 
     return (

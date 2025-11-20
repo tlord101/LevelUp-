@@ -1,9 +1,9 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Loader2, User, Lock, ChevronDown, ChevronUp, Camera, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, User, Lock, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { updatePassword, uploadImage, updateUserMetadata } from '../services/supabaseService';
+import { updatePassword } from '../services/supabaseService';
 import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
 
 // Data Constants (Matching Onboarding)
@@ -24,9 +24,8 @@ const ACTIVITY_LEVEL_OPTIONS = [
 ];
 
 const EditProfileScreen: React.FC = () => {
-    const { user, userProfile, updateUserProfileData } = useAuth();
+    const { userProfile, updateUserProfileData } = useAuth();
     const navigate = useNavigate();
-    const isMounted = useRef(true);
     
     const [formData, setFormData] = useState({
         display_name: '',
@@ -37,10 +36,6 @@ const EditProfileScreen: React.FC = () => {
         activity_level: '',
     });
 
-    const [avatarFile, setAvatarFile] = useState<File | null>(null);
-    const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
-
     const [passwords, setPasswords] = useState({
         newPassword: '',
         confirmPassword: ''
@@ -49,41 +44,19 @@ const EditProfileScreen: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [passwordLoading, setPasswordLoading] = useState(false);
     const [activeSection, setActiveSection] = useState<'basic' | 'goals' | 'password'>('basic');
-    
-    // Feedback State for swift non-blocking notifications
-    const [feedback, setFeedback] = useState<{ type: 'success' | 'error' | 'warning', message: string } | null>(null);
 
     useEffect(() => {
-        return () => { isMounted.current = false; };
-    }, []);
-
-    useEffect(() => {
-        // Only update form data from profile if we are NOT currently loading/saving
-        // This prevents the form from jumping/resetting mid-save if the context updates
-        if (userProfile && !loading) {
-            setFormData(prev => ({
-                display_name: userProfile.display_name || prev.display_name,
-                age: userProfile.age?.toString() || prev.age,
-                gender: userProfile.gender || prev.gender,
-                fitness_goals: userProfile.fitness_goals || prev.fitness_goals,
-                body_type: userProfile.body_type || prev.body_type,
-                activity_level: userProfile.activity_level || prev.activity_level,
-            }));
+        if (userProfile) {
+            setFormData({
+                display_name: userProfile.display_name || '',
+                age: userProfile.age?.toString() || '',
+                gender: userProfile.gender || '',
+                fitness_goals: userProfile.fitness_goals || [],
+                body_type: userProfile.body_type || '',
+                activity_level: userProfile.activity_level || '',
+            });
         }
-        if (user?.user_metadata?.avatar_url && !avatarFile) {
-            setAvatarPreview(user.user_metadata.avatar_url);
-        }
-    }, [userProfile, user, loading, avatarFile]);
-    
-    // Auto-dismiss feedback
-    useEffect(() => {
-        if (feedback) {
-            const timer = setTimeout(() => {
-                if(isMounted.current) setFeedback(null);
-            }, 3000);
-            return () => clearTimeout(timer);
-        }
-    }, [feedback]);
+    }, [userProfile]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -102,85 +75,38 @@ const EditProfileScreen: React.FC = () => {
         });
     };
 
-    const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            // Basic validation
-            if (file.size > 5 * 1024 * 1024) {
-                setFeedback({ type: 'error', message: "Image too large (max 5MB)" });
-                return;
-            }
-            setAvatarFile(file);
-            setAvatarPreview(URL.createObjectURL(file));
-            hapticTap();
-        }
-    };
-
     const handleSaveProfile = async () => {
         if (!formData.display_name.trim() || !formData.age) {
-            setFeedback({ type: 'error', message: "Name and Age are required." });
-            hapticError();
+            alert("Name and Age are required.");
             return;
         }
 
         setLoading(true);
         hapticTap();
-        
         try {
-            let avatarUploadSuccess = true;
-
-            // 1. Upload Avatar if changed
-            if (avatarFile && user) {
-                try {
-                    const imageUrl = await uploadImage(avatarFile, user.id, 'scans', 'avatars');
-                    // Update auth metadata separately so failure here doesn't break profile data save
-                    await updateUserMetadata({ avatar_url: imageUrl });
-                } catch (uploadErr: any) {
-                    console.error("Avatar upload failed:", uploadErr);
-                    avatarUploadSuccess = false;
-                }
-            }
-
-            // 2. Update Profile Data (Main operation)
             await updateUserProfileData({
                 ...formData,
                 age: parseInt(formData.age, 10),
             });
-            
-            if (isMounted.current) {
-                setLoading(false);
-                hapticSuccess();
-                
-                if (avatarFile && !avatarUploadSuccess) {
-                     setFeedback({ type: 'warning', message: 'Profile saved, but photo upload failed.' });
-                } else {
-                     setFeedback({ type: 'success', message: 'Profile updated successfully!' });
-                }
-                
-                // Navigate back after a brief delay to show success
-                setTimeout(() => {
-                    if (isMounted.current) navigate('/profile');
-                }, 1000);
-            }
-            
-        } catch (error: any) {
+            hapticSuccess();
+            navigate('/profile');
+        } catch (error) {
             console.error("Failed to update profile:", error);
-            if (isMounted.current) {
-                setLoading(false);
-                hapticError();
-                setFeedback({ type: 'error', message: error.message || "Failed to save profile." });
-            }
+            hapticError();
+            alert("Failed to save profile.");
+        } finally {
+            setLoading(false);
         }
     };
 
     const handlePasswordChange = async (e: React.FormEvent) => {
         e.preventDefault();
         if (passwords.newPassword !== passwords.confirmPassword) {
-            setFeedback({ type: 'error', message: "Passwords do not match." });
+            alert("Passwords do not match.");
             return;
         }
         if (passwords.newPassword.length < 6) {
-            setFeedback({ type: 'error', message: "Password must be at least 6 characters." });
+            alert("Password must be at least 6 characters.");
             return;
         }
 
@@ -190,13 +116,13 @@ const EditProfileScreen: React.FC = () => {
             await updatePassword(passwords.newPassword);
             hapticSuccess();
             setPasswords({ newPassword: '', confirmPassword: '' });
-            setFeedback({ type: 'success', message: "Password updated successfully." });
+            alert("Password updated successfully.");
         } catch (error: any) {
             console.error("Failed to update password:", error);
             hapticError();
-            setFeedback({ type: 'error', message: error.message || "Failed to update password." });
+            alert(error.message || "Failed to update password.");
         } finally {
-            if (isMounted.current) setPasswordLoading(false);
+            setPasswordLoading(false);
         }
     };
 
@@ -205,22 +131,11 @@ const EditProfileScreen: React.FC = () => {
         setActiveSection(activeSection === section ? 'basic' : section);
     };
 
-    const inputClass = "w-full p-4 bg-white text-black font-medium rounded-2xl border-2 border-purple-200 focus:border-purple-600 focus:ring-4 focus:ring-purple-500/10 outline-none transition-all duration-200 placeholder-gray-500 shadow-sm";
+    // Standardized input class for consistency
+    const inputClass = "w-full p-4 bg-white text-gray-900 font-medium rounded-2xl border-2 border-purple-100 focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10 outline-none transition-all duration-200 placeholder-gray-400 shadow-sm";
 
     return (
-        <div className="min-h-screen bg-gray-50 pb-24 relative">
-            {/* Feedback Toast */}
-            {feedback && (
-                <div className={`fixed top-20 left-1/2 -translate-x-1/2 z-50 w-11/12 max-w-sm p-4 rounded-xl shadow-xl flex items-center gap-3 animate-fade-in-down ${
-                    feedback.type === 'success' ? 'bg-green-500 text-white' : 
-                    feedback.type === 'warning' ? 'bg-orange-500 text-white' : 
-                    'bg-red-500 text-white'
-                }`}>
-                    {feedback.type === 'success' ? <CheckCircle size={24} /> : <AlertCircle size={24} />}
-                    <p className="font-semibold text-sm">{feedback.message}</p>
-                </div>
-            )}
-
+        <div className="min-h-screen bg-gray-50 pb-24">
             {/* Header */}
             <header className="sticky top-0 bg-white/90 backdrop-blur-sm z-10 p-4 border-b border-gray-200 flex items-center justify-between">
                 <button onClick={() => { hapticTap(); navigate(-1); }} className="p-2 rounded-full hover:bg-gray-100">
@@ -230,7 +145,7 @@ const EditProfileScreen: React.FC = () => {
                 <button 
                     onClick={handleSaveProfile}
                     disabled={loading}
-                    className="bg-purple-600 text-white p-2 rounded-full shadow-md hover:bg-purple-700 disabled:opacity-50 disabled:shadow-none transition-all flex items-center justify-center w-10 h-10"
+                    className="bg-purple-600 text-white p-2 rounded-full shadow-md hover:bg-purple-700 disabled:opacity-50 disabled:shadow-none transition-all"
                 >
                     {loading ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
                 </button>
@@ -238,31 +153,6 @@ const EditProfileScreen: React.FC = () => {
 
             <main className="p-4 space-y-6">
                 
-                {/* Avatar Section */}
-                <div className="flex flex-col items-center mb-4">
-                    <div className="relative">
-                        <img 
-                            src={avatarPreview || "https://i.pinimg.com/736x/03/65/0a/03650a358248c8a272b0c39f284e3d64.jpg"} 
-                            alt="Profile" 
-                            className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
-                        />
-                        <button 
-                            onClick={() => fileInputRef.current?.click()}
-                            className="absolute bottom-1 right-1 bg-purple-600 text-white p-2.5 rounded-full border-2 border-white shadow-md hover:bg-purple-700 transition transform hover:scale-105"
-                        >
-                            <Camera size={18} />
-                        </button>
-                    </div>
-                    <input 
-                        type="file" 
-                        ref={fileInputRef} 
-                        className="hidden" 
-                        accept="image/*" 
-                        onChange={handleAvatarChange}
-                    />
-                    <p className="text-xs font-semibold text-gray-500 mt-3 uppercase tracking-wide">Tap icon to change photo</p>
-                </div>
-
                 {/* Basic Info Section */}
                 <section className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
                     <div className="p-5 border-b border-gray-100 bg-gray-50/50 flex items-center gap-3">

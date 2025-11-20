@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Loader2, UserPlus, LogOut, Plus } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -82,7 +81,11 @@ const GroupDetailScreen: React.FC = () => {
     };
 
     if (loading) {
-        return null;
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <Loader2 className="w-10 h-10 animate-spin text-purple-600" />
+            </div>
+        );
     }
     
     if (!group) {
@@ -148,7 +151,11 @@ const GroupDetailScreen: React.FC = () => {
                 {/* Group Feed */}
                  <div className="space-y-4">
                     <h3 className="font-bold text-lg text-gray-800 pt-2">Group Activity</h3>
-                    {postsLoading ? null : posts.length === 0 ? (
+                    {postsLoading ? (
+                        <div className="flex justify-center items-center p-10">
+                            <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+                        </div>
+                    ) : posts.length === 0 ? (
                         <div className="text-center p-8 bg-white rounded-xl shadow-sm">
                             <p className="text-gray-600 font-semibold">No posts in this group yet.</p>
                             {isMember && <p className="text-sm text-gray-500 mt-1">Be the first to share something!</p>}

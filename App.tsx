@@ -30,8 +30,13 @@ import BodyScanDetailScreen from './screens/BodyScanDetailScreen';
 import FaceScanDetailScreen from './screens/FaceScanDetailScreen';
 import LiveCoachScreen from './screens/LiveCoachScreen';
 import EditProfileScreen from './screens/EditProfileScreen';
-import NotificationSettingsScreen from './screens/NotificationSettingsScreen';
 import { supabase } from './config/supabase';
+
+const AppLoader: React.FC = () => (
+    <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-purple-500"></div>
+    </div>
+);
 
 // This layout protects the main app routes.
 // It ensures the user is logged in AND has completed onboarding.
@@ -39,7 +44,7 @@ const ProtectedLayout: React.FC = () => {
     const { user, userProfile, loading } = useAuth();
 
     if (loading) {
-        return null;
+        return <AppLoader />;
     }
 
     if (!user) {
@@ -84,7 +89,7 @@ const OnboardingRouteWrapper: React.FC = () => {
     const { user, userProfile, loading } = useAuth();
 
     if (loading) {
-        return null;
+        return <AppLoader />;
     }
 
     if (!user) {
@@ -148,7 +153,6 @@ const App: React.FC = () => {
                     <Route path="/create-group" element={<CreateGroupScreen />} />
                     <Route path="/profile" element={<ProfileScreen />} />
                     <Route path="/edit-profile" element={<EditProfileScreen />} />
-                    <Route path="/notification-settings" element={<NotificationSettingsScreen />} />
                     <Route path="/leaderboard" element={<LeaderboardScreen />} />
                     <Route path="/discover-groups" element={<DiscoverGroupsScreen />} />
                     <Route path="/groups/:groupId" element={<GroupDetailScreen />} />

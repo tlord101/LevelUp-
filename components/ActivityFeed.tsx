@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import PostCard from './PostCard';
 import { getPosts } from '../services/supabaseService';
@@ -27,7 +26,11 @@ const ActivityFeed: React.FC = () => {
     }, []);
 
     if (loading) {
-        return null;
+        return (
+            <div className="flex justify-center items-center p-10">
+                <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+            </div>
+        );
     }
 
     if (error) {

@@ -33,11 +33,6 @@ export interface UserProfile {
   activity_level?: string;
   health_conditions?: string[];
   calorie_goal?: number;
-  notification_preferences?: {
-    dailyReminders: boolean;
-    communityUpdates: boolean;
-    aiTips: boolean;
-  };
 }
 
 export interface NutritionScanResult {
