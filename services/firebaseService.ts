@@ -1,9 +1,9 @@
-
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
   signOut,
   UserCredential,
   User,
@@ -111,14 +111,21 @@ export const signInWithEmail = async (email: string, password: string): Promise<
   return await signInWithEmailAndPassword(auth, email, password);
 };
 
-export const signInWithOAuth = async (providerName: 'google' | 'apple'): Promise<UserCredential> => {
+export const signInWithOAuth = async (providerName: 'google' | 'apple'): Promise<void> => {
   let provider;
   if (providerName === 'google') {
       provider = new GoogleAuthProvider();
   } else {
       provider = new OAuthProvider('apple.com');
   }
-  return await signInWithPopup(auth, provider);
+  
+  try {
+      await signInWithPopup(auth, provider);
+  } catch (error: any) {
+      console.warn("Popup sign-in failed or was blocked. Falling back to redirect method.", error);
+      // If popup is blocked or COOP policy interferes, try redirect
+      await signInWithRedirect(auth, provider);
+  }
 };
 
 export const signOutUser = async (): Promise<void> => {
