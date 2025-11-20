@@ -2,6 +2,7 @@ importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js');
 
 // Your web app's Firebase configuration
+// NOTE: This config is duplicated because service workers run in a separate thread.
 const firebaseConfig = {
   apiKey: "AIzaSyBE3KrZbhU-CXxEO_Clz6L2V9AqgdoQ1x4",
   authDomain: "levelup-87509.firebaseapp.com",

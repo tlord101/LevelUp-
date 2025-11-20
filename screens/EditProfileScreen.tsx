@@ -101,18 +101,17 @@ const EditProfileScreen: React.FC = () => {
         hapticTap();
         
         try {
+            let avatarError = null;
             // 1. Upload Avatar if changed
-            // We wrap this in its own try/catch so that if the bucket is missing or upload fails,
-            // we can still save the rest of the profile data.
             if (avatarFile && user) {
                 try {
                     // Use 'scans' bucket as it is more likely to exist than 'avatars'
+                    // and place inside an 'avatars' folder.
                     const imageUrl = await uploadImage(avatarFile, user.id, 'scans', 'avatars');
                     await updateUserMetadata({ avatar_url: imageUrl });
                 } catch (uploadErr: any) {
                     console.error("Avatar upload failed:", uploadErr);
-                    // Don't block the rest of the save
-                    alert("Warning: Could not upload profile photo (Bucket not found or permission denied). Saving other details...");
+                    avatarError = "Could not upload profile photo (Bucket not found or permission denied).";
                 }
             }
 
@@ -123,10 +122,15 @@ const EditProfileScreen: React.FC = () => {
             });
             
             hapticSuccess();
-            // Provide feedback before navigating
-            setTimeout(() => {
-                navigate('/profile');
-            }, 500);
+
+            // Immediate feedback
+            if (avatarError) {
+                alert(`Profile info saved, but image failed: ${avatarError}`);
+            } else {
+                alert("Profile updated successfully!");
+            }
+            
+            navigate('/profile');
             
         } catch (error: any) {
             console.error("Failed to update profile:", error);
@@ -169,7 +173,7 @@ const EditProfileScreen: React.FC = () => {
         setActiveSection(activeSection === section ? 'basic' : section);
     };
 
-    // Standardized input class for consistency: Black text, rounded corners, purple border
+    // Standardized input class: Black text, rounded corners, purple border
     const inputClass = "w-full p-4 bg-white text-black font-medium rounded-2xl border-2 border-purple-200 focus:border-purple-600 focus:ring-4 focus:ring-purple-500/10 outline-none transition-all duration-200 placeholder-gray-500 shadow-sm";
 
     return (
@@ -183,7 +187,7 @@ const EditProfileScreen: React.FC = () => {
                 <button 
                     onClick={handleSaveProfile}
                     disabled={loading}
-                    className="bg-purple-600 text-white p-2 rounded-full shadow-md hover:bg-purple-700 disabled:opacity-50 disabled:shadow-none transition-all"
+                    className="bg-purple-600 text-white p-2 rounded-full shadow-md hover:bg-purple-700 disabled:opacity-50 disabled:shadow-none transition-all flex items-center justify-center w-10 h-10"
                 >
                     {loading ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
                 </button>
