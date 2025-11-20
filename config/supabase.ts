@@ -43,7 +43,7 @@ interface Database {
       };
       daily_nutrition_logs: {
         Row: NutritionLog;
-        Insert: Omit<NutritionLog, 'id' | 'created_at' | 'user_id'> & { user_id?: string };
+        Insert: Omit<NutritionLog, 'id' | 'created_at' | 'user_id'> & { user_id?: string; created_at?: string };
       }
     };
     Functions: {

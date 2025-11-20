@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar as CalendarIcon, Utensils, Edit2, CheckCircle2, Clock } from 'lucide-react';
+import { ArrowLeft, Calendar as CalendarIcon, Utensils, Edit2, CheckCircle2, Clock, Trash2, Save, X, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getNutritionLogsForDate } from '../services/supabaseService';
+import { getNutritionLogsForDate, deleteNutritionLog, updateNutritionLog } from '../services/supabaseService';
 import { NutritionLog } from '../types';
-import { hapticTap } from '../utils/haptics';
+import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
 
 const MealScheduleScreen: React.FC = () => {
     const navigate = useNavigate();
@@ -12,6 +13,18 @@ const MealScheduleScreen: React.FC = () => {
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [logs, setLogs] = useState<NutritionLog[]>([]);
     const [loading, setLoading] = useState(true);
+
+    // Edit Modal State
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editingLog, setEditingLog] = useState<NutritionLog | null>(null);
+    const [editFormData, setEditFormData] = useState({
+        food_name: '',
+        calories: 0,
+        protein: 0,
+        carbs: 0,
+        fat: 0
+    });
+    const [isSaving, setIsSaving] = useState(false);
 
     // Generate the next 7 days for the date strip
     const weekDates = useMemo(() => {
@@ -28,27 +41,24 @@ const MealScheduleScreen: React.FC = () => {
         return dates;
     }, []);
 
-    useEffect(() => {
-        const fetchLogs = async () => {
-            if (user) {
-                setLoading(true);
-                try {
-                    const fetchedLogs = await getNutritionLogsForDate(user.id, selectedDate);
-                    setLogs(fetchedLogs);
-                } catch (error) {
-                    console.error("Failed to fetch logs for date:", error);
-                } finally {
-                    setLoading(false);
-                }
+    const fetchLogs = useCallback(async () => {
+        if (user) {
+            setLoading(true);
+            try {
+                const fetchedLogs = await getNutritionLogsForDate(user.id, selectedDate);
+                setLogs(fetchedLogs);
+            } catch (error) {
+                console.error("Failed to fetch logs for date:", error);
+            } finally {
+                setLoading(false);
             }
-        };
-        fetchLogs();
+        }
     }, [user, selectedDate]);
 
-    // Group logs by time for timeline (Breakfast, Lunch, Dinner, etc.)
-    // For simplicity, we'll bucket them into hours or "Meal Times" based on timestamp
-    // Or simply display them in chronological order on a timeline
-    
+    useEffect(() => {
+        fetchLogs();
+    }, [fetchLogs]);
+
     const getMealLabel = (dateString: string) => {
         const date = new Date(dateString);
         const hours = date.getHours();
@@ -62,8 +72,84 @@ const MealScheduleScreen: React.FC = () => {
         return new Date(dateString).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     };
 
+    // Group logs by meal label to avoid duplicate timeline entries
+    const groupedLogs = useMemo(() => {
+        const groups: Record<string, NutritionLog[]> = {};
+        
+        // Sort logs by time first
+        const sortedLogs = [...logs].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+        sortedLogs.forEach(log => {
+            const label = getMealLabel(log.created_at);
+            if (!groups[label]) {
+                groups[label] = [];
+            }
+            groups[label].push(log);
+        });
+
+        // Define standard order of meals
+        const mealOrder = ['Breakfast', 'Lunch', 'Snack', 'Dinner'];
+        
+        // Map to array in correct order
+        return mealOrder.map(label => ({
+            label,
+            items: groups[label] || []
+        })).filter(group => group.items.length > 0);
+    }, [logs]);
+
+    const handleEditClick = (log: NutritionLog) => {
+        hapticTap();
+        setEditingLog(log);
+        setEditFormData({
+            food_name: log.food_name,
+            calories: log.calories,
+            protein: log.protein,
+            carbs: log.carbs,
+            fat: log.fat
+        });
+        setIsEditModalOpen(true);
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editingLog) return;
+        setIsSaving(true);
+        hapticTap();
+        try {
+            await updateNutritionLog(editingLog.id, editFormData);
+            hapticSuccess();
+            setIsEditModalOpen(false);
+            fetchLogs(); // Refresh UI
+        } catch (error) {
+            console.error("Failed to update log:", error);
+            hapticError(); 
+            alert("Failed to update meal.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleDeleteLog = async () => {
+        if (!editingLog) return;
+        if (!window.confirm("Are you sure you want to delete this meal?")) return;
+        
+        setIsSaving(true);
+        hapticTap();
+        try {
+            await deleteNutritionLog(editingLog.id);
+            hapticSuccess();
+            setIsEditModalOpen(false);
+            fetchLogs(); // Refresh UI
+        } catch (error) {
+            console.error("Failed to delete log:", error);
+            hapticError();
+            alert("Failed to delete meal.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     return (
-        <div className="min-h-screen bg-white">
+        <div className="min-h-screen bg-white relative">
             {/* Header */}
             <header className="sticky top-0 bg-white/90 backdrop-blur-sm z-20 pt-4 pb-2 px-4 border-b border-gray-100">
                 <div className="flex items-center justify-between mb-4">
@@ -110,7 +196,7 @@ const MealScheduleScreen: React.FC = () => {
                         <Clock className="animate-spin w-8 h-8 mb-2" />
                         <p>Loading schedule...</p>
                     </div>
-                ) : logs.length === 0 ? (
+                ) : groupedLogs.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-64 text-gray-400 border-2 border-dashed border-gray-100 rounded-3xl bg-gray-50/50 mt-4">
                         <CalendarIcon className="w-12 h-12 mb-3 text-gray-300" />
                         <p className="font-medium">No meals scheduled</p>
@@ -121,54 +207,173 @@ const MealScheduleScreen: React.FC = () => {
                         {/* Vertical Line */}
                         <div className="absolute left-[5.5rem] top-2 bottom-0 w-px bg-gray-200"></div>
 
-                        {logs.map((log, index) => {
-                            const mealLabel = getMealLabel(log.created_at);
-                            const timeLabel = formatTime(log.created_at);
+                        {groupedLogs.map((group, index) => {
+                            const firstItemTime = formatTime(group.items[0].created_at);
+                            const totalCalories = group.items.reduce((sum, item) => sum + item.calories, 0);
                             
-                            // Calculate total calories for the day so far (just for fun context, or skip)
-                            // Let's stick to the card design
-                            
+                            // Determine if we should show a single card or a group card
+                            const isSingleItem = group.items.length === 1;
+
                             return (
-                                <div key={log.id} className="relative flex items-start gap-6 animate-fade-in-up" style={{ animationDelay: `${index * 100}ms` }}>
+                                <div key={group.label} className="relative flex items-start gap-6 animate-fade-in-up" style={{ animationDelay: `${index * 100}ms` }}>
                                     {/* Left Time Column */}
                                     <div className="w-16 text-right pt-3 flex-shrink-0">
-                                        <p className="font-bold text-gray-900 text-sm">{mealLabel}</p>
-                                        <p className="text-xs text-gray-400">{timeLabel}</p>
+                                        <p className="font-bold text-gray-900 text-sm">{group.label}</p>
+                                        <p className="text-xs text-gray-400">{firstItemTime}</p>
                                     </div>
 
                                     {/* Timeline Dot */}
                                     <div className="absolute left-[5.25rem] top-4 w-3 h-3 rounded-full bg-orange-500 ring-4 ring-white z-10"></div>
 
-                                    {/* Meal Card */}
-                                    <div className="flex-grow bg-white p-4 rounded-2xl shadow-sm border border-gray-100 group transition-transform active:scale-[0.98]">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div className="flex items-center gap-2">
-                                                 <div className="p-1.5 bg-orange-100 rounded-lg">
-                                                    <Utensils size={14} className="text-orange-600" />
-                                                 </div>
-                                                 <span className="font-bold text-gray-800">{log.calories} kcal</span>
+                                    {/* Content */}
+                                    {isSingleItem ? (
+                                        // Single Item View (Standalone Card)
+                                        <div className="flex-grow bg-white p-4 rounded-2xl shadow-sm border border-gray-100 group transition-transform active:scale-[0.98] flex justify-between items-start">
+                                            <div>
+                                                <p className="font-bold text-gray-900 text-lg capitalize leading-tight mb-1">{group.items[0].food_name}</p>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-bold text-orange-500">{group.items[0].calories} kcal</span>
+                                                    <span className="text-gray-300">|</span>
+                                                    <div className="flex gap-2 text-xs text-gray-500">
+                                                        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-teal-400"></span> {group.items[0].protein}g P</span>
+                                                        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span> {group.items[0].carbs}g C</span>
+                                                        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-yellow-400"></span> {group.items[0].fat}g F</span>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <CheckCircle2 size={16} className="text-green-500" />
+                                            <button 
+                                                onClick={() => handleEditClick(group.items[0])}
+                                                className="text-gray-300 hover:text-purple-600 transition-colors p-2 -mr-2 -mt-2"
+                                            >
+                                                <Edit2 size={18} />
+                                            </button>
                                         </div>
-                                        
-                                        <h3 className="font-bold text-gray-900 text-lg mb-2 capitalize">{log.food_name}</h3>
-                                        
-                                        <div className="flex items-center gap-3 text-xs font-medium text-gray-500 bg-gray-50 p-2 rounded-lg inline-flex">
-                                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-teal-400"></span> {log.protein}g P</span>
-                                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-400"></span> {log.fat}g F</span>
-                                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-400"></span> {log.carbs}g C</span>
+                                    ) : (
+                                        // Group View (Summary Card)
+                                        <div className="flex-grow bg-white p-4 rounded-2xl shadow-sm border border-gray-100 group transition-transform active:scale-[0.98]">
+                                            <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-50">
+                                                <div className="flex items-center gap-2">
+                                                     <div className="p-1.5 bg-orange-100 rounded-lg">
+                                                        <Utensils size={14} className="text-orange-600" />
+                                                     </div>
+                                                     <span className="font-bold text-gray-800">{totalCalories} kcal total</span>
+                                                </div>
+                                                <CheckCircle2 size={16} className="text-green-500" />
+                                            </div>
+                                            
+                                            <div className="space-y-4">
+                                                {group.items.map(item => (
+                                                    <div key={item.id} className="flex justify-between items-start">
+                                                        <div>
+                                                            <p className="font-medium text-gray-900 capitalize">{item.food_name}</p>
+                                                            <div className="flex gap-2 text-xs text-gray-500 mt-0.5">
+                                                                <span>{item.calories} kcal</span>
+                                                                <span>•</span>
+                                                                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-teal-400"></span> {item.protein}g P</span>
+                                                                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span> {item.carbs}g C</span>
+                                                                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-yellow-400"></span> {item.fat}g F</span>
+                                                            </div>
+                                                        </div>
+                                                        <button 
+                                                            onClick={() => handleEditClick(item)}
+                                                            className="text-gray-300 hover:text-purple-600 transition-colors p-2 -mr-2"
+                                                        >
+                                                            <Edit2 size={16} />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
-                                        
-                                        <button className="absolute bottom-4 right-4 p-1.5 text-gray-300 hover:text-gray-600 transition-colors">
-                                            <Edit2 size={14} />
-                                        </button>
-                                    </div>
+                                    )}
                                 </div>
                             );
                         })}
                     </div>
                 )}
             </main>
+
+            {/* Edit Modal */}
+            {isEditModalOpen && editingLog && (
+                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-fade-in-up relative">
+                        <button onClick={() => setIsEditModalOpen(false)} className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 text-gray-500">
+                            <X size={20} />
+                        </button>
+
+                        <h2 className="text-xl font-bold text-gray-900 mb-4">Edit Meal</h2>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Food Name</label>
+                                <input 
+                                    type="text"
+                                    value={editFormData.food_name}
+                                    onChange={(e) => setEditFormData({...editFormData, food_name: e.target.value})}
+                                    className="w-full p-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-purple-500 text-gray-900 font-medium"
+                                />
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Calories</label>
+                                    <input 
+                                        type="number"
+                                        value={editFormData.calories}
+                                        onChange={(e) => setEditFormData({...editFormData, calories: Number(e.target.value)})}
+                                        className="w-full p-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-purple-500 text-gray-900"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Protein (g)</label>
+                                    <input 
+                                        type="number"
+                                        value={editFormData.protein}
+                                        onChange={(e) => setEditFormData({...editFormData, protein: Number(e.target.value)})}
+                                        className="w-full p-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-purple-500 text-gray-900"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Carbs (g)</label>
+                                    <input 
+                                        type="number"
+                                        value={editFormData.carbs}
+                                        onChange={(e) => setEditFormData({...editFormData, carbs: Number(e.target.value)})}
+                                        className="w-full p-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-purple-500 text-gray-900"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Fat (g)</label>
+                                    <input 
+                                        type="number"
+                                        value={editFormData.fat}
+                                        onChange={(e) => setEditFormData({...editFormData, fat: Number(e.target.value)})}
+                                        className="w-full p-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-purple-500 text-gray-900"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 mt-6">
+                                <button 
+                                    onClick={handleDeleteLog}
+                                    disabled={isSaving}
+                                    className="flex-1 py-3 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 transition flex items-center justify-center gap-2"
+                                >
+                                    {isSaving ? <Loader2 className="animate-spin" size={18}/> : <Trash2 size={18} />}
+                                    Delete
+                                </button>
+                                <button 
+                                    onClick={handleSaveEdit}
+                                    disabled={isSaving}
+                                    className="flex-[2] py-3 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition flex items-center justify-center gap-2"
+                                >
+                                    {isSaving ? <Loader2 className="animate-spin" size={18}/> : <Save size={18} />}
+                                    Save Changes
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

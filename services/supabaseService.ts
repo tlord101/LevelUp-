@@ -157,6 +157,22 @@ export const getNutritionLogsForDate = async (userId: string, date: Date): Promi
     return data;
 };
 
+export const deleteNutritionLog = async (logId: string) => {
+    const { error } = await supabase
+        .from('daily_nutrition_logs')
+        .delete()
+        .eq('id', logId);
+    if (error) throw error;
+};
+
+export const updateNutritionLog = async (logId: string, updates: Partial<NutritionLog>) => {
+    const { error } = await supabase
+        .from('daily_nutrition_logs')
+        .update(updates)
+        .eq('id', logId);
+    if (error) throw error;
+};
+
 
 // --- DATABASE: COMMUNITY (POSTS & GROUPS) ---
 
