@@ -99,12 +99,21 @@ const EditProfileScreen: React.FC = () => {
 
         setLoading(true);
         hapticTap();
+        
         try {
             // 1. Upload Avatar if changed
+            // We wrap this in its own try/catch so that if the bucket is missing or upload fails,
+            // we can still save the rest of the profile data.
             if (avatarFile && user) {
-                // We use the 'scans' bucket (which likely exists) and organize into an 'avatars' folder
-                const imageUrl = await uploadImage(avatarFile, user.id, 'scans', 'avatars');
-                await updateUserMetadata({ avatar_url: imageUrl });
+                try {
+                    // Use 'scans' bucket as it is more likely to exist than 'avatars'
+                    const imageUrl = await uploadImage(avatarFile, user.id, 'scans', 'avatars');
+                    await updateUserMetadata({ avatar_url: imageUrl });
+                } catch (uploadErr: any) {
+                    console.error("Avatar upload failed:", uploadErr);
+                    // Don't block the rest of the save
+                    alert("Warning: Could not upload profile photo (Bucket not found or permission denied). Saving other details...");
+                }
             }
 
             // 2. Update Profile Data
@@ -114,11 +123,15 @@ const EditProfileScreen: React.FC = () => {
             });
             
             hapticSuccess();
-            navigate('/profile');
-        } catch (error) {
+            // Provide feedback before navigating
+            setTimeout(() => {
+                navigate('/profile');
+            }, 500);
+            
+        } catch (error: any) {
             console.error("Failed to update profile:", error);
             hapticError();
-            alert("Failed to save profile. Please try again.");
+            alert(error.message || "Failed to save profile. Please try again.");
         } finally {
             setLoading(false);
         }
@@ -156,8 +169,8 @@ const EditProfileScreen: React.FC = () => {
         setActiveSection(activeSection === section ? 'basic' : section);
     };
 
-    // Standardized input class for consistency
-    const inputClass = "w-full p-4 bg-white text-gray-900 font-medium rounded-2xl border-2 border-purple-100 focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10 outline-none transition-all duration-200 placeholder-gray-400 shadow-sm";
+    // Standardized input class for consistency: Black text, rounded corners, purple border
+    const inputClass = "w-full p-4 bg-white text-black font-medium rounded-2xl border-2 border-purple-200 focus:border-purple-600 focus:ring-4 focus:ring-purple-500/10 outline-none transition-all duration-200 placeholder-gray-500 shadow-sm";
 
     return (
         <div className="min-h-screen bg-gray-50 pb-24">

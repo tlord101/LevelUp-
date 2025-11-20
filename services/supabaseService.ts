@@ -140,9 +140,14 @@ export const getFaceScans = async (userId: string): Promise<FaceScan[]> => {
 // --- DATABASE: NUTRITION LOGS ---
 
 export const logNutritionIntake = async (userId: string, logData: Omit<NutritionLog, 'id' | 'user_id' | 'created_at'> & { created_at?: string }) => {
+    // FIX: We strip 'consumed' property before insert because the 'daily_nutrition_logs' table
+    // might not have the 'consumed' column yet, causing a schema error.
+    // Once the migration to add 'consumed' column is run, this destructuring can be removed.
+    const { consumed, ...dataToInsert } = logData; 
+    
     const { error } = await supabase.from('daily_nutrition_logs').insert({
         user_id: userId,
-        ...logData,
+        ...dataToInsert,
     });
     if (error) throw error;
 };
@@ -190,9 +195,16 @@ export const deleteNutritionLog = async (logId: string) => {
 };
 
 export const updateNutritionLog = async (logId: string, updates: Partial<NutritionLog>) => {
+    // Strip 'consumed' field if present, as the column might not exist yet in DB
+    const { consumed, ...cleanUpdates } = updates;
+    
+    // If there are no other updates, we might skip the call or handle accordingly.
+    // For now, if cleanUpdates is empty, we just return to avoid erroring on empty update.
+    if (Object.keys(cleanUpdates).length === 0) return;
+
     const { error } = await supabase
         .from('daily_nutrition_logs')
-        .update(updates)
+        .update(cleanUpdates)
         .eq('id', logId);
     if (error) throw error;
 };
