@@ -1,6 +1,6 @@
 
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { User, onAuthStateChanged } from 'firebase/auth';
+import { User, onAuthStateChanged, getRedirectResult } from 'firebase/auth';
 import { auth, firestore } from '../config/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { UserProfile } from '../types';
@@ -31,10 +31,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Handle redirect login result (crucial for mobile/redirect flows)
+    getRedirectResult(auth).then((result) => {
+        if (result) {
+            console.log("Redirect sign-in completed for user:", result.user.uid);
+        }
+    }).catch((error) => {
+        console.error("Redirect sign-in error:", error);
+    });
+
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
-      setLoading(true);
+      // Note: We only set loading to true if we actually have a user to fetch profile for.
+      // Otherwise, if currentUser is null, we stop loading immediately.
+      
       if (currentUser) {
+        setLoading(true);
         try {
             // Ensure profile exists (handled in service usually, but safe to check/create here)
             await createOrUpdateUserProfile(currentUser);
@@ -42,11 +54,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUserProfile(profile);
         } catch (error) {
             console.error("Error fetching user profile:", error);
+        } finally {
+            setLoading(false);
         }
       } else {
         setUserProfile(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();

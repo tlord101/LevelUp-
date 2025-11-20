@@ -120,11 +120,18 @@ export const signInWithOAuth = async (providerName: 'google' | 'apple'): Promise
   }
   
   try {
+      // Attempt popup first
       await signInWithPopup(auth, provider);
   } catch (error: any) {
       console.warn("Popup sign-in failed or was blocked. Falling back to redirect method.", error);
+      // Common errors: auth/popup-blocked, auth/cancelled-popup-request, auth/popup-closed-by-user
       // If popup is blocked or COOP policy interferes, try redirect
-      await signInWithRedirect(auth, provider);
+      try {
+          await signInWithRedirect(auth, provider);
+      } catch (redirectError) {
+          console.error("Redirect sign-in also failed", redirectError);
+          throw redirectError;
+      }
   }
 };
 
