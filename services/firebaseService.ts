@@ -52,6 +52,7 @@ const convertTimestampToISO = (data: any) => {
 
 export const createOrUpdateUserProfile = async (user: User, additionalData: Partial<UserProfile> = {}) => {
   const userRef = doc(firestore, 'users', user.uid);
+  // Check if the user exists
   const docSnap = await getDoc(userRef);
 
   if (!docSnap.exists()) {
@@ -115,6 +116,8 @@ export const signInWithOAuth = async (providerName: 'google' | 'apple'): Promise
   let provider;
   if (providerName === 'google') {
       provider = new GoogleAuthProvider();
+      // Add prompt to force selection which can sometimes help with redirect flows
+      provider.setCustomParameters({ prompt: 'select_account' });
   } else {
       provider = new OAuthProvider('apple.com');
   }
@@ -123,9 +126,9 @@ export const signInWithOAuth = async (providerName: 'google' | 'apple'): Promise
       // Attempt popup first
       await signInWithPopup(auth, provider);
   } catch (error: any) {
-      console.warn("Popup sign-in failed or was blocked. Falling back to redirect method.", error);
+      console.warn("Popup sign-in failed or was blocked. Falling back to redirect method.", error.code, error.message);
+      // Fallback to redirect if popup is blocked or fails
       // Common errors: auth/popup-blocked, auth/cancelled-popup-request, auth/popup-closed-by-user
-      // If popup is blocked or COOP policy interferes, try redirect
       try {
           await signInWithRedirect(auth, provider);
       } catch (redirectError) {

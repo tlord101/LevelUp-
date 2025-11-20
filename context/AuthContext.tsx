@@ -31,39 +31,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
     // Handle redirect login result (crucial for mobile/redirect flows)
-    getRedirectResult(auth).then((result) => {
-        if (result) {
-            console.log("Redirect sign-in completed for user:", result.user.uid);
+    // This ensures that if the app reloads from a redirect, we process that state.
+    const handleRedirectResult = async () => {
+        try {
+            await getRedirectResult(auth);
+            // We rely on onAuthStateChanged for the user state, 
+            // but calling getRedirectResult consumes the pending redirect result
+        } catch (error) {
+            console.error("Redirect sign-in error:", error);
         }
-    }).catch((error) => {
-        console.error("Redirect sign-in error:", error);
-    });
+    };
+    handleRedirectResult();
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (!isMounted) return;
+
       setUser(currentUser);
-      // Note: We only set loading to true if we actually have a user to fetch profile for.
-      // Otherwise, if currentUser is null, we stop loading immediately.
       
       if (currentUser) {
         setLoading(true);
         try {
-            // Ensure profile exists (handled in service usually, but safe to check/create here)
+            // Ensure profile exists
             await createOrUpdateUserProfile(currentUser);
             const profile = await getUserProfile(currentUser.uid);
-            setUserProfile(profile);
+            if (isMounted) setUserProfile(profile);
         } catch (error) {
             console.error("Error fetching user profile:", error);
         } finally {
-            setLoading(false);
+            if (isMounted) setLoading(false);
         }
       } else {
-        setUserProfile(null);
-        setLoading(false);
+        if (isMounted) {
+            setUserProfile(null);
+            setLoading(false);
+        }
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+        isMounted = false;
+        unsubscribe();
+    };
   }, []);
 
   const updateUserProfileData = async (data: Partial<UserProfile>) => {
@@ -128,7 +139,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
 
         // Update local state
-        // Re-fetch to ensure consistency with Firestore timestamp conversions if needed
         const updated = await getUserProfile(user.uid);
         setUserProfile(updated);
 
