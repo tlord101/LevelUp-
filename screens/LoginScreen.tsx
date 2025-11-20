@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
-import { signInWithEmail, signInWithOAuth } from '../services/supabaseService';
+import { signInWithEmail, signInWithOAuth } from '../services/firebaseService';
 import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
 
 const GoogleIcon = () => (

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getFaceScans } from '../services/supabaseService';
+import { getFaceScans } from '../services/firebaseService';
 import { FaceScan } from '../types';
 import { ArrowLeft, Calendar, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -16,7 +16,7 @@ const FaceHistoryScreen: React.FC = () => {
     const fetchScans = async () => {
       if (user) {
         try {
-          const userScans = await getFaceScans(user.id);
+          const userScans = await getFaceScans(user.uid);
           setScans(userScans);
         } catch (error) {
           console.error("Failed to fetch face scans:", error);

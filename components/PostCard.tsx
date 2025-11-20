@@ -4,14 +4,14 @@ import { hapticTap } from '../utils/haptics';
 import { Post } from '../types';
 import { formatRelativeTime } from '../utils/formatDate';
 import { useAuth } from '../context/AuthContext';
-import { likePost, unlikePost } from '../services/supabaseService';
+import { likePost, unlikePost } from '../services/firebaseService';
 import CommentSection from './CommentSection';
 
 
 const PostCard: React.FC<{ post: Post }> = ({ post }) => {
     const { user } = useAuth();
     // Initialize state from props to reflect if the current user has liked the post
-    const [isLiked, setIsLiked] = useState(user ? post.likes.includes(user.id) : false);
+    const [isLiked, setIsLiked] = useState(user ? post.likes.includes(user.uid) : false);
     const [likeCount, setLikeCount] = useState(post.likes.length);
     const [commentCount, setCommentCount] = useState(post.comment_count);
     const [commentsVisible, setCommentsVisible] = useState(false);

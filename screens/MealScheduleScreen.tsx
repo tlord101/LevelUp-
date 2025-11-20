@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Calendar as CalendarIcon, Utensils, Edit2, CheckCircle2, Clock, Trash2, Save, X, Loader2, Circle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getNutritionLogsForDate, deleteNutritionLog, updateNutritionLog } from '../services/supabaseService';
+import { getNutritionLogsForDate, deleteNutritionLog, updateNutritionLog } from '../services/firebaseService';
 import { NutritionLog } from '../types';
 import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
 
@@ -45,7 +44,7 @@ const MealScheduleScreen: React.FC = () => {
         if (user) {
             setLoading(true);
             try {
-                const fetchedLogs = await getNutritionLogsForDate(user.id, selectedDate);
+                const fetchedLogs = await getNutritionLogsForDate(user.uid, selectedDate);
                 setLogs(fetchedLogs);
             } catch (error) {
                 console.error("Failed to fetch logs for date:", error);
@@ -181,7 +180,6 @@ const MealScheduleScreen: React.FC = () => {
                 <div className="flex justify-between items-center overflow-x-auto pb-2 gap-2 no-scrollbar">
                     {weekDates.map((date, idx) => {
                         const isSelected = date.toDateString() === selectedDate.toDateString();
-                        const isToday = date.toDateString() === new Date().toDateString();
                         
                         return (
                             <button
@@ -193,195 +191,138 @@ const MealScheduleScreen: React.FC = () => {
                                     : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
                                 }`}
                             >
-                                <span className="text-xs font-medium mb-1">{date.toLocaleDateString('en-US', { weekday: 'short' })}</span>
-                                <span className={`text-lg font-bold ${isSelected ? 'text-white' : 'text-gray-800'}`}>
-                                    {date.getDate()}
-                                </span>
-                                {isToday && !isSelected && <span className="w-1 h-1 rounded-full bg-orange-500 mt-1"></span>}
+                                <span className="text-xs font-bold uppercase">{date.toLocaleDateString('en-US', { weekday: 'short' })}</span>
+                                <span className="text-lg font-bold">{date.getDate()}</span>
                             </button>
                         );
                     })}
                 </div>
             </header>
 
-            {/* Timeline Content */}
-            <main className="p-4 min-h-[600px]">
+            {/* Main Content */}
+            <main className="p-4 space-y-6 pb-24">
                 {loading ? (
-                    <div className="flex flex-col items-center justify-center h-64 text-gray-400">
-                        <Clock className="animate-spin w-8 h-8 mb-2" />
-                        <p>Loading schedule...</p>
+                    <div className="flex justify-center items-center py-20">
+                        <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
                     </div>
                 ) : groupedLogs.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-64 text-gray-400 border-2 border-dashed border-gray-100 rounded-3xl bg-gray-50/50 mt-4">
-                        <CalendarIcon className="w-12 h-12 mb-3 text-gray-300" />
-                        <p className="font-medium">No meals scheduled</p>
-                        <p className="text-xs">Generate a plan in the Tracker</p>
+                    <div className="text-center py-20 opacity-50">
+                        <div className="bg-gray-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <CalendarIcon size={32} className="text-gray-400" />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-800">No meals planned</h3>
+                        <p className="text-sm text-gray-500 mt-1">Tap + to add a meal or scan one.</p>
                     </div>
                 ) : (
-                    <div className="relative pl-4 space-y-8 mt-2">
-                        {/* Vertical Line */}
-                        <div className="absolute left-[5.5rem] top-2 bottom-0 w-px bg-gray-200"></div>
-
-                        {groupedLogs.map((group, index) => {
-                            const firstItemTime = formatTime(group.items[0].created_at);
-                            const totalCalories = group.items.reduce((sum, item) => sum + item.calories, 0);
-                            
-                            // Determine if we should show a single card or a group card
-                            const isSingleItem = group.items.length === 1;
-
-                            return (
-                                <div key={group.label} className="relative flex items-start gap-6 animate-fade-in-up" style={{ animationDelay: `${index * 100}ms` }}>
-                                    {/* Left Time Column */}
-                                    <div className="w-16 text-right pt-3 flex-shrink-0">
-                                        <p className="font-bold text-gray-900 text-sm">{group.label}</p>
-                                        <p className="text-xs text-gray-400">{firstItemTime}</p>
+                    groupedLogs.map((group, groupIdx) => (
+                        <div key={groupIdx} className="animate-fade-in-up" style={{ animationDelay: `${groupIdx * 100}ms` }}>
+                            <h3 className="font-bold text-gray-500 uppercase text-xs tracking-wider mb-3 flex items-center gap-2">
+                                <Clock size={14} /> {group.label}
+                            </h3>
+                            <div className="space-y-3">
+                                {group.items.map(log => (
+                                    <div 
+                                        key={log.id} 
+                                        className={`bg-white p-4 rounded-2xl shadow-sm border transition-all duration-300 ${
+                                            log.consumed 
+                                            ? 'border-green-200 bg-green-50/30' 
+                                            : 'border-gray-100'
+                                        }`}
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-4">
+                                                <button 
+                                                    onClick={() => handleToggleConsumed(log)}
+                                                    className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
+                                                        log.consumed 
+                                                        ? 'bg-green-500 border-green-500 text-white' 
+                                                        : 'border-gray-300 text-transparent hover:border-purple-400'
+                                                    }`}
+                                                >
+                                                    <CheckCircle2 size={16} />
+                                                </button>
+                                                <div>
+                                                    <h4 className={`font-bold text-gray-800 ${log.consumed ? 'line-through text-gray-400' : ''}`}>
+                                                        {log.food_name}
+                                                    </h4>
+                                                    <p className="text-xs text-gray-500 mt-0.5">
+                                                        {log.calories} kcal • {formatTime(log.created_at)}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <button 
+                                                onClick={() => handleEditClick(log)}
+                                                className="p-2 text-gray-400 hover:text-purple-600 transition"
+                                            >
+                                                <Edit2 size={16} />
+                                            </button>
+                                        </div>
                                     </div>
-
-                                    {/* Timeline Dot */}
-                                    <div className="absolute left-[5.25rem] top-4 w-3 h-3 rounded-full bg-orange-500 ring-4 ring-white z-10"></div>
-
-                                    {/* Content */}
-                                    {isSingleItem ? (
-                                        // Single Item View (Standalone Card)
-                                        <div className={`flex-grow p-4 rounded-2xl shadow-sm border group transition-transform active:scale-[0.98] flex justify-between items-start ${
-                                            group.items[0].consumed !== false ? 'bg-green-50 border-green-200' : 'bg-white border-gray-100'
-                                        }`}>
-                                            <div>
-                                                <p className={`font-bold text-lg capitalize leading-tight mb-1 ${group.items[0].consumed !== false ? 'text-green-800' : 'text-gray-900'}`}>
-                                                    {group.items[0].food_name}
-                                                </p>
-                                                <div className="flex items-center gap-2">
-                                                    <span className={`font-bold ${group.items[0].consumed !== false ? 'text-green-600' : 'text-orange-500'}`}>{group.items[0].calories} kcal</span>
-                                                    <span className="text-gray-300">|</span>
-                                                    <div className="flex gap-2 text-xs text-gray-500">
-                                                        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-teal-400"></span> {group.items[0].protein}g P</span>
-                                                        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span> {group.items[0].carbs}g C</span>
-                                                        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-yellow-400"></span> {group.items[0].fat}g F</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="flex flex-col gap-2">
-                                                <button 
-                                                    onClick={() => handleToggleConsumed(group.items[0])}
-                                                    className={`p-2 rounded-full transition-colors ${group.items[0].consumed !== false ? 'text-green-500 hover:bg-green-100' : 'text-gray-300 hover:bg-gray-100'}`}
-                                                >
-                                                    {group.items[0].consumed !== false ? <CheckCircle2 size={24} className="fill-current" /> : <Circle size={24} />}
-                                                </button>
-                                                <button 
-                                                    onClick={() => handleEditClick(group.items[0])}
-                                                    className="text-gray-300 hover:text-purple-600 transition-colors p-2"
-                                                >
-                                                    <Edit2 size={18} />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        // Group View (Summary Card)
-                                        <div className="flex-grow bg-white p-4 rounded-2xl shadow-sm border border-gray-100 group transition-transform active:scale-[0.98]">
-                                            <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-50">
-                                                <div className="flex items-center gap-2">
-                                                     <div className="p-1.5 bg-orange-100 rounded-lg">
-                                                        <Utensils size={14} className="text-orange-600" />
-                                                     </div>
-                                                     <span className="font-bold text-gray-800">{totalCalories} kcal total</span>
-                                                </div>
-                                            </div>
-                                            
-                                            <div className="space-y-4">
-                                                {group.items.map(item => (
-                                                    <div key={item.id} className={`flex justify-between items-center p-2 rounded-lg transition-colors ${item.consumed !== false ? 'bg-green-50/50' : ''}`}>
-                                                        <div>
-                                                            <p className={`font-medium capitalize ${item.consumed !== false ? 'text-green-800 line-through decoration-green-500/50' : 'text-gray-900'}`}>
-                                                                {item.food_name}
-                                                            </p>
-                                                            <div className="flex gap-2 text-xs text-gray-500 mt-0.5">
-                                                                <span>{item.calories} kcal</span>
-                                                                <span>•</span>
-                                                                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-teal-400"></span> {item.protein}g P</span>
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex items-center gap-2">
-                                                            <button 
-                                                                onClick={() => handleToggleConsumed(item)}
-                                                                className={`p-1.5 rounded-full transition-colors ${item.consumed !== false ? 'text-green-500 hover:bg-green-100' : 'text-gray-300 hover:bg-gray-100'}`}
-                                                            >
-                                                                {item.consumed !== false ? <CheckCircle2 size={20} className="fill-current" /> : <Circle size={20} />}
-                                                            </button>
-                                                            <button 
-                                                                onClick={() => handleEditClick(item)}
-                                                                className="text-gray-300 hover:text-purple-600 transition-colors p-1.5"
-                                                            >
-                                                                <Edit2 size={16} />
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))
                 )}
             </main>
 
             {/* Edit Modal */}
-            {isEditModalOpen && editingLog && (
+            {isEditModalOpen && (
                 <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-fade-in-up relative">
-                        <button onClick={() => setIsEditModalOpen(false)} className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 text-gray-500">
-                            <X size={20} />
-                        </button>
-
-                        <h2 className="text-xl font-bold text-gray-900 mb-4">Edit Meal</h2>
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-fade-in-up">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-bold text-gray-800">Edit Meal</h2>
+                            <button onClick={() => setIsEditModalOpen(false)} className="p-2 rounded-full hover:bg-gray-100">
+                                <X size={20} className="text-gray-600" />
+                            </button>
+                        </div>
                         
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Food Name</label>
-                                <input 
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Food Name</label>
+                                <input
                                     type="text"
                                     value={editFormData.food_name}
                                     onChange={(e) => setEditFormData({...editFormData, food_name: e.target.value})}
-                                    className="w-full p-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-purple-500 text-gray-900 font-medium"
+                                    className="w-full p-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-purple-500"
                                 />
                             </div>
-                            
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Calories</label>
-                                    <input 
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Calories</label>
+                                    <input
                                         type="number"
                                         value={editFormData.calories}
                                         onChange={(e) => setEditFormData({...editFormData, calories: Number(e.target.value)})}
-                                        className="w-full p-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-purple-500 text-gray-900"
+                                        className="w-full p-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-purple-500"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Protein (g)</label>
-                                    <input 
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Protein (g)</label>
+                                    <input
                                         type="number"
                                         value={editFormData.protein}
                                         onChange={(e) => setEditFormData({...editFormData, protein: Number(e.target.value)})}
-                                        className="w-full p-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-purple-500 text-gray-900"
+                                        className="w-full p-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-purple-500"
                                     />
                                 </div>
+                            </div>
+                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Carbs (g)</label>
-                                    <input 
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Carbs (g)</label>
+                                    <input
                                         type="number"
                                         value={editFormData.carbs}
                                         onChange={(e) => setEditFormData({...editFormData, carbs: Number(e.target.value)})}
-                                        className="w-full p-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-purple-500 text-gray-900"
+                                        className="w-full p-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-purple-500"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Fat (g)</label>
-                                    <input 
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Fat (g)</label>
+                                    <input
                                         type="number"
                                         value={editFormData.fat}
                                         onChange={(e) => setEditFormData({...editFormData, fat: Number(e.target.value)})}
-                                        className="w-full p-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-purple-500 text-gray-900"
+                                        className="w-full p-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-purple-500"
                                     />
                                 </div>
                             </div>
@@ -390,18 +331,16 @@ const MealScheduleScreen: React.FC = () => {
                                 <button 
                                     onClick={handleDeleteLog}
                                     disabled={isSaving}
-                                    className="flex-1 py-3 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 transition flex items-center justify-center gap-2"
+                                    className="flex-1 bg-red-50 text-red-600 font-bold py-3 rounded-xl hover:bg-red-100 transition flex items-center justify-center gap-2"
                                 >
-                                    {isSaving ? <Loader2 className="animate-spin" size={18}/> : <Trash2 size={18} />}
-                                    Delete
+                                    <Trash2 size={18} /> Delete
                                 </button>
                                 <button 
                                     onClick={handleSaveEdit}
                                     disabled={isSaving}
-                                    className="flex-[2] py-3 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition flex items-center justify-center gap-2"
+                                    className="flex-[2] bg-purple-600 text-white font-bold py-3 rounded-xl hover:bg-purple-700 transition flex items-center justify-center gap-2 shadow-md"
                                 >
-                                    {isSaving ? <Loader2 className="animate-spin" size={18}/> : <Save size={18} />}
-                                    Save Changes
+                                    {isSaving ? <Loader2 className="animate-spin" /> : <Save size={18} />} Save
                                 </button>
                             </div>
                         </div>

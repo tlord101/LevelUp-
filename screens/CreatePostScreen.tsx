@@ -2,8 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Image as ImageIcon, X, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-// FIX: Imported `uploadImage` which is used for handling post image uploads.
-import { createPost, uploadImage } from '../services/supabaseService';
+import { createPost, uploadImage } from '../services/firebaseService';
 import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
 
 const CreatePostScreen: React.FC = () => {
@@ -85,13 +84,13 @@ const CreatePostScreen: React.FC = () => {
             let finalImageUrl: string | undefined = undefined;
 
             if (imageFile) {
-                const blob = imageFile as Blob;
-                finalImageUrl = await uploadImage(blob, user.id, 'posts');
+                // Upload to ImgBB
+                finalImageUrl = await uploadImage(imageFile, user.uid, 'scans', 'posts');
             } else if (imageUrlFromShare) {
                 finalImageUrl = imageUrlFromShare;
             }
 
-            await createPost(user.id, userProfile.display_name, content, finalImageUrl, groupId);
+            await createPost(user.uid, userProfile.display_name, content, finalImageUrl, groupId);
             
             hapticSuccess();
             if (groupId) {

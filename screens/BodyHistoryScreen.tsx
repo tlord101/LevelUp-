@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getBodyScans } from '../services/supabaseService';
+import { getBodyScans } from '../services/firebaseService';
 import { BodyScan } from '../types';
 import { ArrowLeft, Calendar, Activity, Percent } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -16,7 +16,7 @@ const BodyHistoryScreen: React.FC = () => {
     const fetchScans = async () => {
       if (user) {
         try {
-          const userScans = await getBodyScans(user.id);
+          const userScans = await getBodyScans(user.uid);
           setScans(userScans);
         } catch (error) {
           console.error("Failed to fetch body scans:", error);

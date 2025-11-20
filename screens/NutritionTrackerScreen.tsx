@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getTodaysNutritionLogs, logNutritionIntake } from '../services/supabaseService';
+import { getTodaysNutritionLogs, logNutritionIntake } from '../services/firebaseService';
 import { NutritionLog, MealPlanItem, ActivityLogItem, NutritionScan } from '../types';
 import { ArrowLeft, Plus, Settings, X, Loader2, Utensils, Flame, Droplets, Activity, Zap, ChefHat, Sparkles, Calendar, CheckCircle } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -126,7 +125,7 @@ const NutritionTrackerScreen: React.FC = () => {
         if (user) {
             try {
                 setLoading(true);
-                const fetchedLogs = await getTodaysNutritionLogs(user.id);
+                const fetchedLogs = await getTodaysNutritionLogs(user.uid);
                 setLogs(fetchedLogs);
             } catch (error) {
                 console.error("Failed to fetch nutrition logs:", error);
@@ -333,7 +332,7 @@ const NutritionTrackerScreen: React.FC = () => {
                 const scheduledTime = new Date(today);
                 scheduledTime.setHours(hour, 0, 0, 0);
 
-                return logNutritionIntake(user.id, {
+                return logNutritionIntake(user.uid, {
                     food_name: meal.name,
                     calories: meal.calories,
                     protein: meal.macros.protein,
@@ -377,7 +376,7 @@ const NutritionTrackerScreen: React.FC = () => {
         scheduledTime.setHours(timeOffsetHours, 0, 0, 0);
         
         try {
-            await logNutritionIntake(user.id, {
+            await logNutritionIntake(user.uid, {
                 food_name: selectedMealForSchedule.name,
                 calories: selectedMealForSchedule.calories,
                 protein: selectedMealForSchedule.macros.protein,

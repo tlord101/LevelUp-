@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { HashRouter, Routes, Route, Outlet, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -30,7 +29,7 @@ import BodyScanDetailScreen from './screens/BodyScanDetailScreen';
 import FaceScanDetailScreen from './screens/FaceScanDetailScreen';
 import LiveCoachScreen from './screens/LiveCoachScreen';
 import EditProfileScreen from './screens/EditProfileScreen';
-import { supabase } from './config/supabase';
+import { auth } from './config/firebase';
 
 const AppLoader: React.FC = () => (
     <div className="flex items-center justify-center h-screen bg-gray-50">
@@ -62,7 +61,7 @@ const ProtectedLayout: React.FC = () => {
                 <h2 className="text-xl font-bold text-gray-800 mb-2">Profile Error</h2>
                 <p className="text-gray-600 mb-6">We couldn't load your profile data. Please try signing out and back in.</p>
                 <button 
-                    onClick={async () => { await supabase.auth.signOut(); window.location.reload(); }}
+                    onClick={async () => { await auth.signOut(); window.location.reload(); }}
                     className="bg-gray-800 text-white px-6 py-3 rounded-xl font-semibold hover:bg-gray-900 shadow-lg"
                 >
                     Sign Out & Retry
@@ -103,7 +102,7 @@ const OnboardingRouteWrapper: React.FC = () => {
                 <h2 className="text-xl font-bold text-gray-800 mb-2">Setup Error</h2>
                 <p className="text-gray-600 mb-6">Your user profile is missing. Please sign out.</p>
                 <button 
-                    onClick={async () => { await supabase.auth.signOut(); window.location.reload(); }}
+                    onClick={async () => { await auth.signOut(); window.location.reload(); }}
                     className="bg-gray-800 text-white px-6 py-3 rounded-xl font-semibold hover:bg-gray-900"
                 >
                     Sign Out

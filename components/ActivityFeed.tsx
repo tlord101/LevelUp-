@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import PostCard from './PostCard';
-import { getPosts } from '../services/supabaseService';
+import { getPosts } from '../services/firebaseService';
 import { Post } from '../types';
 import { Loader2 } from 'lucide-react';
 

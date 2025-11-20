@@ -1,8 +1,10 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { User } from '@supabase/supabase-js';
-import { supabase } from '../config/supabase';
-import { UserProfile, UserGoal } from '../types';
+import { User, onAuthStateChanged } from 'firebase/auth';
+import { auth, firestore } from '../config/firebase';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { UserProfile } from '../types';
 import { hapticSuccess } from '../utils/haptics';
+import { createOrUpdateUserProfile, getUserProfile } from '../services/firebaseService';
 
 interface AuthContextType {
   user: User | null;
@@ -28,76 +30,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setUser(session?.user ?? null);
-
-        if (session?.user) {
-          const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-          
-          if (error) {
-            console.error('Error fetching user profile:', error);
-          } else {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      setLoading(true);
+      if (currentUser) {
+        try {
+            // Ensure profile exists (handled in service usually, but safe to check/create here)
+            await createOrUpdateUserProfile(currentUser);
+            const profile = await getUserProfile(currentUser.uid);
             setUserProfile(profile);
-          }
+        } catch (error) {
+            console.error("Error fetching user profile:", error);
         }
-      } catch (error) {
-        console.error('Unexpected error during session fetch:', error);
-      } finally {
-        setLoading(false);
+      } else {
+        setUserProfile(null);
       }
-    };
-
-    fetchSession();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      try {
-        setUser(session?.user ?? null);
-        if (session?.user) {
-           const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-            
-           if (error) {
-             console.error('Error fetching profile in auth listener:', error);
-           } else {
-             setUserProfile(profile);
-           }
-        } else {
-          setUserProfile(null);
-        }
-      } catch (error) {
-        console.error('Unexpected error in auth listener:', error);
-      } finally {
-        setLoading(false);
-      }
+      setLoading(false);
     });
 
-    return () => {
-      authListener?.subscription.unsubscribe();
-    };
+    return () => unsubscribe();
   }, []);
 
   const updateUserProfileData = async (data: Partial<UserProfile>) => {
       if (user) {
         try {
-            const { data: updatedProfile, error } = await supabase
-              .from('profiles')
-              .update(data)
-              .eq('id', user.id)
-              .select()
-              .single();
-
-            if (error) throw error;
-            
-            setUserProfile(updatedProfile);
+            const userRef = doc(firestore, 'users', user.uid);
+            await updateDoc(userRef, data);
+            const updated = await getUserProfile(user.uid);
+            setUserProfile(updated);
         } catch (error) {
             console.error("Error updating user profile:", error);
             throw error;
@@ -105,7 +65,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Deprecated: Use rewardUser instead for robust updates
   const addXP = async (amount: number) => {
       await rewardUser(amount);
   };
@@ -114,24 +73,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return;
 
     try {
-        // 1. Fetch the latest profile to ensure we are updating based on current server state
-        // This prevents race conditions between local state and DB
-        const { data: currentProfile, error: fetchError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .single();
+        const userRef = doc(firestore, 'users', user.uid);
+        const profileSnap = await getDoc(userRef);
 
-        if (fetchError || !currentProfile) {
-            console.error("Error fetching profile for reward:", fetchError);
-            return;
-        }
+        if (!profileSnap.exists()) return;
 
-        let newXp = currentProfile.xp + xpAmount;
-        let newLevel = currentProfile.level;
+        const currentProfile = profileSnap.data() as UserProfile;
+        
+        let newXp = (currentProfile.xp || 0) + xpAmount;
+        let newLevel = currentProfile.level || 1;
         const newStats = { ...currentProfile.stats };
 
-        // 2. Apply manual stat increments (e.g. from scans)
         if (statIncrements) {
             (Object.keys(statIncrements) as Array<keyof typeof statIncrements>).forEach(key => {
                 if (statIncrements[key]) {
@@ -140,7 +92,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             });
         }
 
-        // 3. Handle Level Up Logic
         const xpPerLevel = 100;
         let didLevelUp = false;
         while (newXp >= xpPerLevel) {
@@ -148,33 +99,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             newLevel += 1;
             newXp -= xpPerLevel;
             
-            // Give a small random stat boost on level up
             const statsKeys = Object.keys(newStats) as (keyof typeof newStats)[];
             const randomStat = statsKeys[Math.floor(Math.random() * statsKeys.length)];
-            newStats[randomStat] += 2; 
-            console.log(`Leveled up to level ${newLevel}! Boosted ${String(randomStat)}`);
+            if(newStats[randomStat] !== undefined) {
+                newStats[randomStat] += 2; 
+            }
         }
 
-        // 4. Update Database
-        const { data: updatedProfile, error: updateError } = await supabase
-            .from('profiles')
-            .update({ 
-                xp: newXp, 
-                level: newLevel, 
-                stats: newStats 
-            })
-            .eq('id', user.id)
-            .select()
-            .single();
+        await updateDoc(userRef, {
+            xp: newXp,
+            level: newLevel,
+            stats: newStats
+        });
 
-        if (updateError) {
-            console.error("Failed to update XP in Supabase", updateError);
-        } else {
-            // 5. Update Local State
-            setUserProfile(updatedProfile);
-            if (didLevelUp) {
-                hapticSuccess();
-            }
+        // Update local state
+        setUserProfile({
+            ...currentProfile,
+            xp: newXp,
+            level: newLevel,
+            stats: newStats
+        });
+
+        if (didLevelUp) {
+            hapticSuccess();
         }
     } catch (err) {
         console.error("Unexpected error in rewardUser:", err);

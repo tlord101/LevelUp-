@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getUserGroups } from '../services/supabaseService';
+import { getUserGroups } from '../services/firebaseService';
 import { Group } from '../types';
 import { Loader2, Plus } from 'lucide-react';
 import GroupListItem from './GroupListItem';
@@ -17,7 +17,7 @@ const MyGroups: React.FC = () => {
         const fetchGroups = async () => {
             if (user) {
                 try {
-                    const userGroups = await getUserGroups(user.id);
+                    const userGroups = await getUserGroups(user.uid);
                     setGroups(userGroups);
                 } catch (error) {
                     console.error("Failed to fetch user groups:", error);

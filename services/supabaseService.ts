@@ -46,12 +46,19 @@ export const updatePassword = async (newPassword: string) => {
     if (error) throw error;
 };
 
+export const updateUserMetadata = async (metadata: any) => {
+    const { error } = await supabase.auth.updateUser({ data: metadata });
+    if (error) throw error;
+};
+
 
 // --- STORAGE ---
 
-export const uploadImage = async (file: Blob | File, userId: string, bucket: 'scans' | 'posts'): Promise<string> => {
+export const uploadImage = async (file: Blob | File, userId: string, bucket: 'scans' | 'posts', folder?: string): Promise<string> => {
     const timestamp = new Date().getTime();
-    const filePath = `${userId}/${timestamp}.jpeg`;
+    const filePath = folder 
+        ? `${folder}/${userId}/${timestamp}.jpeg` 
+        : `${userId}/${timestamp}.jpeg`;
 
     const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file);
     if (uploadError) throw uploadError;

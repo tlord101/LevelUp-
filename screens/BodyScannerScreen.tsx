@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Camera, Upload, Dumbbell, Clock, ChevronRight, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { uploadImage, saveBodyScan, getBodyScans } from '../services/supabaseService';
+import { uploadImage, saveBodyScan, getBodyScans } from '../services/firebaseService';
 import { BodyScanResult, BodyScan } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { GoogleGenAI, Type } from '@google/genai';
@@ -33,7 +32,7 @@ const BodyScannerScreen: React.FC = () => {
     const fetchScans = useCallback(async () => {
         if (user) {
             try {
-                const userScans = await getBodyScans(user.id);
+                const userScans = await getBodyScans(user.uid);
                 setScans(userScans);
             } catch (err) {
                 console.error("Failed to fetch scans", err);
@@ -110,8 +109,11 @@ const BodyScannerScreen: React.FC = () => {
                 recommendations: analysisData.recommendations,
             };
 
-            const imageUrl = await uploadImage(scanner.imageFile, user.id, 'scans');
-            await saveBodyScan(user.id, imageUrl, parsedResult);
+            // Using ImgBB - userId/path args are ignored by implementation but passed for compatibility signature if needed, 
+            // though here we can pass them anyway.
+            const imageUrl = await uploadImage(scanner.imageFile, user.uid, 'scans');
+            
+            await saveBodyScan(user.uid, imageUrl, parsedResult);
             
             // Reward user with XP and Strength stat update
             await rewardUser(20, { strength: 1 });
@@ -120,7 +122,7 @@ const BodyScannerScreen: React.FC = () => {
             
             const newScanForNav: BodyScan = {
                 id: `new-${Date.now()}`,
-                user_id: user.id,
+                user_id: user.uid,
                 image_url: imageUrl,
                 results: parsedResult,
                 created_at: new Date().toISOString(),

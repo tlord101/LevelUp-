@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getNutritionScans } from '../services/supabaseService';
+import { getNutritionScans } from '../services/firebaseService';
 import { NutritionScan } from '../types';
 import { ArrowLeft, Calendar, Flame } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -16,7 +16,7 @@ const FoodHistoryScreen: React.FC = () => {
     const fetchScans = async () => {
       if (user) {
         try {
-          const userScans = await getNutritionScans(user.id);
+          const userScans = await getNutritionScans(user.uid);
           setScans(userScans);
         } catch (error) {
           console.error("Failed to fetch food scans:", error);

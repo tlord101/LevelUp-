@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { createGroup } from '../services/supabaseService';
+import { createGroup } from '../services/firebaseService';
 import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
 
 const emojiSuggestions = ['🏋️', '🧘‍♀️', '🏃‍♂️', '🥗', '💪', '✨', '🧠', '🤝'];
@@ -34,7 +34,7 @@ const CreateGroupScreen: React.FC = () => {
         hapticTap();
 
         try {
-            const newGroupId = await createGroup(name, description, icon, user.id);
+            const newGroupId = await createGroup(name, description, icon, user.uid);
             hapticSuccess();
             navigate(`/groups/${newGroupId}`);
         } catch (err: any) {

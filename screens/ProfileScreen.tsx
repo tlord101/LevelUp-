@@ -1,9 +1,8 @@
-
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { signOutUser } from '../services/supabaseService';
+import { signOutUser } from '../services/firebaseService';
 import { useNavigate, Link } from 'react-router-dom';
-import { UserCircle, UtensilsCrossed, Scan, Smile, Bell, UserPlus } from 'lucide-react';
+import { UserCircle, Bell, UserPlus } from 'lucide-react';
 import { hapticTap } from '../utils/haptics';
 
 const ProfileScreen: React.FC = () => {
@@ -22,9 +21,6 @@ const ProfileScreen: React.FC = () => {
   
   const menuItems = [
     { label: 'Edit Profile', icon: UserCircle, path: '/edit-profile', badge: null },
-    { label: 'Food Scan History', icon: UtensilsCrossed, path: '/food-history', badge: null },
-    { label: 'Body Scan History', icon: Scan, path: '/body-history', badge: null },
-    { label: 'Face Scan History', icon: Smile, path: '/face-history', badge: null },
     { label: 'Notification Settings', icon: Bell, path: '#', badge: null },
     { label: 'Invite Friends', icon: UserPlus, path: '/community', badge: null },
   ];
@@ -40,12 +36,12 @@ const ProfileScreen: React.FC = () => {
         {/* Profile Header */}
         <div className="flex flex-col items-center text-center">
             <img 
-                src={user?.user_metadata?.avatar_url || profileImageUrl} 
+                src={user?.photoURL || profileImageUrl} 
                 alt="Profile Avatar" 
                 className="w-24 h-24 rounded-full object-cover border-4 border-gray-500/50 mb-4" 
             />
-            <h2 className="text-2xl font-bold text-gray-900">{userProfile?.display_name || 'Bardia Adibi'}</h2>
-            <p className="text-sm text-gray-500">{userProfile?.email || 'bardiaadb@gmail.com'}</p>
+            <h2 className="text-2xl font-bold text-gray-900">{userProfile?.display_name || user?.email || 'User'}</h2>
+            <p className="text-sm text-gray-500">{user?.email}</p>
         </div>
 
         <hr className="my-8 border-gray-200" />

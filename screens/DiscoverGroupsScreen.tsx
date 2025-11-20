@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2, Plus, Check } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getAllGroups, joinGroup } from '../services/supabaseService';
+import { getAllGroups, joinGroup } from '../services/firebaseService';
 import { Group } from '../types';
 import { hapticTap, hapticSuccess } from '../utils/haptics';
 
@@ -35,7 +35,7 @@ const DiscoverGroupsScreen: React.FC = () => {
             await joinGroup(groupId);
             // This is a client-side update for immediate feedback.
             setGroups(prevGroups => prevGroups.map(g => 
-                g.id === groupId ? { ...g, members: [...g.members, user.id] } : g
+                g.id === groupId ? { ...g, members: [...g.members, user.uid] } : g
             ));
             hapticSuccess();
         } catch (error) {
@@ -84,7 +84,7 @@ const DiscoverGroupsScreen: React.FC = () => {
                 ) : (
                     <div className="space-y-3">
                         {groups.map(group => {
-                            const isMember = user ? group.members.includes(user.id) : false;
+                            const isMember = user ? group.members.includes(user.uid) : false;
                             const isJoining = joiningGroupId === group.id;
 
                             return (

@@ -4,7 +4,7 @@ import { dailyMissions, Mission } from '../services/missions';
 import { Settings, Trophy, Dumbbell, Sparkles, ChevronRight, UtensilsCrossed, Zap, Brain, Bell, Check, X, Clock, Calendar, Target } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { hapticTap, hapticSuccess } from '../utils/haptics';
-import { getTodaysNutritionLogs } from '../services/supabaseService';
+import { getTodaysNutritionLogs } from '../services/firebaseService';
 import { NutritionLog } from '../types';
 
 // Mock Notification Data
@@ -53,10 +53,10 @@ const DashboardScreen: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        if (userProfile) {
-            getTodaysNutritionLogs(userProfile.id).then(setNutritionLogs).catch(console.error);
+        if (user?.uid) {
+            getTodaysNutritionLogs(user.uid).then(setNutritionLogs).catch(console.error);
         }
-    }, [userProfile]);
+    }, [user]);
 
     const handleMissionClick = (missionId: string) => {
         hapticTap();
@@ -113,7 +113,7 @@ const DashboardScreen: React.FC = () => {
     const donutProgress = donutCircumference * (1 - Math.min(dailyTotals.calories / calorieGoal, 1));
 
     // Default avatar if none
-    const avatarUrl = user?.user_metadata?.avatar_url || "https://i.pinimg.com/736x/03/65/0a/03650a358248c8a272b0c39f284e3d64.jpg";
+    const avatarUrl = user?.photoURL || "https://i.pinimg.com/736x/03/65/0a/03650a358248c8a272b0c39f284e3d64.jpg";
 
     return (
         <div className="min-h-screen bg-gray-50 p-4 pb-24 space-y-6">

@@ -4,7 +4,7 @@ import { ArrowLeft, Send, Plus, Mic, Loader2, Image as ImageIcon } from 'lucide-
 import { GoogleGenAI, Chat, FunctionDeclaration, Type, Part } from '@google/genai';
 import { useAuth } from '../context/AuthContext';
 import { hapticTap } from '../utils/haptics';
-import { getUserStats, getLatestScan, getWeeklyNutritionSummary } from '../services/supabaseService';
+import { getUserStats, getLatestScan, getWeeklyNutritionSummary } from '../services/firebaseService';
 
 interface Message {
     role: 'user' | 'model';
@@ -111,14 +111,14 @@ const AICoachScreen: React.FC = () => {
                     try {
                         switch (fc.name) {
                             case 'get_user_stats':
-                                result = await getUserStats(user.id);
+                                result = await getUserStats(user.uid);
                                 break;
                             case 'get_latest_scan':
                                 const scanType = fc.args.scan_type as 'nutrition' | 'body' | 'face';
-                                result = await getLatestScan(user.id, scanType);
+                                result = await getLatestScan(user.uid, scanType);
                                 break;
                             case 'get_weekly_nutrition_summary':
-                                result = await getWeeklyNutritionSummary(user.id);
+                                result = await getWeeklyNutritionSummary(user.uid);
                                 break;
                             default:
                                 result = { error: `Function ${fc.name} not found.` };

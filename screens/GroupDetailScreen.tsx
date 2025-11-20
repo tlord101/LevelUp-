@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Loader2, UserPlus, LogOut, Plus } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { hapticTap, hapticSuccess } from '../utils/haptics';
-import { getGroupDetails, joinGroup, leaveGroup, getPostsForGroup } from '../services/supabaseService';
+import { getGroupDetails, joinGroup, leaveGroup, getPostsForGroup } from '../services/firebaseService';
 import { Group, Post } from '../types';
 import { useAuth } from '../context/AuthContext';
 import PostCard from '../components/PostCard';
@@ -33,7 +33,7 @@ const GroupDetailScreen: React.FC = () => {
                 setGroup(groupData);
                 setPosts(groupPosts);
                 if (groupData && user) {
-                    setIsMember(groupData.members.includes(user.id));
+                    setIsMember(groupData.members.includes(user.uid));
                 }
             } catch (error) {
                 console.error("Failed to fetch group details:", error);
@@ -54,17 +54,17 @@ const GroupDetailScreen: React.FC = () => {
         try {
             if (isMember) {
                 // Cannot leave if you are the owner
-                if (group.owner_id === user.id) {
+                if (group.owner_id === user.uid) {
                     alert("As the owner, you cannot leave the group. You must delete it instead (feature coming soon).");
                     setIsUpdatingMembership(false);
                     return;
                 }
                 await leaveGroup(groupId);
-                setGroup(prev => prev ? { ...prev, members: prev.members.filter(id => id !== user.id) } : null);
+                setGroup(prev => prev ? { ...prev, members: prev.members.filter(id => id !== user.uid) } : null);
                 setIsMember(false);
             } else {
                 await joinGroup(groupId);
-                setGroup(prev => prev ? { ...prev, members: [...prev.members, user.id] } : null);
+                setGroup(prev => prev ? { ...prev, members: [...prev.members, user.uid] } : null);
                 setIsMember(true);
             }
             hapticSuccess();

@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Camera, Upload, Clock, ChevronRight, Loader2, Sparkles, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { uploadImage, saveFaceScan, getFaceScans } from '../services/supabaseService';
+import { uploadImage, saveFaceScan, getFaceScans } from '../services/firebaseService';
 import { FaceScanResult, FaceScan } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { GoogleGenAI, Type } from '@google/genai';
@@ -53,7 +52,7 @@ const FaceScannerScreen: React.FC = () => {
     const fetchScans = useCallback(async () => {
         if (user) {
             try {
-                const userScans = await getFaceScans(user.id);
+                const userScans = await getFaceScans(user.uid);
                 setScans(userScans);
             } catch (err) {
                 console.error("Failed to fetch scans", err);
@@ -179,8 +178,8 @@ const FaceScannerScreen: React.FC = () => {
                 recommendations: analysisData.recommendations,
             };
 
-            const imageUrl = await uploadImage(compositeBlob, user.id, 'scans');
-            await saveFaceScan(user.id, imageUrl, parsedResult);
+            const imageUrl = await uploadImage(compositeBlob, user.uid, 'scans');
+            await saveFaceScan(user.uid, imageUrl, parsedResult);
 
             // Reward user with XP and Glow stat update
             await rewardUser(25, { glow: 1 });
@@ -189,7 +188,7 @@ const FaceScannerScreen: React.FC = () => {
             
             const newScanForNav: FaceScan = {
                 id: `new-${Date.now()}`,
-                user_id: user.id,
+                user_id: user.uid,
                 image_url: imageUrl,
                 results: parsedResult,
                 created_at: new Date().toISOString(),

@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Camera, Upload, Apple, Clock, ChevronRight, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { uploadImage, saveNutritionScan, getNutritionScans, logNutritionIntake } from '../services/supabaseService';
+import { uploadImage, saveNutritionScan, getNutritionScans, logNutritionIntake } from '../services/firebaseService';
 import { NutritionScanResult, NutritionScan } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { GoogleGenAI, Type } from '@google/genai';
@@ -33,7 +32,7 @@ const FoodScannerScreen: React.FC = () => {
     const fetchScans = useCallback(async () => {
         if (user) {
             try {
-                const userScans = await getNutritionScans(user.id);
+                const userScans = await getNutritionScans(user.uid);
                 setScans(userScans);
             } catch (err) {
                 console.error("Failed to fetch scans", err);
@@ -118,9 +117,9 @@ const FoodScannerScreen: React.FC = () => {
             }
             
             // Step 2: Upload Image & Save Scan Data
-            const imageUrl = await uploadImage(scanner.imageFile, user.id, 'scans');
-            await saveNutritionScan(user.id, imageUrl, analysisData);
-            await logNutritionIntake(user.id, {
+            const imageUrl = await uploadImage(scanner.imageFile, user.uid, 'scans');
+            await saveNutritionScan(user.uid, imageUrl, analysisData);
+            await logNutritionIntake(user.uid, {
                 food_name: analysisData.foodName,
                 calories: analysisData.calories,
                 protein: analysisData.macros.protein,
@@ -137,7 +136,7 @@ const FoodScannerScreen: React.FC = () => {
             // Step 3: Navigate to Nutrition Tracker to show results
             const newScanForNav: NutritionScan = {
                  id: `new-${Date.now()}`,
-                 user_id: user.id,
+                 user_id: user.uid,
                  image_url: imageUrl,
                  results: analysisData,
                  created_at: new Date().toISOString(),
