@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Loader2, User, Lock, ChevronDown, ChevronUp, Camera, CheckCircle, AlertCircle } from 'lucide-react';
@@ -27,6 +26,7 @@ const ACTIVITY_LEVEL_OPTIONS = [
 const EditProfileScreen: React.FC = () => {
     const { user, userProfile, updateUserProfileData } = useAuth();
     const navigate = useNavigate();
+    const isMounted = useRef(true);
     
     const [formData, setFormData] = useState({
         display_name: '',
@@ -54,25 +54,33 @@ const EditProfileScreen: React.FC = () => {
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error' | 'warning', message: string } | null>(null);
 
     useEffect(() => {
-        if (userProfile) {
-            setFormData({
-                display_name: userProfile.display_name || '',
-                age: userProfile.age?.toString() || '',
-                gender: userProfile.gender || '',
-                fitness_goals: userProfile.fitness_goals || [],
-                body_type: userProfile.body_type || '',
-                activity_level: userProfile.activity_level || '',
-            });
+        return () => { isMounted.current = false; };
+    }, []);
+
+    useEffect(() => {
+        // Only update form data from profile if we are NOT currently loading/saving
+        // This prevents the form from jumping/resetting mid-save if the context updates
+        if (userProfile && !loading) {
+            setFormData(prev => ({
+                display_name: userProfile.display_name || prev.display_name,
+                age: userProfile.age?.toString() || prev.age,
+                gender: userProfile.gender || prev.gender,
+                fitness_goals: userProfile.fitness_goals || prev.fitness_goals,
+                body_type: userProfile.body_type || prev.body_type,
+                activity_level: userProfile.activity_level || prev.activity_level,
+            }));
         }
-        if (user?.user_metadata?.avatar_url) {
+        if (user?.user_metadata?.avatar_url && !avatarFile) {
             setAvatarPreview(user.user_metadata.avatar_url);
         }
-    }, [userProfile, user]);
+    }, [userProfile, user, loading, avatarFile]);
     
     // Auto-dismiss feedback
     useEffect(() => {
         if (feedback) {
-            const timer = setTimeout(() => setFeedback(null), 3000);
+            const timer = setTimeout(() => {
+                if(isMounted.current) setFeedback(null);
+            }, 3000);
             return () => clearTimeout(timer);
         }
     }, [feedback]);
@@ -97,6 +105,11 @@ const EditProfileScreen: React.FC = () => {
     const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
+            // Basic validation
+            if (file.size > 5 * 1024 * 1024) {
+                setFeedback({ type: 'error', message: "Image too large (max 5MB)" });
+                return;
+            }
             setAvatarFile(file);
             setAvatarPreview(URL.createObjectURL(file));
             hapticTap();
@@ -106,49 +119,57 @@ const EditProfileScreen: React.FC = () => {
     const handleSaveProfile = async () => {
         if (!formData.display_name.trim() || !formData.age) {
             setFeedback({ type: 'error', message: "Name and Age are required." });
+            hapticError();
             return;
         }
 
         setLoading(true);
         hapticTap();
         
-        let avatarUploadFailed = false;
-        
         try {
-            // 1. Upload Avatar if changed (Try/Catch this separately so it doesn't block profile update)
+            let avatarUploadSuccess = true;
+
+            // 1. Upload Avatar if changed
             if (avatarFile && user) {
                 try {
                     const imageUrl = await uploadImage(avatarFile, user.id, 'scans', 'avatars');
+                    // Update auth metadata separately so failure here doesn't break profile data save
                     await updateUserMetadata({ avatar_url: imageUrl });
                 } catch (uploadErr: any) {
                     console.error("Avatar upload failed:", uploadErr);
-                    avatarUploadFailed = true;
+                    avatarUploadSuccess = false;
                 }
             }
 
-            // 2. Update Profile Data
+            // 2. Update Profile Data (Main operation)
             await updateUserProfileData({
                 ...formData,
                 age: parseInt(formData.age, 10),
             });
             
-            hapticSuccess();
-
-            if (avatarUploadFailed) {
-                 setFeedback({ type: 'warning', message: 'Profile info saved, but photo upload failed.' });
-            } else {
-                 setFeedback({ type: 'success', message: 'Profile updated successfully!' });
+            if (isMounted.current) {
+                setLoading(false);
+                hapticSuccess();
+                
+                if (avatarFile && !avatarUploadSuccess) {
+                     setFeedback({ type: 'warning', message: 'Profile saved, but photo upload failed.' });
+                } else {
+                     setFeedback({ type: 'success', message: 'Profile updated successfully!' });
+                }
+                
+                // Navigate back after a brief delay to show success
+                setTimeout(() => {
+                    if (isMounted.current) navigate('/profile');
+                }, 1000);
             }
-            
-            // Short delay before navigating back to let user see success
-            setTimeout(() => navigate('/profile'), 1000);
             
         } catch (error: any) {
             console.error("Failed to update profile:", error);
-            hapticError();
-            setFeedback({ type: 'error', message: error.message || "Failed to save profile." });
-        } finally {
-            setLoading(false);
+            if (isMounted.current) {
+                setLoading(false);
+                hapticError();
+                setFeedback({ type: 'error', message: error.message || "Failed to save profile." });
+            }
         }
     };
 
@@ -175,7 +196,7 @@ const EditProfileScreen: React.FC = () => {
             hapticError();
             setFeedback({ type: 'error', message: error.message || "Failed to update password." });
         } finally {
-            setPasswordLoading(false);
+            if (isMounted.current) setPasswordLoading(false);
         }
     };
 

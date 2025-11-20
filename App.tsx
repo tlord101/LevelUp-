@@ -1,5 +1,4 @@
 
-
 import React from 'react';
 import { HashRouter, Routes, Route, Outlet, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -34,19 +33,13 @@ import EditProfileScreen from './screens/EditProfileScreen';
 import NotificationSettingsScreen from './screens/NotificationSettingsScreen';
 import { supabase } from './config/supabase';
 
-const AppLoader: React.FC = () => (
-    <div className="flex items-center justify-center h-screen bg-gray-50">
-        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-purple-500"></div>
-    </div>
-);
-
 // This layout protects the main app routes.
 // It ensures the user is logged in AND has completed onboarding.
 const ProtectedLayout: React.FC = () => {
     const { user, userProfile, loading } = useAuth();
 
     if (loading) {
-        return <AppLoader />;
+        return null;
     }
 
     if (!user) {
@@ -91,7 +84,7 @@ const OnboardingRouteWrapper: React.FC = () => {
     const { user, userProfile, loading } = useAuth();
 
     if (loading) {
-        return <AppLoader />;
+        return null;
     }
 
     if (!user) {

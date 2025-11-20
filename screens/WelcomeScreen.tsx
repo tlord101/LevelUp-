@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -8,7 +9,7 @@ const WelcomeScreen: React.FC = () => {
     const { user, loading } = useAuth();
 
     if(loading) {
-        return <div className="flex items-center justify-center h-screen bg-gray-50 text-gray-700">Loading...</div>;
+        return null;
     }
     
     if (user) {

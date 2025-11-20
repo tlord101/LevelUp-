@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2, Plus, Check } from 'lucide-react';
@@ -72,11 +73,7 @@ const DiscoverGroupsScreen: React.FC = () => {
                     <Plus size={20} /> Create Your Own Group
                 </button>
             
-                {loading ? (
-                    <div className="flex justify-center items-center p-10">
-                        <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
-                    </div>
-                ) : groups.length === 0 ? (
+                {loading ? null : groups.length === 0 ? (
                      <div className="text-center p-8 bg-white rounded-xl shadow-sm">
                         <p className="text-gray-600 font-semibold">No groups found.</p>
                         <p className="text-sm text-gray-500 mt-1">Why not be the first to create one?</p>
