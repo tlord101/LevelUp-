@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Settings, Plus, Scan, Smile, UtensilsCrossed, Users, Sparkles } from 'lucide-react';
+import { Home, Settings, Plus, Scan, Smile, UtensilsCrossed, Users, Sparkles, ClipboardList } from 'lucide-react';
 import { hapticTap } from '../utils/haptics';
 
 const scannerItems = [
+  { path: '/nutrition-tracker', label: 'Nutrition Tracker', icon: ClipboardList },
+  { path: '/scanner/food', label: 'Food Scan', icon: UtensilsCrossed },
   { path: '/scanner/body', label: 'Body Scan', icon: Scan },
   { path: '/scanner/face', label: 'Face Scan', icon: Smile },
-  { path: '/scanner/food', label: 'Food Scan', icon: UtensilsCrossed },
 ];
 
 const BottomNavBar: React.FC = () => {
@@ -57,7 +58,7 @@ const BottomNavBar: React.FC = () => {
             {/* Central Menu Button */}
             <div className="relative">
               {isMenuOpen && (
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-48 bg-black/50 backdrop-blur-xl border border-white/20 rounded-2xl shadow-lg p-2 flex flex-col items-center gap-2 animate-fade-in-up">
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-56 bg-black/80 backdrop-blur-xl border border-white/20 rounded-2xl shadow-lg p-2 flex flex-col items-center gap-2 animate-fade-in-up">
                   {scannerItems.map(item => (
                     <NavLink
                       key={item.path}
@@ -65,7 +66,7 @@ const BottomNavBar: React.FC = () => {
                       onClick={closeMenu}
                       className="w-full flex items-center gap-3 p-3 text-white font-semibold rounded-lg hover:bg-white/10 transition-colors"
                     >
-                      <item.icon className="w-6 h-6" />
+                      <item.icon className="w-6 h-6 text-purple-400" />
                       <span>{item.label}</span>
                     </NavLink>
                   ))}

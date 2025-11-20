@@ -23,9 +23,11 @@ import CreatePostScreen from './screens/CreatePostScreen';
 import CreateGroupScreen from './screens/CreateGroupScreen';
 import AICoachScreen from './screens/AICoachScreen';
 import NutritionTrackerScreen from './screens/NutritionTrackerScreen';
+import MealScheduleScreen from './screens/MealScheduleScreen';
 import FoodScanDetailScreen from './screens/FoodScanDetailScreen';
 import BodyScanDetailScreen from './screens/BodyScanDetailScreen';
 import FaceScanDetailScreen from './screens/FaceScanDetailScreen';
+import LiveCoachScreen from './screens/LiveCoachScreen';
 
 const AppLoader: React.FC = () => (
     <div className="flex items-center justify-center h-screen bg-gray-50">
@@ -36,7 +38,6 @@ const AppLoader: React.FC = () => (
 // This layout protects the main app routes.
 // It ensures the user is logged in AND has completed onboarding.
 const ProtectedLayout: React.FC = () => {
-    // FIX: Removed a large block of erroneous text and restored the useAuth hook call.
     const { user, userProfile, loading } = useAuth();
 
     if (loading) {
@@ -110,6 +111,7 @@ const App: React.FC = () => {
                     <Route path="/scanner/face" element={<FaceScannerScreen />} />
                     <Route path="/scanner/food" element={<FoodScannerScreen />} />
                     <Route path="/nutrition-tracker" element={<NutritionTrackerScreen />} />
+                    <Route path="/meal-schedule" element={<MealScheduleScreen />} />
                     <Route path="/food-history" element={<FoodHistoryScreen />} />
                     <Route path="/body-history" element={<BodyHistoryScreen />} />
                     <Route path="/face-history" element={<FaceHistoryScreen />} />
@@ -124,6 +126,7 @@ const App: React.FC = () => {
                     <Route path="/discover-groups" element={<DiscoverGroupsScreen />} />
                     <Route path="/groups/:groupId" element={<GroupDetailScreen />} />
                     <Route path="/ai-coach" element={<AICoachScreen />} />
+                    <Route path="/live-coach" element={<LiveCoachScreen />} />
                 </Route>
                  {/* Redirect to dashboard if logged in and at root */}
                 <Route path="*" element={<Navigate to="/dashboard" />} />

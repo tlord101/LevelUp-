@@ -25,7 +25,7 @@ const BodyScannerScreen: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [scans, setScans] = useState<BodyScan[]>([]);
     
-    const { user, addXP } = useAuth();
+    const { user, rewardUser } = useAuth();
     const navigate = useNavigate();
 
     const scanner = useImageScanner(() => setError(null));
@@ -112,7 +112,10 @@ const BodyScannerScreen: React.FC = () => {
 
             const imageUrl = await uploadImage(scanner.imageFile, user.id, 'scans');
             await saveBodyScan(user.id, imageUrl, parsedResult);
-            addXP(20);
+            
+            // Reward user with XP and Strength stat update
+            await rewardUser(20, { strength: 1 });
+            
             hapticSuccess();
             
             const newScanForNav: BodyScan = {

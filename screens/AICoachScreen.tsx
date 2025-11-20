@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send } from 'lucide-react';
+import { ArrowLeft, Send, Plus, Mic, Loader2, Image as ImageIcon } from 'lucide-react';
 import { GoogleGenAI, Chat, FunctionDeclaration, Type, Part } from '@google/genai';
 import { useAuth } from '../context/AuthContext';
 import { hapticTap } from '../utils/haptics';
@@ -79,7 +79,7 @@ const AICoachScreen: React.FC = () => {
     useEffect(() => {
         if (textAreaRef.current) {
             textAreaRef.current.style.height = 'auto';
-            textAreaRef.current.style.height = `${textAreaRef.current.scrollHeight}px`;
+            textAreaRef.current.style.height = `${Math.min(textAreaRef.current.scrollHeight, 120)}px`;
         }
     }, [userInput]);
 
@@ -92,6 +92,8 @@ const AICoachScreen: React.FC = () => {
         const currentInput = userInput;
         setUserInput('');
         setIsLoading(true);
+        // Reset height
+        if (textAreaRef.current) textAreaRef.current.style.height = 'auto';
     
         try {
             let response = await chat.sendMessage({ message: currentInput });
@@ -180,20 +182,29 @@ const AICoachScreen: React.FC = () => {
             </header>
 
             <main className="flex-1 overflow-y-auto p-4 space-y-4">
+                {messages.length === 0 && (
+                    <div className="flex flex-col items-center justify-center h-full text-center opacity-50 pb-20">
+                        <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-4">
+                            <div className="w-8 h-8 bg-purple-500 rounded-full animate-pulse"></div>
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-800">How can I help you level up?</h3>
+                        <p className="text-sm text-gray-500 max-w-xs mt-2">Ask about your nutrition stats, recent scans, or get advice on how to improve.</p>
+                    </div>
+                )}
                 {messages.map((msg, index) => (
                     <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-xs md:max-w-md lg:max-w-lg px-4 py-3 rounded-2xl ${msg.role === 'user' ? 'bg-purple-600 text-white rounded-br-lg' : 'bg-white text-gray-800 rounded-bl-lg shadow-sm border border-gray-200'}`}>
-                           <p className="whitespace-pre-wrap">{msg.text}</p>
+                        <div className={`max-w-xs md:max-w-md lg:max-w-lg px-4 py-3 rounded-2xl ${msg.role === 'user' ? 'bg-gray-900 text-white rounded-br-sm' : 'bg-white text-gray-800 rounded-bl-sm shadow-sm border border-gray-100'}`}>
+                           <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
                         </div>
                     </div>
                 ))}
                  {isLoading && messages[messages.length-1]?.role !== 'model' && (
                      <div className="flex justify-start">
-                        <div className="max-w-xs px-4 py-3 rounded-2xl bg-white text-gray-800 rounded-bl-lg shadow-sm border border-gray-200">
+                        <div className="max-w-xs px-4 py-3 rounded-2xl bg-white text-gray-800 rounded-bl-sm shadow-sm border border-gray-100">
                            <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
                            </div>
                         </div>
                     </div>
@@ -201,22 +212,52 @@ const AICoachScreen: React.FC = () => {
                 <div ref={messagesEndRef} />
             </main>
 
-            <footer className="bg-white border-t border-gray-200 p-3">
-                <div className="flex items-end gap-3 max-w-lg mx-auto">
+            <footer className="bg-white p-4 pb-6 border-t border-gray-100">
+                <div className="max-w-4xl mx-auto flex items-end gap-2 bg-gray-100 rounded-[28px] px-2 py-2 border border-transparent focus-within:border-gray-300 focus-within:bg-white focus-within:shadow-md transition-all duration-200">
+                    <button className="p-2.5 text-gray-500 hover:bg-gray-200 rounded-full transition-colors flex-shrink-0">
+                        <Plus size={20} />
+                    </button>
+                    
                     <textarea
                         ref={textAreaRef}
                         value={userInput}
                         onChange={(e) => setUserInput(e.target.value)}
                         onKeyPress={handleKeyPress}
-                        placeholder="Ask your coach anything..."
-                        className="w-full p-3 border border-gray-300 rounded-xl focus:ring-purple-500 focus:border-purple-500 resize-none max-h-32"
+                        placeholder="Message LevelUp AI..."
+                        className="flex-grow bg-transparent border-none focus:ring-0 resize-none py-3 px-2 text-gray-800 placeholder-gray-500 leading-relaxed max-h-32 outline-none"
                         rows={1}
                         disabled={isLoading}
+                        style={{ minHeight: '44px' }}
                     />
-                    <button onClick={handleSendMessage} disabled={!userInput.trim() || isLoading} className="p-3 bg-purple-600 text-white rounded-full hover:bg-purple-700 disabled:bg-purple-300 transition-colors self-end flex-shrink-0">
-                        <Send size={20} />
-                    </button>
+
+                    <div className="flex items-center gap-1 pr-1 pb-0.5">
+                         {!userInput.trim() && (
+                            <>
+                                <button className="p-2.5 text-gray-600 hover:bg-gray-200 rounded-full transition-colors">
+                                    <ImageIcon size={20} />
+                                </button>
+                                <button className="p-2.5 text-gray-600 hover:bg-gray-200 rounded-full transition-colors">
+                                    <Mic size={20} />
+                                </button>
+                            </>
+                        )}
+                        
+                        {(userInput.trim() || isLoading) && (
+                            <button 
+                                onClick={handleSendMessage} 
+                                disabled={!userInput.trim() || isLoading} 
+                                className={`p-2.5 rounded-full flex-shrink-0 transition-all duration-200 ${
+                                    isLoading ? 'bg-transparent' : 'bg-gray-900 text-white hover:bg-black shadow-sm'
+                                }`}
+                            >
+                                {isLoading ? <Loader2 size={20} className="animate-spin text-gray-600" /> : <Send size={18} className="ml-0.5" />}
+                            </button>
+                        )}
+                    </div>
                 </div>
+                <p className="text-center text-[11px] text-gray-400 mt-3 font-medium">
+                    Gemini can make mistakes, so double-check it.
+                </p>
             </footer>
         </div>
     );

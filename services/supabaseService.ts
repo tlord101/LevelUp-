@@ -115,7 +115,7 @@ export const getFaceScans = async (userId: string): Promise<FaceScan[]> => {
 
 // --- DATABASE: NUTRITION LOGS ---
 
-export const logNutritionIntake = async (userId: string, logData: Omit<NutritionLog, 'id' | 'user_id' | 'created_at'>) => {
+export const logNutritionIntake = async (userId: string, logData: Omit<NutritionLog, 'id' | 'user_id' | 'created_at'> & { created_at?: string }) => {
     const { error } = await supabase.from('daily_nutrition_logs').insert({
         user_id: userId,
         ...logData,
@@ -132,6 +132,25 @@ export const getTodaysNutritionLogs = async (userId: string): Promise<NutritionL
         .select('*')
         .eq('user_id', userId)
         .gte('created_at', today.toISOString())
+        .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return data;
+};
+
+export const getNutritionLogsForDate = async (userId: string, date: Date): Promise<NutritionLog[]> => {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const { data, error } = await supabase
+        .from('daily_nutrition_logs')
+        .select('*')
+        .eq('user_id', userId)
+        .gte('created_at', startOfDay.toISOString())
+        .lte('created_at', endOfDay.toISOString())
         .order('created_at', { ascending: true });
 
     if (error) throw error;

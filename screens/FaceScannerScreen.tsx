@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Camera, Upload, Clock, ChevronRight, Loader2, Sparkles, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -42,7 +43,7 @@ const FaceScannerScreen: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [scans, setScans] = useState<FaceScan[]>([]);
     
-    const { user, addXP } = useAuth();
+    const { user, rewardUser } = useAuth();
     const navigate = useNavigate();
 
     const frontScanner = useImageScanner(() => setError(null));
@@ -181,7 +182,9 @@ const FaceScannerScreen: React.FC = () => {
             const imageUrl = await uploadImage(compositeBlob, user.id, 'scans');
             await saveFaceScan(user.id, imageUrl, parsedResult);
 
-            addXP(25); // Increased XP for a more detailed scan
+            // Reward user with XP and Glow stat update
+            await rewardUser(25, { glow: 1 });
+            
             hapticSuccess();
             
             const newScanForNav: FaceScan = {

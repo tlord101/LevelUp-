@@ -10,9 +10,17 @@ interface AuthContextType {
   loading: boolean;
   updateUserProfileData: (data: Partial<UserProfile>) => Promise<void>;
   addXP: (amount: number) => void;
+  rewardUser: (xpAmount: number, statIncrements?: Partial<UserProfile['stats']>) => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType>({ user: null, userProfile: null, loading: true, updateUserProfileData: async () => {}, addXP: () => {} });
+const AuthContext = createContext<AuthContextType>({ 
+    user: null, 
+    userProfile: null, 
+    loading: true, 
+    updateUserProfileData: async () => {}, 
+    addXP: () => {},
+    rewardUser: async () => {}
+});
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -77,49 +85,84 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Deprecated: Use rewardUser instead for robust updates
   const addXP = async (amount: number) => {
-    if (!userProfile || !user) return;
+      await rewardUser(amount);
+  };
 
-    const xpPerLevel = 100;
-    let newXp = userProfile.xp + amount;
-    let newLevel = userProfile.level;
-    let newStats = { ...userProfile.stats };
-    let didLevelUp = false;
+  const rewardUser = async (xpAmount: number, statIncrements?: Partial<UserProfile['stats']>) => {
+    if (!user) return;
 
-    while (newXp >= xpPerLevel) {
-      didLevelUp = true;
-      newLevel += 1;
-      newXp -= xpPerLevel;
-      // Give a small random stat boost on level up
-      const statsKeys = Object.keys(newStats) as (keyof typeof newStats)[];
-      const randomStat = statsKeys[Math.floor(Math.random() * statsKeys.length)];
-      newStats[randomStat] += 2; // Increase a random stat
-      console.log(`Leveled up to level ${newLevel}!`);
-    }
+    try {
+        // 1. Fetch the latest profile to ensure we are updating based on current server state
+        // This prevents race conditions between local state and DB
+        const { data: currentProfile, error: fetchError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
 
-    if (didLevelUp) {
-      hapticSuccess();
-    }
-    
-    const updatedData = { xp: newXp, level: newLevel, stats: newStats };
+        if (fetchError || !currentProfile) {
+            console.error("Error fetching profile for reward:", fetchError);
+            return;
+        }
 
-    const { data: updatedProfile, error } = await supabase
-      .from('profiles')
-      .update(updatedData)
-      .eq('id', user.id)
-      .select()
-      .single();
+        let newXp = currentProfile.xp + xpAmount;
+        let newLevel = currentProfile.level;
+        const newStats = { ...currentProfile.stats };
 
-    if (error) {
-      console.error("Failed to update XP in Supabase", error);
-    } else {
-      setUserProfile(updatedProfile);
+        // 2. Apply manual stat increments (e.g. from scans)
+        if (statIncrements) {
+            (Object.keys(statIncrements) as Array<keyof typeof statIncrements>).forEach(key => {
+                if (statIncrements[key]) {
+                    newStats[key] = (newStats[key] || 0) + statIncrements[key]!;
+                }
+            });
+        }
+
+        // 3. Handle Level Up Logic
+        const xpPerLevel = 100;
+        let didLevelUp = false;
+        while (newXp >= xpPerLevel) {
+            didLevelUp = true;
+            newLevel += 1;
+            newXp -= xpPerLevel;
+            
+            // Give a small random stat boost on level up
+            const statsKeys = Object.keys(newStats) as (keyof typeof newStats)[];
+            const randomStat = statsKeys[Math.floor(Math.random() * statsKeys.length)];
+            newStats[randomStat] += 2; 
+            console.log(`Leveled up to level ${newLevel}! Boosted ${String(randomStat)}`);
+        }
+
+        // 4. Update Database
+        const { data: updatedProfile, error: updateError } = await supabase
+            .from('profiles')
+            .update({ 
+                xp: newXp, 
+                level: newLevel, 
+                stats: newStats 
+            })
+            .eq('id', user.id)
+            .select()
+            .single();
+
+        if (updateError) {
+            console.error("Failed to update XP in Supabase", updateError);
+        } else {
+            // 5. Update Local State
+            setUserProfile(updatedProfile);
+            if (didLevelUp) {
+                hapticSuccess();
+            }
+        }
+    } catch (err) {
+        console.error("Unexpected error in rewardUser:", err);
     }
   };
 
-
   return (
-    <AuthContext.Provider value={{ user, userProfile, loading, updateUserProfileData, addXP }}>
+    <AuthContext.Provider value={{ user, userProfile, loading, updateUserProfileData, addXP, rewardUser }}>
       {children}
     </AuthContext.Provider>
   );

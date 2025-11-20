@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Camera, Upload, Apple, Clock, ChevronRight, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -24,7 +23,7 @@ const FoodScannerScreen: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [scans, setScans] = useState<NutritionScan[]>([]);
    
-    const { user, addXP } = useAuth();
+    const { user, rewardUser } = useAuth();
     const navigate = useNavigate();
 
     const scanner = useImageScanner(() => {
@@ -54,23 +53,22 @@ const FoodScannerScreen: React.FC = () => {
         const recentScans = scans.filter(s => new Date(s.created_at) > oneWeekAgo);
         if (recentScans.length === 0) return 0;
         
-        // FIX: Explicitly set the generic type for the reduce accumulator to Record<string, number>.
-        // This ensures TypeScript correctly infers the types for `acc` and its properties,
-        // resolving errors with arithmetic operations on `unknown` types.
         const dailyTotals = recentScans.reduce<Record<string, number>>((acc, scan) => {
             const date = new Date(scan.created_at).toDateString();
-            const currentCalories = acc[date] || 0;
+            const currentCalories: number = Number(acc[date] || 0);
             const results = scan.results as NutritionScanResult;
+            const scanCalories: number = Number(results.calories || 0);
             return {
                 ...acc,
-                [date]: currentCalories + (results.calories || 0),
+                [date]: currentCalories + scanCalories,
             };
         }, {});
 
-        const numberOfDays = Object.keys(dailyTotals).length;
+        const values = Object.values(dailyTotals) as number[];
+        const numberOfDays = values.length;
         if (numberOfDays === 0) return 0;
         
-        const totalCalories = Object.values(dailyTotals).reduce((sum, calories) => sum + calories, 0);
+        const totalCalories = values.reduce((sum, val) => sum + val, 0);
 
         return totalCalories / numberOfDays;
     }, [scans]);
@@ -130,10 +128,12 @@ const FoodScannerScreen: React.FC = () => {
                 fat: analysisData.macros.fat,
             });
 
-            addXP(15);
+            // Reward user with XP and Energy stat update
+            await rewardUser(15, { energy: 1 });
+
             hapticSuccess();
             
-            // Step 3: Navigate to Detail View
+            // Step 3: Navigate to Nutrition Tracker to show results
             const newScanForNav: NutritionScan = {
                  id: `new-${Date.now()}`,
                  user_id: user.id,
@@ -141,7 +141,8 @@ const FoodScannerScreen: React.FC = () => {
                  results: analysisData,
                  created_at: new Date().toISOString(),
             };
-            navigate('/history/food/detail', { state: { scan: newScanForNav }});
+            // Navigate to the Tracker instead of Detail screen to show the Daily Summary
+            navigate('/nutrition-tracker', { state: { scan: newScanForNav }});
 
         } catch (err: any) {
             console.error("Analysis failed:", err);

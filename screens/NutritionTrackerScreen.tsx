@@ -1,57 +1,124 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getTodaysNutritionLogs } from '../services/supabaseService';
-import { NutritionLog } from '../types';
-import { ArrowLeft, Plus, Settings, X, Loader2, Utensils, Flame, Info } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { getTodaysNutritionLogs, logNutritionIntake } from '../services/supabaseService';
+import { NutritionLog, MealPlanItem, ActivityLogItem, NutritionScan } from '../types';
+import { ArrowLeft, Plus, Settings, X, Loader2, Utensils, Flame, Droplets, Activity, Zap, ChefHat, Sparkles, Calendar } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
+import { GoogleGenAI, Type } from '@google/genai';
 
-const CalorieProgressCircle: React.FC<{ calories: number; goal: number }> = ({ calories, goal }) => {
+// Mock activity data (since we don't have a backend table for it yet)
+const mockActivities: ActivityLogItem[] = [
+    { id: '1', activityName: 'Morning Jog', durationMinutes: 30, caloriesBurned: 240, timestamp: new Date().toISOString(), icon: '🏃' },
+    { id: '2', activityName: 'Yoga Flow', durationMinutes: 20, caloriesBurned: 110, timestamp: new Date().toISOString(), icon: '🧘' },
+];
+
+const CalorieProgressCircle: React.FC<{ calories: number; goal: number; score: number }> = ({ calories, goal, score }) => {
     const clampedCalories = Math.min(calories, goal);
     const percentage = goal > 0 ? (clampedCalories / goal) * 100 : 0;
-    const circumference = 2 * Math.PI * 50; // r=50
+    const circumference = 2 * Math.PI * 60; // r=60
     const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
+    // Color changes based on Score
+    const scoreColor = score > 80 ? 'text-green-500' : score > 50 ? 'text-yellow-500' : 'text-orange-500';
+
     return (
-        <div className="relative w-48 h-48">
-            <svg className="w-full h-full" viewBox="0 0 120 120">
-                <circle className="text-gray-200" strokeWidth="10" stroke="currentColor" fill="transparent" r="50" cx="60" cy="60" />
-                <circle
-                    className="text-green-500"
-                    strokeWidth="10"
-                    strokeDasharray={circumference}
-                    strokeDashoffset={strokeDashoffset}
-                    strokeLinecap="round"
-                    stroke="currentColor"
-                    fill="transparent"
-                    r="50"
-                    cx="60"
-                    cy="60"
-                    style={{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%', transition: 'stroke-dashoffset 0.5s ease-out' }}
-                />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-4xl font-extrabold text-green-600">{calories.toFixed(0)}</span>
-                <span className="text-sm text-gray-500">/ {goal} kcal</span>
+        <div className="relative w-64 h-64 flex items-center justify-center">
+            <div className="relative w-56 h-56">
+                <svg className="w-full h-full" viewBox="0 0 140 140">
+                    {/* Background Circle */}
+                    <circle className="text-gray-100" strokeWidth="12" stroke="currentColor" fill="transparent" r="60" cx="70" cy="70" />
+                    {/* Progress Circle */}
+                    <circle
+                        className="text-purple-500"
+                        strokeWidth="12"
+                        strokeDasharray={circumference}
+                        strokeDashoffset={strokeDashoffset}
+                        strokeLinecap="round"
+                        stroke="currentColor"
+                        fill="transparent"
+                        r="60"
+                        cx="70"
+                        cy="70"
+                        style={{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%', transition: 'stroke-dashoffset 1s ease-out' }}
+                    />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Daily Health Score</span>
+                    <span className={`text-6xl font-black ${scoreColor} my-1`}>{score}</span>
+                    <div className="flex flex-col items-center">
+                        <span className="text-lg font-bold text-gray-800">{calories.toFixed(0)} <span className="text-sm font-normal text-gray-500">kcal</span></span>
+                        <span className="text-xs text-gray-400">Target: {goal}</span>
+                    </div>
+                </div>
             </div>
         </div>
     );
 };
 
-const MacroCard: React.FC<{ label: string; value: number; unit: string; color: string }> = ({ label, value, unit, color }) => (
-    <div className="bg-white p-4 rounded-xl shadow-sm text-center flex-1">
-        <p className="text-sm font-semibold text-gray-500">{label}</p>
-        <p className={`text-2xl font-bold`} style={{ color }}>{value.toFixed(0)}<span className="text-base">{unit}</span></p>
-    </div>
-);
+const MetricCard: React.FC<{ label: string; value: number; max: number; unit: string; color: string; icon: React.ElementType }> = ({ label, value, max, unit, color, icon: Icon }) => {
+    const percentage = max ? Math.min((value / max) * 100, 100) : 0;
+    
+    return (
+        <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between min-w-[100px] flex-1">
+            <div className="flex justify-between items-start mb-2">
+                <div className={`p-2 rounded-full bg-opacity-10`} style={{ backgroundColor: color }}>
+                    <Icon size={18} style={{ color: color }} />
+                </div>
+            </div>
+            <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase">{label}</p>
+                <p className="text-xl font-bold text-gray-800">
+                    {value.toFixed(0)}
+                    <span className="text-xs text-gray-400 font-normal ml-1">/ {max}{unit}</span>
+                </p>
+            </div>
+            <div className="w-full bg-gray-100 h-1.5 rounded-full mt-3 overflow-hidden">
+                <div className="h-full rounded-full" style={{ width: `${percentage}%`, backgroundColor: color }}></div>
+            </div>
+        </div>
+    );
+};
 
 const NutritionTrackerScreen: React.FC = () => {
     const { user, userProfile, updateUserProfileData } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
+    
     const [logs, setLogs] = useState<NutritionLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
     const [newGoal, setNewGoal] = useState(userProfile?.calorie_goal || 2000);
+    const [lastScan, setLastScan] = useState<NutritionScan | null>(null);
+    
+    // Meal Plan State
+    const [mealPlan, setMealPlan] = useState<MealPlanItem[]>([]);
+    const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
+    
+    // Scheduling State
+    const [selectedMealForSchedule, setSelectedMealForSchedule] = useState<MealPlanItem | null>(null);
+    const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+    
+    // Persistent Water Intake
+    const [waterIntake, setWaterIntake] = useState(() => {
+        try {
+            const savedDate = localStorage.getItem('waterIntakeDate');
+            const today = new Date().toDateString();
+            if (savedDate === today) {
+                const saved = localStorage.getItem('waterIntake');
+                return saved ? parseInt(saved, 10) : 0;
+            }
+            return 0;
+        } catch (e) {
+            return 0;
+        }
+    });
+
+    // Save water intake to local storage whenever it changes
+    useEffect(() => {
+        localStorage.setItem('waterIntake', waterIntake.toString());
+        localStorage.setItem('waterIntakeDate', new Date().toDateString());
+    }, [waterIntake]);
 
     const fetchLogs = useCallback(async () => {
         if (user) {
@@ -75,6 +142,13 @@ const NutritionTrackerScreen: React.FC = () => {
         setNewGoal(userProfile?.calorie_goal || 2000);
     }, [userProfile?.calorie_goal]);
 
+    // Handle navigation from scanner
+    useEffect(() => {
+        if (location.state?.scan) {
+            setLastScan(location.state.scan);
+        }
+    }, [location.state]);
+
     const dailyTotals = useMemo(() => {
         return logs.reduce(
             (acc, log) => {
@@ -87,6 +161,23 @@ const NutritionTrackerScreen: React.FC = () => {
             { calories: 0, protein: 0, carbs: 0, fat: 0 }
         );
     }, [logs]);
+
+    // Calculated Goals (Simple estimates based on Calorie Goal)
+    const proteinGoal = Math.round((newGoal * 0.30) / 4); // 30%
+    const fatGoal = Math.round((newGoal * 0.30) / 9); // 30%
+    const carbsGoal = Math.round((newGoal * 0.40) / 4); // 40%
+
+    // Simple Health Score Algorithm
+    const healthScore = useMemo(() => {
+        if (newGoal === 0) return 0;
+        
+        const calorieScore = Math.max(0, 100 - Math.abs((dailyTotals.calories - newGoal) / newGoal) * 100);
+        const proteinScore = Math.min((dailyTotals.protein / proteinGoal) * 100, 100);
+        const waterScore = Math.min((waterIntake / 8) * 100, 100);
+        
+        // Weighted Average
+        return Math.round((calorieScore * 0.5) + (proteinScore * 0.3) + (waterScore * 0.2));
+    }, [dailyTotals, newGoal, proteinGoal, waterIntake]);
 
     const handleUpdateGoal = async () => {
         hapticTap();
@@ -105,84 +196,413 @@ const NutritionTrackerScreen: React.FC = () => {
             alert("Could not update your goal. Please try again.");
         }
     };
-    
+
+    const generateMealPlan = async () => {
+        if (!process.env.API_KEY) {
+            console.error("API Key missing");
+            return;
+        }
+        setIsGeneratingPlan(true);
+        hapticTap();
+        setMealPlan([]); // Clear previous
+
+        const remainingCals = Math.max(0, newGoal - dailyTotals.calories);
+        const remainingProtein = Math.max(0, proteinGoal - dailyTotals.protein);
+
+        try {
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+            
+            // 1. Generate Text Plan
+            const prompt = `
+                The user has eaten ${dailyTotals.calories.toFixed(0)}kcal (${dailyTotals.protein.toFixed(0)}g protein) today.
+                Their goal is ${newGoal}kcal (${proteinGoal}g protein).
+                Remaining needed: ${remainingCals.toFixed(0)}kcal, ${remainingProtein.toFixed(0)}g protein.
+                Dietary preferences: ${userProfile?.allergies?.join(', ') || 'None'}.
+                
+                Generate a suggested meal plan for the rest of the day (1-3 meals/snacks) to help them meet these targets.
+                Output strictly valid JSON.
+            `;
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            meals: {
+                                type: Type.ARRAY,
+                                items: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        name: { type: Type.STRING },
+                                        calories: { type: Type.NUMBER },
+                                        description: { type: Type.STRING },
+                                        macros: {
+                                            type: Type.OBJECT,
+                                            properties: {
+                                                protein: { type: Type.NUMBER },
+                                                carbs: { type: Type.NUMBER },
+                                                fat: { type: Type.NUMBER }
+                                            },
+                                            required: ['protein', 'carbs', 'fat']
+                                        },
+                                        reason: { type: Type.STRING }
+                                    },
+                                    required: ['name', 'calories', 'description', 'macros', 'reason']
+                                }
+                            }
+                        },
+                        required: ['meals']
+                    }
+                }
+            });
+
+            const data = JSON.parse(response.text.trim());
+            const mealsWithLoadingState = data.meals.map((m: any) => ({ ...m, isLoadingImage: true }));
+            setMealPlan(mealsWithLoadingState);
+            hapticSuccess();
+
+            // 2. Generate Images for meals (Lazy/Parallel)
+            mealsWithLoadingState.forEach(async (meal: MealPlanItem, index: number) => {
+                try {
+                    const imageResponse = await ai.models.generateImages({
+                        model: 'imagen-4.0-generate-001',
+                        prompt: `A high quality, appetizing food photography shot of ${meal.name}. ${meal.description}. Professional studio lighting, delicious, 4k.`,
+                        config: {
+                            numberOfImages: 1,
+                            aspectRatio: '1:1',
+                            outputMimeType: 'image/jpeg'
+                        }
+                    });
+
+                    const base64ImageBytes = imageResponse.generatedImages[0].image.imageBytes;
+                    const imageUrl = `data:image/jpeg;base64,${base64ImageBytes}`;
+
+                    setMealPlan(prev => prev.map((m, i) => 
+                        i === index ? { ...m, imageUrl, isLoadingImage: false } : m
+                    ));
+
+                } catch (imgErr) {
+                    console.error("Image gen error for", meal.name, imgErr);
+                    setMealPlan(prev => prev.map((m, i) => 
+                        i === index ? { ...m, isLoadingImage: false } : m
+                    ));
+                }
+            });
+
+        } catch (err) {
+            console.error("Meal plan generation failed", err);
+            hapticError();
+        } finally {
+            setIsGeneratingPlan(false);
+        }
+    };
+
+    const handleOpenSchedule = () => {
+        hapticTap();
+        navigate('/meal-schedule');
+    };
+
+    const handleOpenScheduleModal = (meal: MealPlanItem) => {
+        hapticTap();
+        setSelectedMealForSchedule(meal);
+        setIsScheduleModalOpen(true);
+    };
+
+    const confirmAddToSchedule = async (timeOffsetHours: number) => {
+        if (!user || !selectedMealForSchedule) return;
+        
+        hapticTap();
+        const scheduledTime = new Date();
+        scheduledTime.setHours(timeOffsetHours, 0, 0, 0);
+        // If the time has passed today, maybe schedule for tomorrow? 
+        // For simplicity, we'll keep it today but ensure the timestamp is correct.
+        // Actually, let's just set the hour on today's date.
+        
+        try {
+            await logNutritionIntake(user.id, {
+                food_name: selectedMealForSchedule.name,
+                calories: selectedMealForSchedule.calories,
+                protein: selectedMealForSchedule.macros.protein,
+                carbs: selectedMealForSchedule.macros.carbs,
+                fat: selectedMealForSchedule.macros.fat,
+                created_at: scheduledTime.toISOString()
+            });
+            
+            hapticSuccess();
+            setIsScheduleModalOpen(false);
+            navigate('/meal-schedule');
+        } catch (error) {
+            console.error("Failed to schedule meal:", error);
+            hapticError();
+        }
+    };
+
     return (
-        <div className="min-h-screen bg-gray-50 pb-24">
-            <header className="sticky top-0 bg-white/80 backdrop-blur-sm z-10 p-4 flex items-center justify-between border-b border-gray-200">
-                <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2"><Utensils size={20} />Nutrition Tracker</h1>
-                <button onClick={() => { hapticTap(); setIsGoalModalOpen(true); }} className="p-2 rounded-full hover:bg-gray-100">
-                    <Settings size={22} className="text-gray-600" />
-                </button>
+        <div className="min-h-screen bg-gray-50 pb-32">
+            {/* Header */}
+            <header className="sticky top-0 bg-white/90 backdrop-blur-lg z-20 px-4 py-3 flex items-center justify-between border-b border-gray-100 shadow-sm">
+                <div className="flex items-center gap-3">
+                    <button onClick={() => { hapticTap(); navigate(-1); }} className="p-2 rounded-full hover:bg-gray-100 transition">
+                        <ArrowLeft size={20} className="text-gray-700" />
+                    </button>
+                    <h1 className="text-lg font-bold text-gray-900">Nutrition Tracker</h1>
+                </div>
+                <div className="flex items-center gap-2">
+                     <button onClick={handleOpenSchedule} className="p-2 rounded-full hover:bg-gray-100 transition text-purple-600">
+                        <Calendar size={20} />
+                    </button>
+                    <button onClick={() => { hapticTap(); setIsGoalModalOpen(true); }} className="p-2 rounded-full hover:bg-gray-100 transition text-purple-600">
+                        <Settings size={20} />
+                    </button>
+                </div>
             </header>
 
             <main className="p-4 space-y-6">
-                <div className="bg-white p-6 rounded-xl shadow-sm flex flex-col items-center">
-                    <h2 className="text-lg font-semibold text-gray-700 mb-4">Today's Progress</h2>
-                    <CalorieProgressCircle calories={dailyTotals.calories} goal={userProfile?.calorie_goal || 2000} />
-                </div>
+                
+                {/* Just Scanned Notification */}
+                {lastScan && (
+                    <div className="bg-green-50 border border-green-200 p-4 rounded-2xl flex items-center gap-4 shadow-sm animate-fade-in-down relative">
+                        <img src={lastScan.image_url} className="w-16 h-16 rounded-xl object-cover shadow-sm" alt="Scan" />
+                        <div>
+                            <p className="text-[10px] font-bold text-green-600 uppercase tracking-wider">Just Added</p>
+                            <h3 className="font-bold text-gray-800 capitalize">{lastScan.results.foodName}</h3>
+                            <p className="text-sm text-gray-500">{lastScan.results.calories.toFixed(0)} kcal</p>
+                        </div>
+                        <button onClick={() => setLastScan(null)} className="absolute top-2 right-2 p-1 text-green-400 hover:bg-green-100 rounded-full transition">
+                            <X size={16} />
+                        </button>
+                    </div>
+                )}
 
-                <div className="flex gap-3 justify-center">
-                    <MacroCard label="Protein" value={dailyTotals.protein} unit="g" color="#3b82f6" />
-                    <MacroCard label="Carbs" value={dailyTotals.carbs} unit="g" color="#f59e0b" />
-                    <MacroCard label="Fat" value={dailyTotals.fat} unit="g" color="#ec4899" />
-                </div>
+                {/* 1. Complete Nutrition Summary */}
+                <section className="bg-white rounded-3xl shadow-sm p-6 flex flex-col items-center">
+                   <CalorieProgressCircle calories={dailyTotals.calories} goal={newGoal} score={healthScore} />
+                   
+                   <div className="grid grid-cols-2 gap-3 w-full mt-6">
+                       <MetricCard label="Protein" value={dailyTotals.protein} max={proteinGoal} unit="g" color="#8b5cf6" icon={Zap} />
+                       <MetricCard label="Carbs" value={dailyTotals.carbs} max={carbsGoal} unit="g" color="#f59e0b" icon={Utensils} />
+                       <MetricCard label="Fats" value={dailyTotals.fat} max={fatGoal} unit="g" color="#ec4899" icon={Flame} />
+                       <div 
+                            onClick={() => { hapticTap(); setWaterIntake(prev => prev + 1); }}
+                            className="bg-blue-50 p-4 rounded-2xl border border-blue-100 flex flex-col justify-between min-w-[100px] cursor-pointer hover:bg-blue-100 transition active:scale-95"
+                        >
+                            <div className="flex justify-between items-start mb-2">
+                                <div className="p-2 rounded-full bg-blue-200">
+                                    <Droplets size={18} className="text-blue-600" />
+                                </div>
+                                <Plus size={16} className="text-blue-400" />
+                            </div>
+                            <div>
+                                <p className="text-xs font-semibold text-gray-500 uppercase">Water</p>
+                                <p className="text-xl font-bold text-gray-800">{waterIntake}<span className="text-xs font-normal text-gray-400 ml-1">/ 8 cups</span></p>
+                            </div>
+                            <div className="w-full bg-blue-200 h-1.5 rounded-full mt-3 overflow-hidden">
+                                <div className="h-full rounded-full bg-blue-500 transition-all duration-300" style={{ width: `${Math.min((waterIntake/8)*100, 100)}%` }}></div>
+                            </div>
+                       </div>
+                   </div>
+                </section>
 
-                <div className="bg-white p-4 rounded-xl shadow-sm">
-                    <h3 className="font-bold text-gray-800 mb-3">Today's Log</h3>
-                    {loading ? (
-                        <div className="text-center py-4"><Loader2 className="animate-spin text-gray-400" /></div>
-                    ) : logs.length > 0 ? (
-                        <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
-                            {logs.map(log => (
-                                <div key={log.id} className="flex justify-between items-center">
-                                    <p className="capitalize font-medium text-gray-700">{log.food_name}</p>
-                                    <div className="flex items-center gap-1 text-sm font-semibold text-gray-600">
-                                        <Flame size={14} className="text-orange-500" />
-                                        {log.calories.toFixed(0)} kcal
+                {/* 2. Concise Activity Log */}
+                <section>
+                    <div className="flex items-center justify-between mb-3 px-1">
+                        <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2"><Activity size={20} className="text-green-500" /> Activity Log</h3>
+                        <span className="text-xs font-semibold text-gray-500 bg-gray-200 px-2 py-1 rounded-md">Today</span>
+                    </div>
+                    <div className="space-y-3">
+                        {mockActivities.length > 0 ? mockActivities.map(activity => (
+                            <div key={activity.id} className="bg-white p-4 rounded-2xl shadow-sm flex items-center gap-4">
+                                <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center text-2xl shadow-inner">
+                                    {activity.icon}
+                                </div>
+                                <div className="flex-grow">
+                                    <h4 className="font-bold text-gray-800">{activity.activityName}</h4>
+                                    <p className="text-xs text-gray-500">{activity.durationMinutes} mins • {new Date(activity.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="font-bold text-green-600">+{activity.caloriesBurned}</p>
+                                    <p className="text-xs text-gray-400">kcal</p>
+                                </div>
+                            </div>
+                        )) : (
+                            <div className="bg-white p-6 rounded-2xl shadow-sm text-center text-gray-500 text-sm">
+                                No activities logged today.
+                            </div>
+                        )}
+                    </div>
+                </section>
+
+                {/* 3. Personalized Meal Plan Generator */}
+                <section>
+                    <div className="flex items-center justify-between mb-3 px-1">
+                        <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2"><ChefHat size={20} className="text-orange-500" /> AI Meal Planner</h3>
+                    </div>
+                    
+                    {mealPlan.length === 0 ? (
+                        <div className="bg-gradient-to-br from-purple-600 to-indigo-700 rounded-3xl p-6 text-white text-center shadow-lg">
+                            <Sparkles size={32} className="mx-auto mb-3 text-yellow-300" />
+                            <h4 className="font-bold text-xl mb-2">Finish Strong!</h4>
+                            <p className="text-purple-100 text-sm mb-6">You have {Math.max(0, newGoal - dailyTotals.calories).toFixed(0)} calories remaining. Let AI generate a visual meal plan to help you hit your targets.</p>
+                            <button 
+                                onClick={generateMealPlan}
+                                disabled={isGeneratingPlan}
+                                className="w-full bg-white text-purple-700 font-bold py-3 px-6 rounded-xl hover:bg-purple-50 transition duration-300 flex items-center justify-center gap-2 shadow-md disabled:opacity-70"
+                            >
+                                {isGeneratingPlan ? <Loader2 className="animate-spin" /> : <Sparkles size={18} />}
+                                {isGeneratingPlan ? 'Designing Plan...' : 'Generate Meal Plan'}
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {mealPlan.map((meal, idx) => (
+                                <div key={idx} className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100 animate-fade-in-up" style={{ animationDelay: `${idx * 100}ms` }}>
+                                    <div className="h-48 bg-gray-200 relative">
+                                        {meal.isLoadingImage ? (
+                                            <div className="absolute inset-0 flex items-center justify-center text-gray-500 bg-gray-100">
+                                                <div className="text-center">
+                                                    <Loader2 className="animate-spin mx-auto mb-2 text-purple-400" />
+                                                    <span className="text-xs font-medium">Generating visual...</span>
+                                                </div>
+                                            </div>
+                                        ) : meal.imageUrl ? (
+                                            <img src={meal.imageUrl} alt={meal.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+                                                <Utensils size={32} />
+                                            </div>
+                                        )}
+                                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 pt-10">
+                                            <h4 className="text-white font-bold text-lg leading-tight">{meal.name}</h4>
+                                            <p className="text-white/80 text-xs mt-1">{meal.calories} kcal • {meal.macros.protein}g Protein</p>
+                                        </div>
+                                    </div>
+                                    <div className="p-4">
+                                        <p className="text-gray-600 text-sm mb-3 leading-relaxed">{meal.description}</p>
+                                        <div className="flex gap-2 mb-3">
+                                            <span className="text-xs font-medium bg-purple-50 text-purple-700 px-2 py-1 rounded-md">Goal: {meal.reason}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center pt-3 border-t border-gray-50">
+                                            <div className="flex gap-3 text-xs font-semibold text-gray-500">
+                                                <span>P: {meal.macros.protein}g</span>
+                                                <span>C: {meal.macros.carbs}g</span>
+                                                <span>F: {meal.macros.fat}g</span>
+                                            </div>
+                                            <button 
+                                                onClick={() => handleOpenScheduleModal(meal)}
+                                                className="bg-purple-100 text-purple-600 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide hover:bg-purple-200 transition flex items-center gap-1"
+                                            >
+                                                <Calendar size={12} /> Add to Schedule
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             ))}
-                        </div>
-                    ) : (
-                         <div className="text-center py-6">
-                            <p className="text-gray-600 font-semibold">No meals logged today.</p>
-                            <p className="text-sm text-gray-400 mt-1">Tap the button below to scan your first meal!</p>
+                             <button 
+                                onClick={generateMealPlan}
+                                className="w-full bg-gray-100 text-gray-600 font-semibold py-3 rounded-xl hover:bg-gray-200 transition text-sm"
+                            >
+                                Regenerate Plan
+                            </button>
                         </div>
                     )}
-                </div>
-                 <button
-                    onClick={() => { hapticTap(); navigate('/scanner/food'); }}
-                    className="w-full bg-purple-600 text-white font-bold py-4 px-6 rounded-xl hover:bg-purple-700 transition duration-300 flex items-center justify-center gap-3 shadow-lg"
-                >
-                    <Plus size={24} /> Log a New Meal
-                </button>
+                </section>
+
+                <div className="h-8"></div>
             </main>
+
+            {/* Log Button (Fixed) */}
+             <div className="fixed bottom-24 right-4 z-10">
+                <button
+                    onClick={() => { hapticTap(); navigate('/scanner/food'); }}
+                    className="bg-purple-600 text-white p-4 rounded-full shadow-lg hover:bg-purple-700 hover:scale-105 transition-all duration-300 flex items-center justify-center"
+                >
+                    <Plus size={24} />
+                </button>
+            </div>
 
             {/* Goal Setting Modal */}
             {isGoalModalOpen && (
-                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 animate-fade-in-down">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold text-gray-800">Set Your Daily Goal</h2>
+                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-fade-in-down">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-bold text-gray-800">Daily Goals</h2>
                             <button onClick={() => setIsGoalModalOpen(false)} className="p-2 rounded-full hover:bg-gray-100">
                                 <X size={20} className="text-gray-600" />
                             </button>
                         </div>
-                        <p className="text-gray-600 mb-4 text-sm">Set a daily calorie target to stay on track with your goals.</p>
-                        <div className="relative">
-                            <input
-                                type="number"
-                                value={newGoal}
-                                onChange={(e) => setNewGoal(parseInt(e.target.value, 10) || 0)}
-                                className="w-full text-center text-2xl font-bold p-3 border-2 border-gray-200 rounded-lg focus:ring-purple-500 focus:border-purple-500"
-                            />
-                             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">kcal</span>
+                        
+                        <div className="space-y-6">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Calorie Target</label>
+                                <div className="relative">
+                                    <input
+                                        type="number"
+                                        value={newGoal}
+                                        onChange={(e) => setNewGoal(parseInt(e.target.value, 10) || 0)}
+                                        className="w-full text-center text-3xl font-bold p-4 border-none bg-gray-50 rounded-2xl focus:ring-2 focus:ring-purple-500 outline-none shadow-inner"
+                                    />
+                                    <span className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 font-medium">kcal</span>
+                                </div>
+                            </div>
+                            
+                            <div className="bg-purple-50 p-4 rounded-xl">
+                                <p className="text-xs text-purple-700 font-medium text-center">
+                                    Based on this goal, your estimated daily targets are:
+                                </p>
+                                <div className="flex justify-around mt-3 text-center">
+                                    <div><p className="font-bold text-purple-900">{Math.round((newGoal * 0.30) / 4)}g</p><p className="text-[10px] text-purple-600 uppercase">Protein</p></div>
+                                    <div><p className="font-bold text-purple-900">{Math.round((newGoal * 0.40) / 4)}g</p><p className="text-[10px] text-purple-600 uppercase">Carbs</p></div>
+                                    <div><p className="font-bold text-purple-900">{Math.round((newGoal * 0.30) / 9)}g</p><p className="text-[10px] text-purple-600 uppercase">Fats</p></div>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={handleUpdateGoal}
+                                className="w-full bg-purple-600 text-white font-bold py-4 rounded-xl hover:bg-purple-700 transition shadow-md"
+                            >
+                                Save Changes
+                            </button>
                         </div>
-                        <button
-                            onClick={handleUpdateGoal}
-                            className="w-full mt-5 bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 transition"
+                    </div>
+                </div>
+            )}
+
+            {/* Schedule Modal */}
+            {isScheduleModalOpen && selectedMealForSchedule && (
+                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-fade-in-up">
+                        <div className="text-center mb-6">
+                            <h2 className="text-xl font-bold text-gray-800">Schedule Meal</h2>
+                            <p className="text-gray-500 text-sm">When do you plan to eat {selectedMealForSchedule.name}?</p>
+                        </div>
+                        
+                        <div className="space-y-3">
+                            <button onClick={() => confirmAddToSchedule(8)} className="w-full p-4 bg-orange-50 hover:bg-orange-100 rounded-xl flex items-center justify-between group transition-colors">
+                                <span className="font-bold text-orange-800">Breakfast</span>
+                                <span className="text-orange-400 text-sm bg-white px-2 py-1 rounded-md group-hover:text-orange-600">8:00 AM</span>
+                            </button>
+                             <button onClick={() => confirmAddToSchedule(13)} className="w-full p-4 bg-green-50 hover:bg-green-100 rounded-xl flex items-center justify-between group transition-colors">
+                                <span className="font-bold text-green-800">Lunch</span>
+                                <span className="text-green-500 text-sm bg-white px-2 py-1 rounded-md group-hover:text-green-600">1:00 PM</span>
+                            </button>
+                             <button onClick={() => confirmAddToSchedule(16)} className="w-full p-4 bg-blue-50 hover:bg-blue-100 rounded-xl flex items-center justify-between group transition-colors">
+                                <span className="font-bold text-blue-800">Snack</span>
+                                <span className="text-blue-400 text-sm bg-white px-2 py-1 rounded-md group-hover:text-blue-600">4:00 PM</span>
+                            </button>
+                             <button onClick={() => confirmAddToSchedule(19)} className="w-full p-4 bg-purple-50 hover:bg-purple-100 rounded-xl flex items-center justify-between group transition-colors">
+                                <span className="font-bold text-purple-800">Dinner</span>
+                                <span className="text-purple-400 text-sm bg-white px-2 py-1 rounded-md group-hover:text-purple-600">7:00 PM</span>
+                            </button>
+                        </div>
+                        
+                        <button 
+                            onClick={() => setIsScheduleModalOpen(false)} 
+                            className="mt-4 w-full py-3 text-gray-500 hover:text-gray-800 font-medium"
                         >
-                            Save Goal
+                            Cancel
                         </button>
                     </div>
                 </div>
