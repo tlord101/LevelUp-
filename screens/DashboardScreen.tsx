@@ -15,14 +15,6 @@ const mockNotifications = [
     { id: 3, title: "New Badge Earned", message: "You unlocked the 'Early Bird' badge.", time: "1d ago", type: 'achievement', read: true },
 ];
 
-const StatCard: React.FC<{ value: number; label: string, icon: React.ElementType, colorClass: string }> = ({ value, label, icon: Icon, colorClass }) => (
-    <div className="bg-white p-3 rounded-xl text-center shadow-md border border-gray-50 flex flex-col items-center justify-center min-h-[100px]">
-        <Icon className={`w-6 h-6 mb-1 ${colorClass}`} />
-        <p className="text-2xl font-bold text-gray-800 leading-none">{value}</p>
-        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mt-1">{label}</p>
-    </div>
-);
-
 const MissionItem: React.FC<{ mission: Mission, onClick: () => void }> = ({ mission, onClick }) => (
     <button onClick={onClick} className="w-full flex items-center space-x-4 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200">
         <div className="text-3xl">{mission.emoji}</div>
@@ -34,6 +26,100 @@ const MissionItem: React.FC<{ mission: Mission, onClick: () => void }> = ({ miss
     </button>
 );
 
+const LiveStatsGraph: React.FC<{ stats: { strength: number; glow: number; energy: number; willpower: number } }> = ({ stats }) => {
+    const [animate, setAnimate] = useState(false);
+
+    useEffect(() => {
+        const timer = setTimeout(() => setAnimate(true), 100);
+        return () => clearTimeout(timer);
+    }, []);
+
+    const maxStat = Math.max(stats.strength, stats.glow, stats.energy, stats.willpower);
+    const graphMax = Math.max(maxStat * 1.2, 20); 
+
+    const data = [
+        { key: 'strength', label: 'STR', fullLabel: 'Strength', value: stats.strength, icon: Dumbbell, gradient: 'from-violet-500 to-purple-600', delay: '0ms' },
+        { key: 'glow', label: 'GLW', fullLabel: 'Glow', value: stats.glow, icon: Sparkles, gradient: 'from-pink-500 to-rose-500', delay: '100ms' },
+        { key: 'energy', label: 'NRG', fullLabel: 'Energy', value: stats.energy, icon: Zap, gradient: 'from-amber-400 to-orange-500', delay: '200ms' },
+        { key: 'willpower', label: 'WIL', fullLabel: 'Willpower', value: stats.willpower, icon: Brain, gradient: 'from-cyan-400 to-blue-500', delay: '300ms' },
+    ];
+
+    return (
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-gray-800">Live Stats</h2>
+                <div className="flex items-center gap-2 px-3 py-1 bg-gray-50 rounded-full border border-gray-100">
+                     <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                     <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Real-time</span>
+                </div>
+            </div>
+            
+            <div className="flex items-end justify-between px-2 pb-6 h-64 relative">
+                 {/* Grid Lines */}
+                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-30 pb-16">
+                     <div className="border-t border-dashed border-gray-200 w-full h-0"></div>
+                     <div className="border-t border-dashed border-gray-200 w-full h-0"></div>
+                     <div className="border-t border-dashed border-gray-200 w-full h-0"></div>
+                </div>
+
+                {data.map((item) => {
+                    const heightPercentage = Math.max((item.value / graphMax) * 100, 15); 
+                    
+                    return (
+                        <div key={item.key} className="flex flex-col items-center relative z-10 w-1/4 group">
+                            {/* Floating Value */}
+                            <div 
+                                className={`mb-3 transition-all duration-700 ease-out transform ${animate ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+                                style={{ transitionDelay: item.delay }}
+                            >
+                                <span className="font-black text-xl text-gray-800">{item.value}</span>
+                            </div>
+
+                            {/* Bar Container */}
+                            <div className="relative w-12 sm:w-14 h-32 flex items-end justify-center">
+                                {/* Main Bar */}
+                                <div 
+                                    className={`w-full rounded-2xl bg-gradient-to-b ${item.gradient} shadow-lg transition-all duration-1000 cubic-bezier(0.34, 1.56, 0.64, 1) relative z-10`}
+                                    style={{ 
+                                        height: animate ? `${heightPercentage}%` : '0%',
+                                        transitionDelay: item.delay,
+                                        borderRadius: '14px',
+                                    }}
+                                >
+                                    {/* Inner Glow/Shine */}
+                                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-white/10 to-transparent opacity-50 pointer-events-none"></div>
+                                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-1 bg-white/30 rounded-full mt-1"></div>
+                                </div>
+
+                                {/* Reflection */}
+                                <div 
+                                    className={`absolute top-full w-full rounded-2xl bg-gradient-to-b ${item.gradient} opacity-30 transition-all duration-1000`}
+                                    style={{ 
+                                        height: animate ? `${heightPercentage * 0.4}%` : '0%',
+                                        transitionDelay: item.delay,
+                                        transform: 'scaleY(-1) translateY(-4px)', 
+                                        maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.8), rgba(0,0,0,0))',
+                                        WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.8), rgba(0,0,0,0))',
+                                        borderRadius: '14px'
+                                    }}
+                                ></div>
+                            </div>
+
+                            {/* Label */}
+                            <div className="mt-6 flex flex-col items-center transition-transform duration-300 group-hover:-translate-y-1">
+                                <div className="p-1.5 rounded-lg bg-gray-50 text-gray-400 mb-1">
+                                    <item.icon size={16} />
+                                </div>
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{item.label}</span>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
 const DashboardScreen: React.FC = () => {
     const { user, userProfile } = useAuth();
     const navigate = useNavigate();
@@ -42,7 +128,6 @@ const DashboardScreen: React.FC = () => {
     const [notifications, setNotifications] = useState(mockNotifications);
     const notificationRef = useRef<HTMLDivElement>(null);
 
-    // Close notification dropdown if clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
@@ -61,7 +146,7 @@ const DashboardScreen: React.FC = () => {
 
     const handleMissionClick = (missionId: string) => {
         hapticTap();
-        if (missionId === 'foodScan') navigate('/scanner/food');
+        if (missionId === 'foodScan') navigate('/nutrition-tracker');
         if (missionId === 'bodyScan') navigate('/scanner/body');
         if (missionId === 'faceScan') navigate('/scanner/face');
     };
@@ -97,7 +182,6 @@ const DashboardScreen: React.FC = () => {
     const xpProgress = (userProfile.xp / xpForNextLevel) * 100;
     const unreadCount = notifications.filter(n => !n.read).length;
 
-    // Calculate Nutrition Totals
     const dailyTotals = nutritionLogs.reduce((acc, log) => ({
         calories: acc.calories + log.calories,
         protein: acc.protein + log.protein,
@@ -110,16 +194,14 @@ const DashboardScreen: React.FC = () => {
     const fatGoal = Math.round((calorieGoal * 0.30) / 9);
     const carbsGoal = Math.round((calorieGoal * 0.40) / 4);
 
-    const donutCircumference = 2 * Math.PI * 40; // r=40
+    const donutCircumference = 2 * Math.PI * 40; 
     const donutProgress = donutCircumference * (1 - Math.min(dailyTotals.calories / calorieGoal, 1));
 
-    // Default avatar if none
     const avatarUrl = user?.photoURL || "https://i.pinimg.com/736x/03/65/0a/03650a358248c8a272b0c39f284e3d64.jpg";
 
     return (
         <div className="min-h-screen bg-gray-50 p-4 pb-24 space-y-6">
             
-            {/* Modern Header */}
             <header className="flex justify-between items-center pt-2 pb-2 relative z-30">
                 <div className="flex items-center gap-3" onClick={handleProfileClick}>
                     <div className="relative">
@@ -147,7 +229,6 @@ const DashboardScreen: React.FC = () => {
                         )}
                     </button>
 
-                    {/* Notification Dropdown */}
                     {isNotificationsOpen && (
                         <div className="absolute right-0 top-full mt-4 w-80 md:w-96 bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-fade-in-down z-50 origin-top-right">
                             <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-white/50">
@@ -196,7 +277,6 @@ const DashboardScreen: React.FC = () => {
                 </div>
             </header>
             
-            {/* Level Progress Card */}
             <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-5 rounded-2xl shadow-lg">
                 <div className="flex justify-between items-center">
                     <div className="flex items-center gap-3">
@@ -217,11 +297,9 @@ const DashboardScreen: React.FC = () => {
                 </div>
             </div>
             
-            {/* Today's Status Widget */}
             <div onClick={() => { hapticTap(); navigate('/nutrition-tracker'); }} className="cursor-pointer">
                 <h2 className="text-xl font-bold text-gray-800 mb-3">Today's Status</h2>
                 <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex items-center gap-6">
-                    {/* Donut Chart */}
                     <div className="relative w-32 h-32 flex-shrink-0">
                         <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                             <circle cx="50" cy="50" r="40" fill="transparent" stroke="#f3f4f6" strokeWidth="8" />
@@ -238,9 +316,7 @@ const DashboardScreen: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Macros */}
                     <div className="flex-grow space-y-4">
-                        {/* Protein */}
                         <div>
                             <div className="flex justify-between text-xs font-bold mb-1.5">
                                 <span className="text-gray-800">Protein</span>
@@ -250,7 +326,6 @@ const DashboardScreen: React.FC = () => {
                                 <div className="bg-teal-400 h-2 rounded-full" style={{ width: `${Math.min((dailyTotals.protein / proteinGoal) * 100, 100)}%` }}></div>
                             </div>
                         </div>
-                        {/* Fat */}
                         <div>
                             <div className="flex justify-between text-xs font-bold mb-1.5">
                                 <span className="text-gray-800">Fat</span>
@@ -260,7 +335,6 @@ const DashboardScreen: React.FC = () => {
                                 <div className="bg-amber-400 h-2 rounded-full" style={{ width: `${Math.min((dailyTotals.fat / fatGoal) * 100, 100)}%` }}></div>
                             </div>
                         </div>
-                        {/* Carbs */}
                         <div>
                             <div className="flex justify-between text-xs font-bold mb-1.5">
                                 <span className="text-gray-800">Carbs</span>
@@ -274,18 +348,8 @@ const DashboardScreen: React.FC = () => {
                 </div>
             </div>
 
-            {/* Stats Grid */}
-            <div>
-                <h2 className="text-xl font-bold text-gray-800 mb-3">Your Stats</h2>
-                <div className="grid grid-cols-4 gap-3">
-                    <StatCard value={userProfile.stats.strength} label="Strength" icon={Dumbbell} colorClass="text-purple-500" />
-                    <StatCard value={userProfile.stats.glow} label="Glow" icon={Sparkles} colorClass="text-pink-500" />
-                    <StatCard value={userProfile.stats.energy} label="Energy" icon={Zap} colorClass="text-yellow-500" />
-                    <StatCard value={userProfile.stats.willpower} label="Willpower" icon={Brain} colorClass="text-blue-500" />
-                </div>
-            </div>
+            <LiveStatsGraph stats={userProfile.stats} />
 
-            {/* Daily Missions */}
             <div>
                 <h2 className="text-xl font-bold text-gray-800 mb-3">Daily Missions</h2>
                 <div className="space-y-3">
@@ -295,7 +359,6 @@ const DashboardScreen: React.FC = () => {
                 </div>
             </div>
             
-            {/* AI Coach Chat Button */}
              <button
                 onClick={() => {
                     hapticTap();

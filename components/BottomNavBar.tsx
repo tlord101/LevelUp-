@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { Home, Settings, Plus, Scan, Smile, UtensilsCrossed, Users, Sparkles, ClipboardList } from 'lucide-react';
@@ -5,7 +6,6 @@ import { hapticTap } from '../utils/haptics';
 
 const scannerItems = [
   { path: '/nutrition-tracker', label: 'Nutrition Tracker', icon: ClipboardList },
-  { path: '/scanner/food', label: 'Food Scan', icon: UtensilsCrossed },
   { path: '/scanner/body', label: 'Body Scan', icon: Scan },
   { path: '/scanner/face', label: 'Face Scan', icon: Smile },
 ];

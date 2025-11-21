@@ -67,7 +67,7 @@ const FoodHistoryScreen: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="sticky top-0 bg-white/80 backdrop-blur-sm border-b border-gray-200 p-4 flex items-center z-10">
-        <button onClick={() => { hapticTap(); navigate('/scanner/food'); }} className="mr-4 p-2 rounded-full hover:bg-gray-100">
+        <button onClick={() => { hapticTap(); navigate('/nutrition-tracker'); }} className="mr-4 p-2 rounded-full hover:bg-gray-100">
           <ArrowLeft size={24} className="text-gray-800" />
         </button>
         <h1 className="text-xl font-bold text-gray-900">Food Scan History</h1>

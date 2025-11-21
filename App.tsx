@@ -9,7 +9,6 @@ import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
 import DashboardScreen from './screens/DashboardScreen';
 import BodyScannerScreen from './screens/BodyScannerScreen';
 import FaceScannerScreen from './screens/FaceScannerScreen';
-import FoodScannerScreen from './screens/FoodScannerScreen';
 import CommunityScreen from './screens/CommunityScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import BottomNavBar from './components/BottomNavBar';
@@ -139,7 +138,6 @@ const App: React.FC = () => {
                     <Route path="/dashboard" element={<DashboardScreen />} />
                     <Route path="/scanner/body" element={<BodyScannerScreen />} />
                     <Route path="/scanner/face" element={<FaceScannerScreen />} />
-                    <Route path="/scanner/food" element={<FoodScannerScreen />} />
                     <Route path="/nutrition-tracker" element={<NutritionTrackerScreen />} />
                     <Route path="/meal-schedule" element={<MealScheduleScreen />} />
                     <Route path="/food-history" element={<FoodHistoryScreen />} />

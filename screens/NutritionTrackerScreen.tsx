@@ -1,18 +1,15 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getTodaysNutritionLogs, logNutritionIntake } from '../services/firebaseService';
-import { NutritionLog, MealPlanItem, ActivityLogItem, NutritionScan } from '../types';
-import { ArrowLeft, Plus, Settings, X, Loader2, Utensils, Flame, Droplets, Activity, Zap, ChefHat, Sparkles, Calendar, CheckCircle, Clock } from 'lucide-react';
+import { getTodaysNutritionLogs, logNutritionIntake, uploadImage, saveNutritionScan, getNutritionScans } from '../services/firebaseService';
+import { NutritionLog, MealPlanItem, NutritionScan, NutritionScanResult } from '../types';
+import { ArrowLeft, Plus, Settings, X, Loader2, Utensils, Flame, Droplets, Zap, ChefHat, Sparkles, Calendar, CheckCircle, Clock, Camera, Upload, Image as ImageIcon } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
 import { GoogleGenAI, Type } from '@google/genai';
-
-// Mock activity data (since we don't have a backend table for it yet)
-const mockActivities: ActivityLogItem[] = [
-    { id: '1', activityName: 'Morning Jog', durationMinutes: 30, caloriesBurned: 240, timestamp: new Date().toISOString(), icon: '🏃' },
-    { id: '2', activityName: 'Yoga Flow', durationMinutes: 20, caloriesBurned: 110, timestamp: new Date().toISOString(), icon: '🧘' },
-];
+import { useImageScanner } from '../hooks/useImageScanner';
+import CameraView from '../components/CameraView';
+import { blobToBase64 } from '../utils/imageUtils';
 
 const CalorieProgressCircle: React.FC<{ calories: number; goal: number; score: number }> = ({ calories, goal, score }) => {
     const clampedCalories = Math.min(calories, goal);
@@ -20,16 +17,13 @@ const CalorieProgressCircle: React.FC<{ calories: number; goal: number; score: n
     const circumference = 2 * Math.PI * 60; // r=60
     const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
-    // Color changes based on Score
     const scoreColor = score > 80 ? 'text-green-500' : score > 50 ? 'text-yellow-500' : 'text-orange-500';
 
     return (
         <div className="relative w-64 h-64 flex items-center justify-center">
             <div className="relative w-56 h-56">
                 <svg className="w-full h-full" viewBox="0 0 140 140">
-                    {/* Background Circle */}
                     <circle className="text-gray-100" strokeWidth="12" stroke="currentColor" fill="transparent" r="60" cx="70" cy="70" />
-                    {/* Progress Circle */}
                     <circle
                         className="text-purple-500"
                         strokeWidth="12"
@@ -81,16 +75,31 @@ const MetricCard: React.FC<{ label: string; value: number; max: number; unit: st
     );
 };
 
+const HistoryCard: React.FC<{ scan: NutritionScan; onClick: () => void }> = ({ scan, onClick }) => (
+    <button onClick={onClick} className="w-full bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex items-center gap-3 mb-3 text-left hover:bg-gray-50 transition active:scale-95">
+        <img src={scan.image_url} alt={scan.results.foodName} className="w-12 h-12 rounded-lg object-cover" />
+        <div className="flex-grow">
+            <h4 className="font-bold text-gray-800 text-sm capitalize">{scan.results.foodName}</h4>
+            <p className="text-xs text-gray-500">{new Date(scan.created_at).toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'})}</p>
+        </div>
+        <div className="text-right">
+            <span className="block font-bold text-purple-600">{scan.results.calories.toFixed(0)}</span>
+            <span className="text-[10px] text-gray-400">kcal</span>
+        </div>
+    </button>
+);
+
 const NutritionTrackerScreen: React.FC = () => {
-    const { user, userProfile, updateUserProfileData } = useAuth();
+    const { user, userProfile, updateUserProfileData, rewardUser } = useAuth();
     const navigate = useNavigate();
-    const location = useLocation();
     
     const [logs, setLogs] = useState<NutritionLog[]>([]);
+    const [scans, setScans] = useState<NutritionScan[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+
     const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
     const [newGoal, setNewGoal] = useState(userProfile?.calorie_goal || 2000);
-    const [lastScan, setLastScan] = useState<NutritionScan | null>(null);
     
     // Meal Plan State
     const [mealPlan, setMealPlan] = useState<MealPlanItem[]>([]);
@@ -116,7 +125,7 @@ const NutritionTrackerScreen: React.FC = () => {
         }
     });
 
-    // Save water intake to local storage whenever it changes
+    // Save water intake
     useEffect(() => {
         localStorage.setItem('waterIntake', waterIntake.toString());
         localStorage.setItem('waterIntakeDate', new Date().toDateString());
@@ -124,38 +133,42 @@ const NutritionTrackerScreen: React.FC = () => {
 
     const fetchLogs = useCallback(async () => {
         if (user) {
+            setLoading(true);
             try {
-                setLoading(true);
                 const fetchedLogs = await getTodaysNutritionLogs(user.uid);
                 setLogs(fetchedLogs);
             } catch (error) {
-                console.error("Failed to fetch nutrition logs:", error);
+                console.error("Failed to fetch logs:", error);
             } finally {
                 setLoading(false);
             }
         }
     }, [user]);
 
+    const fetchScans = useCallback(async () => {
+        if (user) {
+            try {
+                const fetchedScans = await getNutritionScans(user.uid);
+                setScans(fetchedScans);
+            } catch (error) {
+                console.error("Failed to fetch scans:", error);
+            }
+        }
+    }, [user]);
+
     useEffect(() => {
         fetchLogs();
-    }, [fetchLogs]);
+        fetchScans();
+    }, [fetchLogs, fetchScans]);
     
     useEffect(() => {
         setNewGoal(userProfile?.calorie_goal || 2000);
     }, [userProfile?.calorie_goal]);
 
-    // Handle navigation from scanner
-    useEffect(() => {
-        if (location.state?.scan) {
-            setLastScan(location.state.scan);
-        }
-    }, [location.state]);
 
     const dailyTotals = useMemo(() => {
         return logs.reduce(
             (acc, log) => {
-                // Only include logs that are marked as consumed (or undefined/null which implies consumed for legacy data)
-                // Scheduled items will be false.
                 if (log.consumed !== false) {
                     acc.calories += log.calories;
                     acc.protein += log.protein;
@@ -168,20 +181,15 @@ const NutritionTrackerScreen: React.FC = () => {
         );
     }, [logs]);
 
-    // Calculated Goals (Simple estimates based on Calorie Goal)
-    const proteinGoal = Math.round((newGoal * 0.30) / 4); // 30%
-    const fatGoal = Math.round((newGoal * 0.30) / 9); // 30%
-    const carbsGoal = Math.round((newGoal * 0.40) / 4); // 40%
+    const proteinGoal = Math.round((newGoal * 0.30) / 4);
+    const fatGoal = Math.round((newGoal * 0.30) / 9);
+    const carbsGoal = Math.round((newGoal * 0.40) / 4);
 
-    // Simple Health Score Algorithm
     const healthScore = useMemo(() => {
         if (newGoal === 0) return 0;
-        
         const calorieScore = Math.max(0, 100 - Math.abs((dailyTotals.calories - newGoal) / newGoal) * 100);
         const proteinScore = Math.min((dailyTotals.protein / proteinGoal) * 100, 100);
         const waterScore = Math.min((waterIntake / 8) * 100, 100);
-        
-        // Weighted Average
         return Math.round((calorieScore * 0.5) + (proteinScore * 0.3) + (waterScore * 0.2));
     }, [dailyTotals, newGoal, proteinGoal, waterIntake]);
 
@@ -199,35 +207,115 @@ const NutritionTrackerScreen: React.FC = () => {
         } catch (error) {
             hapticError();
             console.error("Failed to update goal:", error);
-            alert("Could not update your goal. Please try again.");
         }
     };
 
+    // --- ANALYSIS LOGIC ---
+    const handleAnalyze = async (blob: Blob) => {
+        if (!user) return;
+        setIsAnalyzing(true);
+        hapticTap();
+
+        try {
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+            const base64Image = await blobToBase64(blob);
+            const imagePart = { inlineData: { mimeType: 'image/jpeg', data: base64Image } };
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: { parts: [imagePart, { text: 'Analyze the food item in this image and provide its nutritional information. Output JSON. Keys: isFood (bool), foodName (string), calories (number), macros (obj: protein, carbs, fat). If not food, isFood=false.' }] },
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            isFood: { type: Type.BOOLEAN },
+                            foodName: { type: Type.STRING },
+                            calories: { type: Type.NUMBER },
+                            macros: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    protein: { type: Type.NUMBER },
+                                    carbs: { type: Type.NUMBER },
+                                    fat: { type: Type.NUMBER },
+                                },
+                                required: ['protein', 'carbs', 'fat']
+                            }
+                        },
+                        required: ['isFood', 'foodName', 'calories', 'macros']
+                    }
+                }
+            });
+
+            const analysisData: NutritionScanResult = JSON.parse(response.text.trim());
+            
+            if (!analysisData.isFood) {
+                alert("No food detected. Please try again.");
+                setIsAnalyzing(false);
+                scanner.reset();
+                return;
+            }
+            
+            // Upload & Save
+            const imageUrl = await uploadImage(blob, user.uid, 'scans');
+            await saveNutritionScan(user.uid, imageUrl, analysisData);
+            
+            // Log Intake (Updates Stats immediately)
+            await logNutritionIntake(user.uid, {
+                food_name: analysisData.foodName,
+                calories: analysisData.calories,
+                protein: analysisData.macros.protein,
+                carbs: analysisData.macros.carbs,
+                fat: analysisData.macros.fat,
+                consumed: true
+            });
+
+            await rewardUser(15, { energy: 1 });
+            hapticSuccess();
+            
+            // Construct scan object and navigate to result screen
+            const newScan: NutritionScan = {
+                 id: `new-${Date.now()}`,
+                 user_id: user.uid,
+                 image_url: imageUrl,
+                 results: analysisData,
+                 created_at: new Date().toISOString()
+            };
+
+            // Navigate to Detail Screen to show result
+            navigate('/history/food/detail', { state: { scan: newScan } });
+
+        } catch (err: any) {
+            console.error("Analysis failed:", err);
+            hapticError();
+            alert("Analysis failed. Please try again.");
+            setIsAnalyzing(false);
+            scanner.reset();
+        } 
+        // Note: We don't reset isAnalyzing/scanner here in success case because we navigate away.
+        // If we stay, we would reset. In error case we reset above.
+    };
+
+    const scanner = useImageScanner(handleAnalyze);
+
+    // --- MEAL PLAN GENERATION ---
     const generateMealPlan = async () => {
-        if (!process.env.API_KEY) {
-            console.error("API Key missing");
-            return;
-        }
+        if (!process.env.API_KEY) return;
         setIsGeneratingPlan(true);
         hapticTap();
-        setMealPlan([]); // Clear previous
+        setMealPlan([]); 
 
         const remainingCals = Math.max(0, newGoal - dailyTotals.calories);
         const remainingProtein = Math.max(0, proteinGoal - dailyTotals.protein);
 
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-            
-            // 1. Generate Text Plan
             const prompt = `
                 The user has eaten ${dailyTotals.calories.toFixed(0)}kcal (${dailyTotals.protein.toFixed(0)}g protein) today.
                 Their goal is ${newGoal}kcal (${proteinGoal}g protein).
                 Remaining needed: ${remainingCals.toFixed(0)}kcal, ${remainingProtein.toFixed(0)}g protein.
                 Dietary preferences: ${userProfile?.allergies?.join(', ') || 'None'}.
-                
-                Generate a suggested meal plan for the rest of the day (1-3 meals/snacks) to help them meet these targets.
-                Assign a 'mealType' to each item (Breakfast, Lunch, Dinner, or Snack) based on what makes sense for a typical day structure.
-                Output strictly valid JSON.
+                Generate a meal plan (1-3 items) to meet targets. JSON format.
             `;
 
             const response = await ai.models.generateContent({
@@ -246,11 +334,7 @@ const NutritionTrackerScreen: React.FC = () => {
                                         name: { type: Type.STRING },
                                         calories: { type: Type.NUMBER },
                                         description: { type: Type.STRING },
-                                        mealType: { 
-                                            type: Type.STRING,
-                                            enum: ['Breakfast', 'Lunch', 'Dinner', 'Snack'],
-                                            description: "The category of the meal."
-                                        },
+                                        mealType: { type: Type.STRING, enum: ['Breakfast', 'Lunch', 'Dinner', 'Snack'] },
                                         macros: {
                                             type: Type.OBJECT,
                                             properties: {
@@ -276,31 +360,18 @@ const NutritionTrackerScreen: React.FC = () => {
             setMealPlan(mealsWithLoadingState);
             hapticSuccess();
 
-            // 2. Generate Images for meals (Lazy/Parallel)
             mealsWithLoadingState.forEach(async (meal: MealPlanItem, index: number) => {
                 try {
                     const imageResponse = await ai.models.generateImages({
                         model: 'imagen-4.0-generate-001',
-                        prompt: `A high quality, appetizing food photography shot of ${meal.name}. ${meal.description}. Professional studio lighting, delicious, 4k.`,
-                        config: {
-                            numberOfImages: 1,
-                            aspectRatio: '1:1',
-                            outputMimeType: 'image/jpeg'
-                        }
+                        prompt: `A high quality, appetizing food photography shot of ${meal.name}. ${meal.description}.`,
+                        config: { numberOfImages: 1, aspectRatio: '1:1', outputMimeType: 'image/jpeg' }
                     });
-
                     const base64ImageBytes = imageResponse.generatedImages[0].image.imageBytes;
                     const imageUrl = `data:image/jpeg;base64,${base64ImageBytes}`;
-
-                    setMealPlan(prev => prev.map((m, i) => 
-                        i === index ? { ...m, imageUrl, isLoadingImage: false } : m
-                    ));
-
+                    setMealPlan(prev => prev.map((m, i) => i === index ? { ...m, imageUrl, isLoadingImage: false } : m));
                 } catch (imgErr) {
-                    console.error("Image gen error for", meal.name, imgErr);
-                    setMealPlan(prev => prev.map((m, i) => 
-                        i === index ? { ...m, isLoadingImage: false } : m
-                    ));
+                    setMealPlan(prev => prev.map((m, i) => i === index ? { ...m, isLoadingImage: false } : m));
                 }
             });
 
@@ -314,22 +385,16 @@ const NutritionTrackerScreen: React.FC = () => {
 
     const handleAcceptPlan = async () => {
         if (!user || mealPlan.length === 0) return;
-
         setIsAcceptingPlan(true);
         hapticTap();
-
         try {
             const today = new Date();
-            
-            // Process all meals in parallel
             const promises = mealPlan.map(meal => {
-                // Default hours based on mealType
                 let hour = 12;
                 if (meal.mealType === 'Breakfast') hour = 8;
                 else if (meal.mealType === 'Lunch') hour = 13;
                 else if (meal.mealType === 'Dinner') hour = 19;
                 else if (meal.mealType === 'Snack') hour = 16;
-
                 const scheduledTime = new Date(today);
                 scheduledTime.setHours(hour, 0, 0, 0);
 
@@ -340,19 +405,15 @@ const NutritionTrackerScreen: React.FC = () => {
                     carbs: meal.macros.carbs,
                     fat: meal.macros.fat,
                     created_at: scheduledTime.toISOString(),
-                    consumed: false // Scheduled, not yet consumed
+                    consumed: false
                 });
             });
-
             await Promise.all(promises);
-            
             hapticSuccess();
-            // Navigate to schedule to show the result
             navigate('/meal-schedule');
         } catch (error) {
             console.error("Failed to accept plan:", error);
             hapticError();
-            alert("Failed to save meal plan. Please try again.");
         } finally {
             setIsAcceptingPlan(false);
         }
@@ -371,11 +432,9 @@ const NutritionTrackerScreen: React.FC = () => {
 
     const confirmAddToSchedule = async (timeOffsetHours: number) => {
         if (!user || !selectedMealForSchedule) return;
-        
         hapticTap();
         const scheduledTime = new Date();
         scheduledTime.setHours(timeOffsetHours, 0, 0, 0);
-        
         try {
             await logNutritionIntake(user.uid, {
                 food_name: selectedMealForSchedule.name,
@@ -384,9 +443,8 @@ const NutritionTrackerScreen: React.FC = () => {
                 carbs: selectedMealForSchedule.macros.carbs,
                 fat: selectedMealForSchedule.macros.fat,
                 created_at: scheduledTime.toISOString(),
-                consumed: false // Scheduled
+                consumed: false
             });
-            
             hapticSuccess();
             setIsScheduleModalOpen(false);
             navigate('/meal-schedule');
@@ -398,10 +456,22 @@ const NutritionTrackerScreen: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 pb-32">
+            {/* Camera View Overlay */}
+            {scanner.showCamera && <CameraView onCapture={scanner.handleCapture} onClose={scanner.closeCamera} facingMode="environment" promptText="Capture your meal" />}
+            
+            {/* Loading Overlay */}
+            {isAnalyzing && (
+                <div className="fixed inset-0 bg-black/70 z-[60] flex flex-col items-center justify-center backdrop-blur-sm">
+                    <Loader2 className="w-16 h-16 text-white animate-spin mb-4" />
+                    <p className="text-white font-bold text-lg">Analyzing your meal...</p>
+                    <p className="text-white/70 text-sm">Identifying food & calculating macros</p>
+                </div>
+            )}
+
             {/* Header */}
             <header className="sticky top-0 bg-white/90 backdrop-blur-lg z-20 px-4 py-3 flex items-center justify-between border-b border-gray-100 shadow-sm">
                 <div className="flex items-center gap-3">
-                    <button onClick={() => { hapticTap(); navigate(-1); }} className="p-2 rounded-full hover:bg-gray-100 transition">
+                    <button onClick={() => { hapticTap(); navigate('/dashboard'); }} className="p-2 rounded-full hover:bg-gray-100 transition">
                         <ArrowLeft size={20} className="text-gray-700" />
                     </button>
                     <h1 className="text-lg font-bold text-gray-900">Nutrition Tracker</h1>
@@ -418,22 +488,7 @@ const NutritionTrackerScreen: React.FC = () => {
 
             <main className="p-4 space-y-6">
                 
-                {/* Just Scanned Notification */}
-                {lastScan && (
-                    <div className="bg-green-50 border border-green-200 p-4 rounded-2xl flex items-center gap-4 shadow-sm animate-fade-in-down relative">
-                        <img src={lastScan.image_url} className="w-16 h-16 rounded-xl object-cover shadow-sm" alt="Scan" />
-                        <div>
-                            <p className="text-[10px] font-bold text-green-600 uppercase tracking-wider">Just Added</p>
-                            <h3 className="font-bold text-gray-800 capitalize">{lastScan.results.foodName}</h3>
-                            <p className="text-sm text-gray-500">{lastScan.results.calories.toFixed(0)} kcal</p>
-                        </div>
-                        <button onClick={() => setLastScan(null)} className="absolute top-2 right-2 p-1 text-green-400 hover:bg-green-100 rounded-full transition">
-                            <X size={16} />
-                        </button>
-                    </div>
-                )}
-
-                {/* 1. Complete Nutrition Summary */}
+                {/* 1. Nutrition Summary */}
                 <section className="bg-white rounded-3xl shadow-sm p-6 flex flex-col items-center">
                    <CalorieProgressCircle calories={dailyTotals.calories} goal={newGoal} score={healthScore} />
                    
@@ -462,36 +517,35 @@ const NutritionTrackerScreen: React.FC = () => {
                    </div>
                 </section>
 
-                {/* 2. Concise Activity Log */}
+                {/* 2. Action Buttons (Camera / Upload) */}
                 <section>
-                    <div className="flex items-center justify-between mb-3 px-1">
-                        <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2"><Activity size={20} className="text-green-500" /> Activity Log</h3>
-                        <span className="text-xs font-semibold text-gray-500 bg-gray-200 px-2 py-1 rounded-md">Today</span>
-                    </div>
-                    <div className="space-y-3">
-                        {mockActivities.length > 0 ? mockActivities.map(activity => (
-                            <div key={activity.id} className="bg-white p-4 rounded-2xl shadow-sm flex items-center gap-4">
-                                <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center text-2xl shadow-inner">
-                                    {activity.icon}
-                                </div>
-                                <div className="flex-grow">
-                                    <h4 className="font-bold text-gray-800">{activity.activityName}</h4>
-                                    <p className="text-xs text-gray-500">{activity.durationMinutes} mins • {new Date(activity.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
-                                </div>
-                                <div className="text-right">
-                                    <p className="font-bold text-green-600">+{activity.caloriesBurned}</p>
-                                    <p className="text-xs text-gray-400">kcal</p>
-                                </div>
-                            </div>
-                        )) : (
-                            <div className="bg-white p-6 rounded-2xl shadow-sm text-center text-gray-500 text-sm">
-                                No activities logged today.
-                            </div>
-                        )}
+                    <h3 className="font-bold text-gray-800 text-lg mb-3">Log a Meal</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                        <button 
+                            onClick={() => { hapticTap(); scanner.openCamera(); }}
+                            className="flex flex-col items-center justify-center bg-purple-600 text-white p-4 rounded-2xl shadow-lg hover:bg-purple-700 transition active:scale-95"
+                        >
+                            <Camera size={28} className="mb-2" />
+                            <span className="font-bold">Scan Food</span>
+                        </button>
+                        <button 
+                            onClick={() => { hapticTap(); scanner.triggerFileInput(); }}
+                            className="flex flex-col items-center justify-center bg-white text-purple-600 border-2 border-purple-100 p-4 rounded-2xl hover:bg-purple-50 transition active:scale-95"
+                        >
+                            <ImageIcon size={28} className="mb-2" />
+                            <span className="font-bold">Upload Photo</span>
+                        </button>
+                        <input 
+                            type="file" 
+                            accept="image/jpeg,image/png" 
+                            ref={scanner.fileInputRef} 
+                            onChange={scanner.handleFileChange} 
+                            className="hidden" 
+                        />
                     </div>
                 </section>
 
-                {/* 3. Personalized Meal Plan Generator */}
+                {/* 3. AI Meal Planner */}
                 <section>
                     <div className="flex items-center justify-between mb-3 px-1">
                         <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2"><ChefHat size={20} className="text-orange-500" /> AI Meal Planner</h3>
@@ -500,8 +554,8 @@ const NutritionTrackerScreen: React.FC = () => {
                     {mealPlan.length === 0 ? (
                         <div className="bg-gradient-to-br from-purple-600 to-indigo-700 rounded-3xl p-6 text-white text-center shadow-lg">
                             <Sparkles size={32} className="mx-auto mb-3 text-yellow-300" />
-                            <h4 className="font-bold text-xl mb-2">Finish Strong!</h4>
-                            <p className="text-purple-100 text-sm mb-6">You have {Math.max(0, newGoal - dailyTotals.calories).toFixed(0)} calories remaining. Let AI generate a visual meal plan to help you hit your targets.</p>
+                            <h4 className="font-bold text-xl mb-2">Need Ideas?</h4>
+                            <p className="text-purple-100 text-sm mb-6">You have {Math.max(0, newGoal - dailyTotals.calories).toFixed(0)} calories remaining. Let AI generate a visual meal plan for you.</p>
                             <button 
                                 onClick={generateMealPlan}
                                 disabled={isGeneratingPlan}
@@ -574,11 +628,37 @@ const NutritionTrackerScreen: React.FC = () => {
                         </div>
                     )}
                 </section>
+
+                {/* 4. Recent Scans (History) */}
+                <section>
+                    <div className="flex justify-between items-center mb-3">
+                        <h3 className="font-bold text-gray-800 text-lg">Recent Scans</h3>
+                        <button onClick={() => { hapticTap(); navigate('/food-history'); }} className="text-sm text-purple-600 font-semibold hover:bg-purple-50 px-2 py-1 rounded-lg transition">
+                            View All
+                        </button>
+                    </div>
+                    {scans.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500 text-sm">
+                            No scans yet. Tap "Scan Food" to start tracking!
+                        </div>
+                    ) : (
+                        <div className="space-y-1">
+                            {scans.slice(0, 5).map((scan) => (
+                                <HistoryCard 
+                                    key={scan.id} 
+                                    scan={scan} 
+                                    onClick={() => { hapticTap(); navigate('/history/food/detail', { state: { scan } }); }}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </section>
+
             </main>
 
             {/* Goal Modal */}
             {isGoalModalOpen && (
-                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+                <div className="fixed inset-0 bg-black/60 z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-fade-in-up">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-bold text-gray-800">Daily Calorie Goal</h2>
@@ -610,7 +690,7 @@ const NutritionTrackerScreen: React.FC = () => {
 
             {/* Schedule Modal */}
             {isScheduleModalOpen && selectedMealForSchedule && (
-                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+                <div className="fixed inset-0 bg-black/60 z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-fade-in-up">
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-xl font-bold text-gray-800">Schedule Meal</h2>

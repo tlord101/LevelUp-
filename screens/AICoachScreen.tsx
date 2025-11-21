@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Plus, Mic, Loader2, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Send, Mic, Loader2 } from 'lucide-react';
 import { GoogleGenAI, Chat, FunctionDeclaration, Type, Part } from '@google/genai';
 import { useAuth } from '../context/AuthContext';
 import { hapticTap } from '../utils/haptics';
@@ -214,10 +214,7 @@ const AICoachScreen: React.FC = () => {
             </main>
 
             <footer className="bg-white p-4 pb-6 border-t border-gray-100">
-                <div className="max-w-4xl mx-auto flex items-end gap-2 bg-gray-100 rounded-[28px] px-2 py-2 border border-transparent focus-within:border-gray-300 focus-within:bg-white focus-within:shadow-md transition-all duration-200">
-                    <button className="p-2.5 text-gray-500 hover:bg-gray-200 rounded-full transition-colors flex-shrink-0">
-                        <Plus size={20} />
-                    </button>
+                <div className="max-w-4xl mx-auto flex items-end gap-2 bg-gray-100 rounded-[28px] px-4 py-2 border border-transparent focus-within:border-gray-300 focus-within:bg-white focus-within:shadow-md transition-all duration-200">
                     
                     <textarea
                         ref={textAreaRef}
@@ -234,9 +231,6 @@ const AICoachScreen: React.FC = () => {
                     <div className="flex items-center gap-1 pr-1 pb-0.5">
                          {!userInput.trim() && (
                             <>
-                                <button className="p-2.5 text-gray-600 hover:bg-gray-200 rounded-full transition-colors">
-                                    <ImageIcon size={20} />
-                                </button>
                                 <button className="p-2.5 text-gray-600 hover:bg-gray-200 rounded-full transition-colors">
                                     <Mic size={20} />
                                 </button>
