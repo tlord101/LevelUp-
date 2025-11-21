@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { GoogleGenAI, Type } from '@google/genai';
 import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
 import { blobToBase64 } from '../utils/imageUtils';
-import { formatDate } from '../utils/formatDate';
+import { formatRelativeTime } from '../utils/formatDate';
 
 type CaptureStage = 'front' | 'left' | 'right' | 'complete';
 
@@ -555,7 +555,7 @@ const FaceScannerScreen: React.FC = () => {
                             {/* User Info */}
                             <div className="flex-1">
                                 <h3 className="font-bold text-gray-900">{user?.displayName || 'You'}</h3>
-                                <p className="text-sm text-gray-500">{formatDate(scans[0].created_at)}</p>
+                                <p className="text-sm text-gray-500">{formatRelativeTime(scans[0].created_at)}</p>
                             </div>
                             
                             {/* Circular Progress */}
