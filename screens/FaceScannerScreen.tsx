@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Camera, Clock, ChevronRight, Sparkles, User, CheckCircle, X } from 'lucide-react';
+import { Camera, Clock, ChevronRight, User, CheckCircle, X, Scan, TrendingUp, Droplet, Sparkles } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { uploadImage, saveFaceScan, getFaceScans } from '../services/firebaseService';
 import { FaceScanResult, FaceScan } from '../types';
@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { GoogleGenAI, Type } from '@google/genai';
 import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
 import { blobToBase64 } from '../utils/imageUtils';
+import { formatDate } from '../utils/formatDate';
 
 type CaptureStage = 'front' | 'left' | 'right' | 'complete';
 
@@ -520,46 +521,152 @@ const FaceScannerScreen: React.FC = () => {
             {/* Analyzing animation */}
             {isAnalyzing && <AnalyzingAnimation />}
             
-            <header className="text-center">
-                <h1 className="text-2xl font-bold text-gray-800">Face Scanner</h1>
-                <p className="text-gray-500">Start live scan for complete analysis</p>
-            </header>
-            
-            <div className="bg-white p-4 rounded-xl shadow-sm space-y-4">
-                <div className="text-center py-8">
-                    <User size={64} className="mx-auto text-gray-300 mb-4" />
-                    <p className="text-gray-600 mb-4">
-                        Position your face in front of the camera and capture three angles: front, left, and right
-                    </p>
-                </div>
+            {/* Main Content */}
+            <div className="p-4 pb-24 space-y-5">
+                {/* Header */}
+                <header className="text-center pt-2">
+                    <h1 className="text-3xl font-bold text-gray-900">Face Analysis</h1>
+                    <p className="text-gray-500 mt-1">AI-powered skin health tracking</p>
+                </header>
 
-                <button
-                    onClick={startCamera}
-                    disabled={isScanning || isAnalyzing}
-                    className="w-full flex items-center justify-center gap-2 py-3 bg-orange-500 text-white font-bold rounded-lg shadow-sm hover:bg-orange-600 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
-                >
-                    <Camera size={20} />
-                    Start Face Scan
-                </button>
-                {error && <p className="text-red-500 text-sm text-center mt-2">{error}</p>}
-            </div>
-
-            <div className="bg-white p-4 rounded-xl shadow-sm">
-                 <div className="flex justify-between items-center mb-2">
-                    <h2 className="font-bold text-gray-800 flex items-center gap-2"><Clock size={18}/> Scan History</h2>
-                    <button onClick={() => { hapticTap(); navigate('/face-history'); }} className="flex items-center text-sm font-semibold text-purple-600 hover:text-purple-800">
-                        View All <ChevronRight size={16} />
-                    </button>
-                </div>
-                {scans.length > 0 ? (
-                    <div className="flex items-center gap-3">
-                        <img src={scans[0].image_url} alt="Last face scan" className="w-12 h-12 object-cover rounded-lg" />
-                        <div>
-                            <p className="font-semibold">Clarity: {scans[0].results.skinAnalysis.clarity}</p>
-                            <p className="text-sm text-gray-500">Hydration: {scans[0].results.skinAnalysis.hydration}</p>
+                {/* Latest Scan Card */}
+                {scans.length > 0 && (
+                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-5 shadow-lg">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-lg font-bold text-gray-800">Latest Scan</h2>
+                            <button 
+                                onClick={() => { hapticTap(); navigate('/face-history'); }} 
+                                className="text-sm font-semibold text-purple-600 hover:text-purple-800 flex items-center gap-1"
+                            >
+                                See All <ChevronRight size={16} />
+                            </button>
+                        </div>
+                        
+                        <div className="flex items-center gap-4">
+                            {/* User Avatar */}
+                            <div className="relative">
+                                <img 
+                                    src={scans[0].image_url} 
+                                    alt="Latest scan" 
+                                    className="w-16 h-16 rounded-full object-cover border-4 border-white shadow-md"
+                                />
+                            </div>
+                            
+                            {/* User Info */}
+                            <div className="flex-1">
+                                <h3 className="font-bold text-gray-900">{user?.displayName || 'You'}</h3>
+                                <p className="text-sm text-gray-500">{formatDate(scans[0].created_at)}</p>
+                            </div>
+                            
+                            {/* Circular Progress */}
+                            <div className="relative w-24 h-24">
+                                <svg className="w-24 h-24 transform -rotate-90">
+                                    <circle
+                                        cx="48"
+                                        cy="48"
+                                        r="40"
+                                        stroke="#e5e7eb"
+                                        strokeWidth="8"
+                                        fill="none"
+                                    />
+                                    <circle
+                                        cx="48"
+                                        cy="48"
+                                        r="40"
+                                        stroke="url(#gradient)"
+                                        strokeWidth="8"
+                                        fill="none"
+                                        strokeDasharray={`${(scans[0].results.skinRating / 10) * 251.2} 251.2`}
+                                        strokeLinecap="round"
+                                        className="transition-all duration-1000"
+                                    />
+                                    <defs>
+                                        <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                            <stop offset="0%" stopColor="#10b981" />
+                                            <stop offset="100%" stopColor="#84cc16" />
+                                        </linearGradient>
+                                    </defs>
+                                </svg>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                    <span className="text-2xl font-bold text-gray-900">
+                                        {Math.round((scans[0].results.skinRating / 10) * 100)}
+                                    </span>
+                                    <span className="text-xs text-gray-500">Healthy</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                ) : <p className="text-sm text-gray-500">No scans yet</p>}
+                )}
+
+                {/* Stats Grid */}
+                {scans.length > 0 && (
+                    <div className="grid grid-cols-3 gap-3">
+                        {/* Hydration */}
+                        <div className="bg-white rounded-xl p-4 shadow-sm text-center transform hover:scale-105 transition-transform">
+                            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                                <Droplet className="text-blue-600" size={24} />
+                            </div>
+                            <p className="text-xs text-gray-500 mb-1">Hydration</p>
+                            <p className="font-bold text-sm text-gray-900">{scans[0].results.skinAnalysis.hydration}</p>
+                        </div>
+                        
+                        {/* Clarity */}
+                        <div className="bg-white rounded-xl p-4 shadow-sm text-center transform hover:scale-105 transition-transform">
+                            <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                                <Sparkles className="text-purple-600" size={24} />
+                            </div>
+                            <p className="text-xs text-gray-500 mb-1">Clarity</p>
+                            <p className="font-bold text-sm text-gray-900">{scans[0].results.skinAnalysis.clarity}</p>
+                        </div>
+                        
+                        {/* Radiance */}
+                        <div className="bg-white rounded-xl p-4 shadow-sm text-center transform hover:scale-105 transition-transform">
+                            <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                                <TrendingUp className="text-yellow-600" size={24} />
+                            </div>
+                            <p className="text-xs text-gray-500 mb-1">Radiance</p>
+                            <p className="font-bold text-sm text-gray-900">{scans[0].results.skinAnalysis.radiance}</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Scan Button */}
+                <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl p-6 shadow-xl">
+                    <div className="text-center mb-4">
+                        <h3 className="text-white font-bold text-lg mb-1">Ready for a New Scan?</h3>
+                        <p className="text-purple-100 text-sm">Track your skin health progress</p>
+                    </div>
+                    
+                    <button
+                        onClick={startCamera}
+                        disabled={isScanning || isAnalyzing}
+                        className="w-full bg-white text-purple-600 font-bold py-4 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all disabled:bg-gray-300 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-3"
+                    >
+                        <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                            <Scan className="text-purple-600" size={24} />
+                        </div>
+                        <span className="text-lg">Start Face Scan</span>
+                    </button>
+                </div>
+
+                {error && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+                        <p className="text-red-600 text-sm">{error}</p>
+                    </div>
+                )}
+
+                {/* Empty State */}
+                {scans.length === 0 && (
+                    <div className="bg-white rounded-2xl p-8 shadow-sm text-center">
+                        <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <User size={40} className="text-purple-400" />
+                        </div>
+                        <h3 className="font-bold text-gray-900 text-lg mb-2">No Scans Yet</h3>
+                        <p className="text-gray-500 text-sm mb-6">
+                            Start your first face scan to track your skin health and get personalized recommendations
+                        </p>
+                    </div>
+                )}
             </div>
         </div>
     );
