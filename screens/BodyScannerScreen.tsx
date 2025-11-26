@@ -149,7 +149,11 @@ const BodyScannerScreen: React.FC = () => {
     const { user, rewardUser } = useAuth();
     const navigate = useNavigate();
 
-    const scanner = useImageScanner(() => setError(null));
+    const scanner = useImageScanner((file) => {
+        setError(null);
+        // Automatically trigger analysis when image is captured
+        setTimeout(() => handleAnalyze(), 100);
+    });
 
     const fetchScans = useCallback(async () => {
         if (user) {
@@ -203,10 +207,10 @@ const BodyScannerScreen: React.FC = () => {
     const metricChanges = useMemo(() => {
         if (!latestMetrics || scans.length < 2) return { bodyScore: '+0%', bmi: '+0%', bodyFat: '+0%', muscleMass: '+0%' };
         const previous = scans[1];
-        const bodyScoreChange = ((latestMetrics.physiqueScore - (previous.results.bodyRating / 10 * 100)) / (previous.results.bodyRating / 10 * 100) * 100).toFixed(0);
-        const bmiChange = previous.results.bmi ? ((latestMetrics.bmi - previous.results.bmi) / previous.results.bmi * 100).toFixed(0) : '0';
-        const bodyFatChange = ((latestMetrics.bodyFat - previous.results.bodyFatPercentage) / previous.results.bodyFatPercentage * 100).toFixed(0);
-        const muscleMassChange = previous.results.muscleMass ? ((latestMetrics.muscleMass - previous.results.muscleMass) / previous.results.muscleMass * 100).toFixed(0) : '0';
+        const bodyScoreChange = parseFloat(((latestMetrics.physiqueScore - (previous.results.bodyRating / 10 * 100)) / (previous.results.bodyRating / 10 * 100) * 100).toFixed(0));
+        const bmiChange = previous.results.bmi ? parseFloat(((latestMetrics.bmi - previous.results.bmi) / previous.results.bmi * 100).toFixed(0)) : 0;
+        const bodyFatChange = parseFloat(((latestMetrics.bodyFat - previous.results.bodyFatPercentage) / previous.results.bodyFatPercentage * 100).toFixed(0));
+        const muscleMassChange = previous.results.muscleMass ? parseFloat(((latestMetrics.muscleMass - previous.results.muscleMass) / previous.results.muscleMass * 100).toFixed(0)) : 0;
         return {
             bodyScore: `${bodyScoreChange > 0 ? '+' : ''}${bodyScoreChange}%`,
             bmi: `${bmiChange > 0 ? '+' : ''}${bmiChange}%`,
