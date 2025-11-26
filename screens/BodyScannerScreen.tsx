@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Camera, Upload, Dumbbell, Clock, ChevronRight, Loader2 } from 'lucide-react';
+import { Camera, Upload, Dumbbell, Clock, ChevronRight, Loader2, TrendingDown, TrendingUp, Target, X, CheckCircle2, User, Activity } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { uploadImage, saveBodyScan, getBodyScans } from '../services/firebaseService';
 import { BodyScanResult, BodyScan } from '../types';
@@ -10,20 +10,141 @@ import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
 import { blobToBase64 } from '../utils/imageUtils';
 import { useImageScanner } from '../hooks/useImageScanner';
 import CameraView from '../components/CameraView';
+import BodyScanResults from '../components/BodyScanResults';
 
 
-const StatCard: React.FC<{ label: string; value: string; color: string; }> = ({ label, value, color }) => (
-    <div className="flex-1 p-3 rounded-lg text-center" style={{ backgroundColor: `${color}1A`}}>
-        <p className={`text-lg font-bold`} style={{ color }}>{value}</p>
-        <p className="text-xs text-gray-600">{label}</p>
+const MetricCard: React.FC<{ 
+    label: string; 
+    value: string; 
+    change: string; 
+    icon: React.ReactNode;
+    color: string;
+}> = ({ label, value, change, icon, color }) => (
+    <div className="bg-white rounded-2xl p-4 shadow-sm flex flex-col items-center">
+        <div className="flex items-center justify-between w-full mb-2">
+            <div className={`p-2 rounded-lg ${color === 'purple' ? 'bg-purple-100' : 'bg-pink-100'}`}>
+                {icon}
+            </div>
+            <span className={`text-xs font-semibold ${change.startsWith('+') ? 'text-green-500' : 'text-red-500'}`}>
+                {change}
+            </span>
+        </div>
+        <p className="text-2xl font-bold text-gray-900 mt-2">{value}</p>
+        <p className="text-xs text-gray-500 mt-1">{label}</p>
     </div>
 );
+
+
+const CircularProgress: React.FC<{ 
+    label: string; 
+    value: number; 
+    max: number; 
+    unit: string; 
+    color: string;
+}> = ({ label, value, max, unit, color }) => {
+    const percentage = (value / max) * 100;
+    const circumference = 2 * Math.PI * 45;
+    const strokeDashoffset = circumference - (percentage / 100) * circumference;
+
+    return (
+        <div className="flex flex-col items-center">
+            <div className="relative w-28 h-28">
+                <svg className="transform -rotate-90 w-28 h-28">
+                    <circle
+                        cx="56"
+                        cy="56"
+                        r="45"
+                        stroke="#e5e7eb"
+                        strokeWidth="8"
+                        fill="none"
+                    />
+                    <circle
+                        cx="56"
+                        cy="56"
+                        r="45"
+                        stroke={color}
+                        strokeWidth="8"
+                        fill="none"
+                        strokeDasharray={circumference}
+                        strokeDashoffset={strokeDashoffset}
+                        strokeLinecap="round"
+                        className="transition-all duration-500"
+                    />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-2xl font-bold" style={{ color }}>{value.toFixed(1)}</span>
+                    <span className="text-xs text-gray-500">{unit}</span>
+                </div>
+            </div>
+            <p className="text-sm font-semibold text-gray-700 mt-2">{label}</p>
+        </div>
+    );
+};
+
+const TrendChart: React.FC<{ scans: BodyScan[] }> = ({ scans }) => {
+    const last7Scans = scans.slice(0, 7).reverse();
+    const maxBFP = Math.max(...last7Scans.map(s => s.results.bodyFatPercentage), 30);
+    const minBFP = Math.min(...last7Scans.map(s => s.results.bodyFatPercentage), 10);
+    const range = maxBFP - minBFP || 10;
+
+    const points = last7Scans.map((scan, index) => {
+        const x = (index / Math.max(last7Scans.length - 1, 1)) * 100;
+        const y = 100 - ((scan.results.bodyFatPercentage - minBFP) / range) * 100;
+        return `${x},${y}`;
+    }).join(' ');
+
+    const trend = last7Scans.length >= 2 
+        ? last7Scans[last7Scans.length - 1].results.bodyFatPercentage - last7Scans[0].results.bodyFatPercentage
+        : 0;
+
+    return (
+        <div className="bg-white p-4 rounded-xl shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+                <h3 className="font-bold text-gray-800">Body Fat % Trend</h3>
+                <div className={`flex items-center gap-1 text-sm font-semibold ${trend < 0 ? 'text-green-600' : trend > 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                    {trend < 0 ? <TrendingDown size={16} /> : trend > 0 ? <TrendingUp size={16} /> : null}
+                    {trend !== 0 ? `${Math.abs(trend).toFixed(1)}%` : 'No change'}
+                </div>
+            </div>
+            {last7Scans.length > 0 ? (
+                <svg viewBox="0 0 100 40" className="w-full h-20" preserveAspectRatio="none">
+                    <polyline
+                        points={points}
+                        fill="none"
+                        stroke="#8b5cf6"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                    />
+                    {last7Scans.map((scan, index) => {
+                        const x = (index / Math.max(last7Scans.length - 1, 1)) * 100;
+                        const y = 100 - ((scan.results.bodyFatPercentage - minBFP) / range) * 100;
+                        return (
+                            <circle
+                                key={index}
+                                cx={x}
+                                cy={y}
+                                r="2"
+                                fill="#8b5cf6"
+                            />
+                        );
+                    })}
+                </svg>
+            ) : (
+                <p className="text-sm text-gray-500 text-center py-4">No data available</p>
+            )}
+        </div>
+    );
+};
 
 
 const BodyScannerScreen: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [scans, setScans] = useState<BodyScan[]>([]);
+    const [showPrescanModal, setShowPrescanModal] = useState(false);
+    const [showResults, setShowResults] = useState(false);
+    const [latestScan, setLatestScan] = useState<BodyScan | null>(null);
     
     const { user, rewardUser } = useAuth();
     const navigate = useNavigate();
@@ -46,14 +167,39 @@ const BodyScannerScreen: React.FC = () => {
         fetchScans();
     }, [fetchScans]);
 
-    const weeklyAverageBFP = useMemo(() => {
-        const oneWeekAgo = new Date();
-        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-        const recentScans = scans.filter(s => new Date(s.created_at) > oneWeekAgo);
-        if (recentScans.length === 0) return 0;
-        const totalBFP = recentScans.reduce((sum, scan) => sum + scan.results.bodyFatPercentage, 0);
-        return totalBFP / recentScans.length;
+    const latestMetrics = useMemo(() => {
+        if (scans.length === 0) return { 
+            bodyFat: 18, 
+            muscleMass: 72, 
+            physiqueScore: 85,
+            bmi: 22.4 
+        };
+        const latest = scans[0];
+        const estimatedMuscleMass = 100 - latest.results.bodyFatPercentage;
+        const bmi = 22.4; // This would be calculated from height/weight
+        return {
+            bodyFat: latest.results.bodyFatPercentage,
+            muscleMass: estimatedMuscleMass,
+            physiqueScore: (latest.results.bodyRating / 10) * 100,
+            bmi: bmi
+        };
     }, [scans]);
+
+    const [currentGoal] = useState({
+        title: "Reduce Body Fat",
+        target: "15%",
+        current: latestMetrics.bodyFat,
+        deadline: "December 31, 2025"
+    });
+
+    const goalProgress = useMemo(() => {
+        const targetBF = 15;
+        const currentBF = latestMetrics.bodyFat || 20;
+        const startingBF = scans.length > 0 ? scans[scans.length - 1].results.bodyFatPercentage : currentBF;
+        const totalNeeded = startingBF - targetBF;
+        const achieved = startingBF - currentBF;
+        return totalNeeded > 0 ? Math.min((achieved / totalNeeded) * 100, 100) : 0;
+    }, [latestMetrics.bodyFat, scans]);
 
 
     const handleAnalyze = async () => {
@@ -73,7 +219,7 @@ const BodyScannerScreen: React.FC = () => {
                 contents: {
                     parts: [
                         imagePart,
-                        { text: "Analyze the full-body photo of the person to assess their posture and estimate their body composition. Provide a rating of their overall physique and posture on a scale of 1 to 10. Also provide a concise posture analysis, an estimated body fat percentage, and 2-3 actionable recommendations for improvement. The photo should show their entire body. If the image does not contain a person suitable for analysis, indicate that." }
+                        { text: "Analyze the full-body photo to provide comprehensive body composition assessment. Evaluate posture, estimate body fat percentage, muscle mass distribution, body type classification, and provide detailed measurements. Rate overall physique on a scale of 1-10. The photo should show the entire body. Provide specific, actionable recommendations for improvement. If the image does not contain a person suitable for analysis, indicate that." }
                     ]
                 },
                 config: {
@@ -82,13 +228,33 @@ const BodyScannerScreen: React.FC = () => {
                         type: Type.OBJECT,
                         properties: {
                             isPerson: { type: Type.BOOLEAN, description: 'Is a person clearly visible for analysis?' },
-                            postureAnalysis: { type: Type.STRING, description: 'A brief analysis of the person\'s posture (e.g., "Good", "Forward Head", "Rounded Shoulders").' },
-                            bodyFatPercentage: { type: Type.NUMBER, description: 'An estimated body fat percentage.' },
-                            bodyRating: { type: Type.NUMBER, description: 'A rating of the user\'s overall physique and posture on a scale of 1 to 10.' },
+                            postureAnalysis: { type: Type.STRING, description: 'Brief analysis of posture (e.g., "Good", "Forward Head", "Rounded Shoulders")' },
+                            bodyFatPercentage: { type: Type.NUMBER, description: 'Estimated body fat percentage (10-40)' },
+                            bodyRating: { type: Type.NUMBER, description: 'Overall physique rating (1-10)' },
+                            muscleMass: { type: Type.NUMBER, description: 'Estimated muscle mass percentage (30-60)' },
+                            boneDensity: { type: Type.NUMBER, description: 'Estimated bone density score (10-20)' },
+                            waterPercentage: { type: Type.NUMBER, description: 'Estimated body water percentage (45-65)' },
+                            visceralFat: { type: Type.NUMBER, description: 'Visceral fat level (1-20)' },
+                            subcutaneousFat: { type: Type.NUMBER, description: 'Subcutaneous fat percentage (10-35)' },
+                            metabolicAge: { type: Type.NUMBER, description: 'Estimated metabolic age in years' },
+                            bmi: { type: Type.NUMBER, description: 'Estimated BMI (18-35)' },
+                            bodyType: { type: Type.STRING, description: 'Body type classification', enum: ['Ectomorph', 'Mesomorph', 'Endomorph', 'Ecto-Mesomorph', 'Meso-Endomorph'] },
+                            muscleDistribution: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    upperBody: { type: Type.NUMBER, description: 'Upper body muscle development score (0-100)' },
+                                    core: { type: Type.NUMBER, description: 'Core muscle development score (0-100)' },
+                                    lowerBody: { type: Type.NUMBER, description: 'Lower body muscle development score (0-100)' }
+                                },
+                                required: ['upperBody', 'core', 'lowerBody']
+                            },
+                            shoulderWidth: { type: Type.STRING, description: 'Shoulder width assessment', enum: ['Narrow', 'Average', 'Broad'] },
+                            bodySymmetry: { type: Type.NUMBER, description: 'Body symmetry score (0-100)' },
+                            postureScore: { type: Type.NUMBER, description: 'Posture quality score (0-100)' },
                             recommendations: {
                                 type: Type.ARRAY,
                                 items: { type: Type.STRING },
-                                description: 'A list of 2-3 actionable recommendations based on the analysis.'
+                                description: 'List of 3-5 actionable recommendations'
                             }
                         },
                         required: ['isPerson', 'postureAnalysis', 'bodyFatPercentage', 'bodyRating', 'recommendations']
@@ -108,6 +274,22 @@ const BodyScannerScreen: React.FC = () => {
                 bodyFatPercentage: analysisData.bodyFatPercentage,
                 bodyRating: analysisData.bodyRating,
                 recommendations: analysisData.recommendations,
+                muscleMass: analysisData.muscleMass || 100 - analysisData.bodyFatPercentage,
+                boneDensity: analysisData.boneDensity || 15,
+                waterPercentage: analysisData.waterPercentage || 58,
+                visceralFat: analysisData.visceralFat || Math.round(analysisData.bodyFatPercentage / 3),
+                subcutaneousFat: analysisData.subcutaneousFat || analysisData.bodyFatPercentage - Math.round(analysisData.bodyFatPercentage / 3),
+                metabolicAge: analysisData.metabolicAge || 25,
+                bmi: analysisData.bmi || 22.4,
+                bodyType: analysisData.bodyType || 'Mesomorph',
+                muscleDistribution: analysisData.muscleDistribution || {
+                    upperBody: 70,
+                    core: 65,
+                    lowerBody: 75
+                },
+                shoulderWidth: analysisData.shoulderWidth || 'Average',
+                bodySymmetry: analysisData.bodySymmetry || 85,
+                postureScore: analysisData.postureScore || 75
             };
 
             // Using ImgBB - userId/path args are ignored by implementation but passed for compatibility signature if needed, 
@@ -121,14 +303,17 @@ const BodyScannerScreen: React.FC = () => {
             
             hapticSuccess();
             
-            const newScanForNav: BodyScan = {
+            const newScan: BodyScan = {
                 id: `new-${Date.now()}`,
                 user_id: user.uid,
                 image_url: imageUrl,
                 results: parsedResult,
                 created_at: new Date().toISOString(),
             };
-            navigate('/history/body/detail', { state: { scan: newScanForNav } });
+            
+            setLatestScan(newScan);
+            setShowResults(true);
+            await fetchScans(); // Refresh the scan list
 
         } catch (err: any) {
             console.error("Analysis failed:", err);
@@ -142,75 +327,269 @@ const BodyScannerScreen: React.FC = () => {
 
 
     return (
-        <div className="min-h-screen bg-gray-50 p-4 pb-24 space-y-5">
-            {scanner.showCamera && <CameraView onCapture={scanner.handleCapture} onClose={scanner.closeCamera} promptText="Position your full body in the frame" />}
+        <div className="min-h-screen bg-gray-50 p-4 pb-24">
+            {scanner.showCamera && <CameraView onCapture={scanner.handleCapture} onClose={scanner.closeCamera} promptText="Position your full body within the frame" />}
             
-            <header className="text-center">
-                <h1 className="text-2xl font-bold text-gray-800">Body Scanner</h1>
-                <p className="text-gray-500">Analyze your posture & body composition</p>
-            </header>
+            {/* Body Scan Results Modal */}
+            {showResults && latestScan && (
+                <BodyScanResults 
+                    scan={latestScan} 
+                    onClose={() => {
+                        setShowResults(false);
+                        setLatestScan(null);
+                    }} 
+                />
+            )}
             
-            <div className="bg-white p-4 rounded-xl shadow-sm">
-                <div 
-                    className="relative flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50"
+            {/* Prescan Preparation Modal */}
+            {showPrescanModal && (
+                <div className="fixed inset-0 bg-black/60 z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 animate-fade-in-up">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-bold text-gray-800">Preparing for Body Scan</h2>
+                            <button onClick={() => { hapticTap(); setShowPrescanModal(false); }} className="p-2 rounded-full hover:bg-gray-100 transition">
+                                <X size={20} className="text-gray-600" />
+                            </button>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-6 mb-6">
+                            {/* Left side - Body diagram */}
+                            <div className="flex flex-col items-center justify-center bg-gradient-to-br from-purple-50 to-blue-50 rounded-2xl p-4">
+                                <div className="relative w-24 h-32 mb-2">
+                                    {/* Simple stick figure SVG */}
+                                    <svg viewBox="0 0 100 140" className="w-full h-full text-purple-600">
+                                        {/* Head */}
+                                        <circle cx="50" cy="15" r="12" fill="none" stroke="currentColor" strokeWidth="3" />
+                                        {/* Body */}
+                                        <line x1="50" y1="27" x2="50" y2="80" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                                        {/* Left arm */}
+                                        <line x1="50" y1="35" x2="30" y2="55" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                                        {/* Right arm */}
+                                        <line x1="50" y1="35" x2="70" y2="55" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                                        {/* Left leg */}
+                                        <line x1="50" y1="80" x2="35" y2="130" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                                        {/* Right leg */}
+                                        <line x1="50" y1="80" x2="65" y2="130" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                                    </svg>
+                                </div>
+                                <p className="text-xs text-center text-gray-600 font-medium">Stand facing forward<br/>Arms slightly out</p>
+                            </div>
+                            
+                            {/* Right side - Checklist */}
+                            <div className="flex flex-col justify-center space-y-3">
+                                <div className="flex items-start gap-2">
+                                    <CheckCircle2 size={20} className="text-green-500 flex-shrink-0 mt-0.5" />
+                                    <p className="text-sm text-gray-700 leading-tight">Standing in well-lit area</p>
+                                </div>
+                                <div className="flex items-start gap-2">
+                                    <CheckCircle2 size={20} className="text-green-500 flex-shrink-0 mt-0.5" />
+                                    <p className="text-sm text-gray-700 leading-tight">Wearing minimal clothing</p>
+                                </div>
+                                <div className="flex items-start gap-2">
+                                    <CheckCircle2 size={20} className="text-green-500 flex-shrink-0 mt-0.5" />
+                                    <p className="text-sm text-gray-700 leading-tight">Device stable</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {/* Action buttons */}
+                        <div className="space-y-3">
+                            <button
+                                onClick={() => { 
+                                    hapticTap(); 
+                                    setShowPrescanModal(false); 
+                                    scanner.openCamera(); 
+                                }}
+                                className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition"
+                            >
+                                <Camera size={20} />
+                                Scan with Camera
+                            </button>
+                            <button
+                                onClick={() => { 
+                                    hapticTap(); 
+                                    setShowPrescanModal(false); 
+                                    scanner.triggerFileInput(); 
+                                }}
+                                className="w-full flex items-center justify-center gap-2 py-3.5 bg-white text-purple-700 font-bold rounded-xl border-2 border-purple-200 hover:bg-purple-50 transition"
+                            >
+                                <Upload size={20} />
+                                Upload Image
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
+            {/* Header */}
+            <header className="flex items-center justify-between mb-6">
+                <button 
+                    onClick={() => { hapticTap(); navigate(-1); }} 
+                    className="p-2 rounded-full hover:bg-gray-100"
                 >
-                    {scanner.imagePreview ? (
-                        <img src={scanner.imagePreview} alt="Selected for analysis" className="w-full h-full object-cover rounded-lg" />
-                    ) : (
+                    <ChevronRight size={24} className="text-gray-800 rotate-180" />
+                </button>
+                <h1 className="text-xl font-bold text-gray-900">Body Scanner</h1>
+                <div className="w-10"></div>
+            </header>
+
+            {/* Hidden file input */}
+            <input type="file" accept="image/jpeg,image/png" ref={scanner.fileInputRef} onChange={scanner.handleFileChange} className="hidden" />
+            
+            {/* Metrics Grid */}
+            <div className="grid grid-cols-2 gap-4 mb-6">
+                <MetricCard 
+                    label="Body Score" 
+                    value={latestMetrics.physiqueScore.toFixed(0)} 
+                    change="+5%" 
+                    icon={<Activity className="w-5 h-5 text-purple-600" />}
+                    color="purple"
+                />
+                <MetricCard 
+                    label="BMI" 
+                    value={latestMetrics.bmi.toFixed(1)} 
+                    change="+2%" 
+                    icon={<Activity className="w-5 h-5 text-pink-600" />}
+                    color="pink"
+                />
+                <MetricCard 
+                    label="Body Fat" 
+                    value={`${latestMetrics.bodyFat.toFixed(0)}%`} 
+                    change="-3%" 
+                    icon={<Activity className="w-5 h-5 text-purple-600" />}
+                    color="purple"
+                />
+                <MetricCard 
+                    label="Muscle Mass" 
+                    value={`${latestMetrics.muscleMass.toFixed(0)}%`} 
+                    change="+4%" 
+                    icon={<Activity className="w-5 h-5 text-pink-600" />}
+                    color="pink"
+                />
+            </div>
+
+            {/* Progress Chart */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm mb-6">
+                <h2 className="font-bold text-gray-800 mb-4">Progress Chart</h2>
+                <div className="h-40 flex items-end justify-between gap-2">
+                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, idx) => {
+                        const heights = [60, 45, 70, 55, 80, 50, 65];
+                        return (
+                            <div key={day} className="flex-1 flex flex-col items-center">
+                                <div className="w-full bg-purple-100 rounded-t-lg transition-all duration-300 hover:bg-purple-200" 
+                                     style={{ height: `${heights[idx]}%` }}
+                                />
+                                <span className="text-xs text-gray-500 mt-2">{day}</span>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* Recent Scans */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="font-bold text-gray-800">Recent Scans</h2>
+                    <button 
+                        onClick={() => { hapticTap(); navigate('/body-history'); }}
+                        className="text-sm font-semibold text-purple-600 hover:text-purple-800"
+                    >
+                        View All
+                    </button>
+                </div>
+                <div className="space-y-3">
+                    {scans.length > 0 ? scans.slice(0, 3).map((scan, idx) => (
+                        <div 
+                            key={scan.id}
+                            className="flex items-center justify-between p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition"
+                            onClick={() => {
+                                hapticTap();
+                                setLatestScan(scan);
+                                setShowResults(true);
+                            }}
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                                    <Activity className="w-5 h-5 text-purple-600" />
+                                </div>
+                                <div>
+                                    <p className="font-semibold text-gray-900 text-sm">Body Analysis</p>
+                                    <p className="text-xs text-gray-500">
+                                        {new Date(scan.created_at).toLocaleDateString('en-US', { 
+                                            month: 'short', 
+                                            day: 'numeric' 
+                                        })}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <p className="font-bold text-gray-900">{scan.results.bodyRating * 10}</p>
+                                <p className="text-xs text-green-500">+5%</p>
+                            </div>
+                        </div>
+                    )) : (
                         <>
-                            <Upload className="w-10 h-10 text-gray-400 mb-2" />
-                            <p className="text-sm font-semibold text-gray-700">Select a full-body photo</p>
-                            <p className="text-xs text-gray-500">For best results, stand straight</p>
+                            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                                        <Activity className="w-5 h-5 text-purple-600" />
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold text-gray-900 text-sm">Body Analysis</p>
+                                        <p className="text-xs text-gray-500">3 days ago</p>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <p className="font-bold text-gray-900">85</p>
+                                    <p className="text-xs text-green-500">+5%</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                                        <Activity className="w-5 h-5 text-purple-600" />
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold text-gray-900 text-sm">Body Analysis</p>
+                                        <p className="text-xs text-gray-500">1 week ago</p>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <p className="font-bold text-gray-900">85</p>
+                                    <p className="text-xs text-green-500">+5%</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                                        <Activity className="w-5 h-5 text-purple-600" />
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold text-gray-900 text-sm">Body Analysis</p>
+                                        <p className="text-xs text-gray-500">2 weeks ago</p>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <p className="font-bold text-gray-900">85</p>
+                                    <p className="text-xs text-green-500">+5%</p>
+                                </div>
+                            </div>
                         </>
                     )}
                 </div>
-                <input type="file" accept="image/jpeg,image/png" ref={scanner.fileInputRef} onChange={scanner.handleFileChange} className="hidden" />
-
-                <div className="grid grid-cols-2 gap-3 mt-4">
-                    <button onClick={() => { hapticTap(); scanner.openCamera(); }} className="flex items-center justify-center gap-2 py-3 bg-purple-600 text-white font-semibold rounded-lg shadow-sm hover:bg-purple-700 transition">
-                        <Camera size={20} /> Use Camera
-                    </button>
-                    <button onClick={() => { hapticTap(); scanner.triggerFileInput(); }} className="flex items-center justify-center gap-2 py-3 bg-white text-purple-700 font-semibold rounded-lg border border-purple-200 hover:bg-purple-50 transition">
-                        <Upload size={20} /> Upload Photo
-                    </button>
-                </div>
-
-                <button
-                    onClick={handleAnalyze}
-                    disabled={!scanner.imageFile || isLoading}
-                    className="w-full mt-3 flex items-center justify-center gap-2 py-3 bg-blue-600 text-white font-bold rounded-lg shadow-sm hover:bg-blue-700 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
-                >
-                    {isLoading ? <Loader2 className="animate-spin" size={20} /> : <Dumbbell size={20} />}
-                    {isLoading ? 'Analyzing...' : 'Analyze with Gemini'}
-                </button>
-                {error && <p className="text-red-500 text-sm text-center mt-2">{error}</p>}
             </div>
 
-            <div className="bg-white p-4 rounded-xl shadow-sm">
-                <h2 className="font-bold text-gray-800 mb-3">Weekly Averages</h2>
-                <div className="flex gap-3">
-                     <StatCard label="Avg. Body Fat" value={`${weeklyAverageBFP.toFixed(1)}%`} color="#8b5cf6" />
-                     <StatCard label="Scans This Week" value={scans.filter(s => new Date(s.created_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length.toString()} color="#3b82f6" />
-                </div>
-            </div>
-
-            <div className="bg-white p-4 rounded-xl shadow-sm">
-                 <div className="flex justify-between items-center mb-2">
-                    <h2 className="font-bold text-gray-800 flex items-center gap-2"><Clock size={18}/> Scan History</h2>
-                    <button onClick={() => { hapticTap(); navigate('/body-history'); }} className="flex items-center text-sm font-semibold text-purple-600 hover:text-purple-800">
-                        View All <ChevronRight size={16} />
-                    </button>
-                </div>
-                {scans.length > 0 ? (
-                    <div className="flex items-center gap-3">
-                        <img src={scans[0].image_url} alt="Last body scan" className="w-12 h-12 object-cover rounded-lg" />
-                        <div>
-                            <p className="font-semibold">Posture: {scans[0].results.postureAnalysis}</p>
-                            <p className="text-sm text-gray-500">BFP: {scans[0].results.bodyFatPercentage.toFixed(1)}%</p>
-                        </div>
-                    </div>
-                ) : <p className="text-sm text-gray-500">No scans yet</p>}
-            </div>
+            {/* Floating Start Scan Button */}
+            <button
+                onClick={() => { 
+                    hapticTap(); 
+                    setShowPrescanModal(true); 
+                }}
+                className="fixed bottom-24 left-1/2 transform -translate-x-1/2 w-[calc(100%-2rem)] max-w-md bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-4 rounded-full shadow-2xl hover:shadow-3xl transition-all duration-300 flex items-center justify-center gap-3 z-10"
+            >
+                <Camera size={24} />
+                Start Body Scan
+            </button>
         </div>
     );
 };

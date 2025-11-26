@@ -29,6 +29,7 @@ import BodyScanDetailScreen from './screens/BodyScanDetailScreen';
 import FaceScanDetailScreen from './screens/FaceScanDetailScreen';
 import LiveCoachScreen from './screens/LiveCoachScreen';
 import EditProfileScreen from './screens/EditProfileScreen';
+import WorkoutPlanDetailScreen from './screens/WorkoutPlanDetailScreen';
 import { auth } from './config/firebase';
 
 const AppLoader: React.FC = () => (
@@ -156,6 +157,7 @@ const App: React.FC = () => {
                     <Route path="/groups/:groupId" element={<GroupDetailScreen />} />
                     <Route path="/ai-coach" element={<AICoachScreen />} />
                     <Route path="/live-coach" element={<LiveCoachScreen />} />
+                    <Route path="/workout-plan-details" element={<WorkoutPlanDetailScreen />} />
                 </Route>
                  {/* Redirect to dashboard if logged in and at root */}
                 <Route path="*" element={<Navigate to="/dashboard" />} />

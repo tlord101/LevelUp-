@@ -92,11 +92,13 @@ const HistoryCard: React.FC<{ scan: NutritionScan; onClick: () => void }> = ({ s
 const NutritionTrackerScreen: React.FC = () => {
     const { user, userProfile, updateUserProfileData, rewardUser } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     
     const [logs, setLogs] = useState<NutritionLog[]>([]);
     const [scans, setScans] = useState<NutritionScan[]>([]);
     const [loading, setLoading] = useState(true);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [showPlanAppliedToast, setShowPlanAppliedToast] = useState(false);
 
     const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
     const [newGoal, setNewGoal] = useState(userProfile?.calorie_goal || 2000);
@@ -161,6 +163,17 @@ const NutritionTrackerScreen: React.FC = () => {
         fetchScans();
     }, [fetchLogs, fetchScans]);
     
+    // Check if a plan was just applied
+    useEffect(() => {
+        if (location.state?.planApplied) {
+            setShowPlanAppliedToast(true);
+            hapticSuccess();
+            setTimeout(() => setShowPlanAppliedToast(false), 3000);
+            // Clear the state
+            navigate(location.pathname, { replace: true, state: {} });
+        }
+    }, [location, navigate]);
+    
     useEffect(() => {
         setNewGoal(userProfile?.calorie_goal || 2000);
     }, [userProfile?.calorie_goal]);
@@ -181,9 +194,10 @@ const NutritionTrackerScreen: React.FC = () => {
         );
     }, [logs]);
 
-    const proteinGoal = Math.round((newGoal * 0.30) / 4);
-    const fatGoal = Math.round((newGoal * 0.30) / 9);
-    const carbsGoal = Math.round((newGoal * 0.40) / 4);
+    // Use nutrition plan targets if available, otherwise calculate from calorie goal
+    const proteinGoal = userProfile?.nutrition_plan?.protein_target || Math.round((newGoal * 0.30) / 4);
+    const fatGoal = userProfile?.nutrition_plan?.fat_target || Math.round((newGoal * 0.30) / 9);
+    const carbsGoal = userProfile?.nutrition_plan?.carbs_target || Math.round((newGoal * 0.40) / 4);
 
     const healthScore = useMemo(() => {
         if (newGoal === 0) return 0;
@@ -459,6 +473,16 @@ const NutritionTrackerScreen: React.FC = () => {
             {/* Camera View Overlay */}
             {scanner.showCamera && <CameraView onCapture={scanner.handleCapture} onClose={scanner.closeCamera} facingMode="environment" promptText="Capture your meal" />}
             
+            {/* Plan Applied Toast */}
+            {showPlanAppliedToast && (
+                <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-[70] animate-fade-in-down">
+                    <div className="bg-green-600 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-2">
+                        <CheckCircle size={20} />
+                        <span className="font-semibold">Nutrition Plan Applied!</span>
+                    </div>
+                </div>
+            )}
+            
             {/* Loading Overlay */}
             {isAnalyzing && (
                 <div className="fixed inset-0 bg-black/70 z-[60] flex flex-col items-center justify-center backdrop-blur-sm">
@@ -487,6 +511,46 @@ const NutritionTrackerScreen: React.FC = () => {
             </header>
 
             <main className="p-4 space-y-6">
+                
+                {/* Applied Nutrition Plan Banner */}
+                {userProfile?.nutrition_plan && (
+                    <section className="bg-gradient-to-r from-green-500 to-blue-500 rounded-2xl shadow-lg p-4">
+                        <div className="flex items-center justify-between text-white">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                                    <CheckCircle size={20} />
+                                </div>
+                                <div>
+                                    <p className="text-xs font-medium opacity-90">Active Plan</p>
+                                    <p className="font-bold">{userProfile.nutrition_plan.title}</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    hapticTap();
+                                    navigate('/workout-plan-details');
+                                }}
+                                className="px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-xs font-semibold transition"
+                            >
+                                View Details
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 mt-3">
+                            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-2 text-center">
+                                <p className="text-xs opacity-75">Protein</p>
+                                <p className="text-sm font-bold">{userProfile.nutrition_plan.protein_target}g</p>
+                            </div>
+                            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-2 text-center">
+                                <p className="text-xs opacity-75">Carbs</p>
+                                <p className="text-sm font-bold">{userProfile.nutrition_plan.carbs_target}g</p>
+                            </div>
+                            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-2 text-center">
+                                <p className="text-xs opacity-75">Fat</p>
+                                <p className="text-sm font-bold">{userProfile.nutrition_plan.fat_target}g</p>
+                            </div>
+                        </div>
+                    </section>
+                )}
                 
                 {/* 1. Nutrition Summary */}
                 <section className="bg-white rounded-3xl shadow-sm p-6 flex flex-col items-center">

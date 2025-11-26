@@ -33,6 +33,15 @@ export interface UserProfile {
   activity_level?: string;
   health_conditions?: string[];
   calorie_goal?: number;
+  nutrition_plan?: {
+    id: string;
+    title: string;
+    protein_target: number;
+    carbs_target: number;
+    fat_target: number;
+    meals_per_day: number;
+    applied_at: string;
+  };
 }
 
 export interface NutritionScanResult {
@@ -61,6 +70,29 @@ export interface BodyScanResult {
   bodyFatPercentage: number;
   bodyRating: number;
   recommendations: string[];
+  // Enhanced body composition metrics
+  muscleMass?: number;
+  boneDensity?: number;
+  waterPercentage?: number;
+  visceralFat?: number;
+  subcutaneousFat?: number;
+  metabolicAge?: number;
+  bmi?: number;
+  bodyType?: string; // Ectomorph, Mesomorph, Endomorph
+  // Muscle group analysis
+  muscleDistribution?: {
+    upperBody: number;
+    core: number;
+    lowerBody: number;
+  };
+  // Additional measurements
+  shoulderWidth?: string;
+  waistCircumference?: number;
+  hipCircumference?: number;
+  chestCircumference?: number;
+  // Symmetry analysis
+  bodySymmetry?: number; // 0-100 score
+  postureScore?: number; // 0-100 score
 }
 
 export interface BodyScan {
