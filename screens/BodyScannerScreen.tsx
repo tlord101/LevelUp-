@@ -227,110 +227,102 @@ const BodyScannerScreen: React.FC = () => {
         hapticTap();
 
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-            const base64Image = await blobToBase64(scanner.imageFile);
-            const imagePart = { inlineData: { mimeType: scanner.imageFile.type, data: base64Image } };
 
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: {
-                    parts: [
-                        imagePart,
-                        { text: "Analyze the full-body photo to provide comprehensive body composition assessment. Evaluate posture, estimate body fat percentage, muscle mass distribution, body type classification, and provide detailed measurements. Rate overall physique on a scale of 1-10. The photo should show the entire body. Provide specific, actionable recommendations for improvement. If the image does not contain a person suitable for analysis, indicate that." }
-                    ]
-                },
-                config: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: Type.OBJECT,
-                        properties: {
-                            isPerson: { type: Type.BOOLEAN, description: 'Is a person clearly visible for analysis?' },
-                            postureAnalysis: { type: Type.STRING, description: 'Brief analysis of posture (e.g., "Good", "Forward Head", "Rounded Shoulders")' },
-                            bodyFatPercentage: { type: Type.NUMBER, description: 'Estimated body fat percentage (10-40)' },
-                            bodyRating: { type: Type.NUMBER, description: 'Overall physique rating (1-10)' },
-                            muscleMass: { type: Type.NUMBER, description: 'Estimated muscle mass percentage (30-60)' },
-                            boneDensity: { type: Type.NUMBER, description: 'Estimated bone density score (10-20)' },
-                            waterPercentage: { type: Type.NUMBER, description: 'Estimated body water percentage (45-65)' },
-                            visceralFat: { type: Type.NUMBER, description: 'Visceral fat level (1-20)' },
-                            subcutaneousFat: { type: Type.NUMBER, description: 'Subcutaneous fat percentage (10-35)' },
-                            metabolicAge: { type: Type.NUMBER, description: 'Estimated metabolic age in years' },
-                            bmi: { type: Type.NUMBER, description: 'Estimated BMI (18-35)' },
-                            bodyType: { type: Type.STRING, description: 'Body type classification', enum: ['Ectomorph', 'Mesomorph', 'Endomorph', 'Ecto-Mesomorph', 'Meso-Endomorph'] },
-                            muscleDistribution: {
-                                type: Type.OBJECT,
-                                properties: {
-                                    upperBody: { type: Type.NUMBER, description: 'Upper body muscle development score (0-100)' },
-                                    core: { type: Type.NUMBER, description: 'Core muscle development score (0-100)' },
-                                    lowerBody: { type: Type.NUMBER, description: 'Lower body muscle development score (0-100)' }
-                                },
-                                required: ['upperBody', 'core', 'lowerBody']
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+        const base64Image = await blobToBase64(scanner.imageFile);
+        const imagePart = { inlineData: { mimeType: scanner.imageFile.type, data: base64Image } };
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: {
+                parts: [
+                    imagePart,
+                    { text: "Analyze the full-body photo to provide comprehensive body composition assessment. Evaluate posture, estimate body fat percentage, muscle mass distribution, body type classification, and provide detailed measurements. Rate overall physique on a scale of 1-10. The photo should show the entire body. Provide specific, actionable recommendations for improvement. If the image does not contain a person suitable for analysis, indicate that." }
+                ]
+            },
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        isPerson: { type: Type.BOOLEAN, description: 'Is a person clearly visible for analysis?' },
+                        postureAnalysis: { type: Type.STRING, description: 'Brief analysis of posture (e.g., "Good", "Forward Head", "Rounded Shoulders")' },
+                        bodyFatPercentage: { type: Type.NUMBER, description: 'Estimated body fat percentage (10-40)' },
+                        bodyRating: { type: Type.NUMBER, description: 'Overall physique rating (1-10)' },
+                        muscleMass: { type: Type.NUMBER, description: 'Estimated muscle mass percentage (30-60)' },
+                        boneDensity: { type: Type.NUMBER, description: 'Estimated bone density score (10-20)' },
+                        waterPercentage: { type: Type.NUMBER, description: 'Estimated body water percentage (45-65)' },
+                        visceralFat: { type: Type.NUMBER, description: 'Visceral fat level (1-20)' },
+                        subcutaneousFat: { type: Type.NUMBER, description: 'Subcutaneous fat percentage (10-35)' },
+                        metabolicAge: { type: Type.NUMBER, description: 'Estimated metabolic age in years' },
+                        bmi: { type: Type.NUMBER, description: 'Estimated BMI (18-35)' },
+                        bodyType: { type: Type.STRING, description: 'Body type classification', enum: ['Ectomorph', 'Mesomorph', 'Endomorph', 'Ecto-Mesomorph', 'Meso-Endomorph'] },
+                        muscleDistribution: {
+                            type: Type.OBJECT,
+                            properties: {
+                                upperBody: { type: Type.NUMBER, description: 'Upper body muscle development score (0-100)' },
+                                core: { type: Type.NUMBER, description: 'Core muscle development score (0-100)' },
+                                lowerBody: { type: Type.NUMBER, description: 'Lower body muscle development score (0-100)' }
                             },
-                            shoulderWidth: { type: Type.STRING, description: 'Shoulder width assessment', enum: ['Narrow', 'Average', 'Broad'] },
-                            bodySymmetry: { type: Type.NUMBER, description: 'Body symmetry score (0-100)' },
-                            postureScore: { type: Type.NUMBER, description: 'Posture quality score (0-100)' },
-                            recommendations: {
-                                type: Type.ARRAY,
-                                items: { type: Type.STRING },
-                                description: 'List of 3-5 actionable recommendations'
-                            }
+                            required: ['upperBody', 'core', 'lowerBody']
                         },
-                        required: ['isPerson', 'postureAnalysis', 'bodyFatPercentage', 'bodyRating', 'recommendations']
-                    }
+                        shoulderWidth: { type: Type.STRING, description: 'Shoulder width assessment', enum: ['Narrow', 'Average', 'Broad'] },
+                        bodySymmetry: { type: Type.NUMBER, description: 'Body symmetry score (0-100)' },
+                        postureScore: { type: Type.NUMBER, description: 'Posture quality score (0-100)' },
+                        recommendations: {
+                            type: Type.ARRAY,
+                            items: { type: Type.STRING },
+                            description: 'List of 3-5 actionable recommendations'
+                        }
+                    },
+                    required: ['isPerson', 'postureAnalysis', 'bodyFatPercentage', 'bodyRating', 'recommendations']
                 }
-            });
-
-            const jsonStr = response.text.trim();
-            const analysisData = JSON.parse(jsonStr);
-
-            if (!analysisData.isPerson) {
-                throw new Error("Could not detect a person in the image. Please try a clearer, full-body photo.");
             }
-            
-            const parsedResult: BodyScanResult = {
-                postureAnalysis: analysisData.postureAnalysis,
-                bodyFatPercentage: analysisData.bodyFatPercentage,
-                bodyRating: analysisData.bodyRating,
-                recommendations: analysisData.recommendations,
-                muscleMass: analysisData.muscleMass || 100 - analysisData.bodyFatPercentage,
-                boneDensity: analysisData.boneDensity || 15,
-                waterPercentage: analysisData.waterPercentage || 58,
-                visceralFat: analysisData.visceralFat || Math.round(analysisData.bodyFatPercentage / 3),
-                subcutaneousFat: analysisData.subcutaneousFat || analysisData.bodyFatPercentage - Math.round(analysisData.bodyFatPercentage / 3),
-                metabolicAge: analysisData.metabolicAge || 25,
-                bmi: analysisData.bmi || 22.4,
-                bodyType: analysisData.bodyType || 'Mesomorph',
-                muscleDistribution: analysisData.muscleDistribution || {
-                    upperBody: 70,
-                    core: 65,
-                    lowerBody: 75
-                },
-                shoulderWidth: analysisData.shoulderWidth || 'Average',
-                bodySymmetry: analysisData.bodySymmetry || 85,
-                postureScore: analysisData.postureScore || 75
-            };
+        });
 
-            // Using ImgBB - userId/path args are ignored by implementation but passed for compatibility signature if needed, 
-            // though here we can pass them anyway.
-            const imageUrl = await uploadImage(scanner.imageFile, user.uid, 'scans');
-            
-            await saveBodyScan(user.uid, imageUrl, parsedResult);
-            
-            // Reward user with XP and Strength stat update
-            await rewardUser(20, { strength: 1 });
-            
-            hapticSuccess();
-            
-            const newScan: BodyScan = {
-                id: `new-${Date.now()}`,
-                user_id: user.uid,
-                image_url: imageUrl,
-                results: parsedResult,
-                created_at: new Date().toISOString(),
-            };
-            
-            setLatestScan(newScan);
+        const jsonStr = response.text.trim();
+        const analysisData = JSON.parse(jsonStr);
+
+        if (!analysisData.isPerson) {
+            throw new Error("Could not detect a person in the image. Please try a clearer, full-body photo.");
+        }
+
+        const parsedResult: BodyScanResult = {
+            postureAnalysis: analysisData.postureAnalysis,
+            bodyFatPercentage: analysisData.bodyFatPercentage,
+            bodyRating: analysisData.bodyRating,
+            recommendations: analysisData.recommendations,
+            muscleMass: analysisData.muscleMass || 100 - analysisData.bodyFatPercentage,
+            boneDensity: analysisData.boneDensity || 15,
+            waterPercentage: analysisData.waterPercentage || 58,
+            visceralFat: analysisData.visceralFat || Math.round(analysisData.bodyFatPercentage / 3),
+            subcutaneousFat: analysisData.subcutaneousFat || analysisData.bodyFatPercentage - Math.round(analysisData.bodyFatPercentage / 3),
+            metabolicAge: analysisData.metabolicAge || 25,
+            bmi: analysisData.bmi || 22.4,
+            bodyType: analysisData.bodyType || 'Mesomorph',
+            muscleDistribution: analysisData.muscleDistribution || {
+                upperBody: 70,
+                core: 65,
+                lowerBody: 75
+            },
+            shoulderWidth: analysisData.shoulderWidth || 'Average',
+            bodySymmetry: analysisData.bodySymmetry || 85,
+            postureScore: analysisData.postureScore || 75
+        };
+
+        // Upload image and save scan
+        const imageUrl = await uploadImage(scanner.imageFile, user.uid, 'scans');
+        await saveBodyScan(user.uid, imageUrl, parsedResult);
+        await rewardUser(20, { strength: 1 });
+        hapticSuccess();
+
+        // Fetch latest scans and show the most recent one in the modal
+        await fetchScans();
+        const userScans = await getBodyScans(user.uid);
+        if (userScans.length > 0) {
+            setLatestScan(userScans[0]);
             setShowResults(true);
-            await fetchScans(); // Refresh the scan list
+        }
 
         } catch (err: any) {
             console.error("Analysis failed:", err);
