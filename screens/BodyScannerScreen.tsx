@@ -168,15 +168,10 @@ const BodyScannerScreen: React.FC = () => {
     }, [fetchScans]);
 
     const latestMetrics = useMemo(() => {
-        if (scans.length === 0) return { 
-            bodyFat: 18, 
-            muscleMass: 72, 
-            physiqueScore: 85,
-            bmi: 22.4 
-        };
+        if (scans.length === 0) return null;
         const latest = scans[0];
-        const estimatedMuscleMass = 100 - latest.results.bodyFatPercentage;
-        const bmi = 22.4; // This would be calculated from height/weight
+        const estimatedMuscleMass = latest.results.muscleMass || (100 - latest.results.bodyFatPercentage);
+        const bmi = latest.results.bmi || 0;
         return {
             bodyFat: latest.results.bodyFatPercentage,
             muscleMass: estimatedMuscleMass,
@@ -185,21 +180,40 @@ const BodyScannerScreen: React.FC = () => {
         };
     }, [scans]);
 
-    const [currentGoal] = useState({
-        title: "Reduce Body Fat",
-        target: "15%",
-        current: latestMetrics.bodyFat,
-        deadline: "December 31, 2025"
-    });
+    const currentGoal = useMemo(() => {
+        if (!latestMetrics) return null;
+        return {
+            title: "Reduce Body Fat",
+            target: "15%",
+            current: latestMetrics.bodyFat,
+            deadline: "December 31, 2025"
+        };
+    }, [latestMetrics]);
 
     const goalProgress = useMemo(() => {
+        if (!latestMetrics || scans.length === 0) return 0;
         const targetBF = 15;
-        const currentBF = latestMetrics.bodyFat || 20;
-        const startingBF = scans.length > 0 ? scans[scans.length - 1].results.bodyFatPercentage : currentBF;
+        const currentBF = latestMetrics.bodyFat;
+        const startingBF = scans[scans.length - 1].results.bodyFatPercentage;
         const totalNeeded = startingBF - targetBF;
         const achieved = startingBF - currentBF;
         return totalNeeded > 0 ? Math.min((achieved / totalNeeded) * 100, 100) : 0;
-    }, [latestMetrics.bodyFat, scans]);
+    }, [latestMetrics, scans]);
+
+    const metricChanges = useMemo(() => {
+        if (!latestMetrics || scans.length < 2) return { bodyScore: '+0%', bmi: '+0%', bodyFat: '+0%', muscleMass: '+0%' };
+        const previous = scans[1];
+        const bodyScoreChange = ((latestMetrics.physiqueScore - (previous.results.bodyRating / 10 * 100)) / (previous.results.bodyRating / 10 * 100) * 100).toFixed(0);
+        const bmiChange = previous.results.bmi ? ((latestMetrics.bmi - previous.results.bmi) / previous.results.bmi * 100).toFixed(0) : '0';
+        const bodyFatChange = ((latestMetrics.bodyFat - previous.results.bodyFatPercentage) / previous.results.bodyFatPercentage * 100).toFixed(0);
+        const muscleMassChange = previous.results.muscleMass ? ((latestMetrics.muscleMass - previous.results.muscleMass) / previous.results.muscleMass * 100).toFixed(0) : '0';
+        return {
+            bodyScore: `${bodyScoreChange > 0 ? '+' : ''}${bodyScoreChange}%`,
+            bmi: `${bmiChange > 0 ? '+' : ''}${bmiChange}%`,
+            bodyFat: `${bodyFatChange > 0 ? '+' : ''}${bodyFatChange}%`,
+            muscleMass: `${muscleMassChange > 0 ? '+' : ''}${muscleMassChange}%`
+        };
+    }, [latestMetrics, scans]);
 
 
     const handleAnalyze = async () => {
@@ -437,32 +451,34 @@ const BodyScannerScreen: React.FC = () => {
             <input type="file" accept="image/jpeg,image/png" ref={scanner.fileInputRef} onChange={scanner.handleFileChange} className="hidden" />
             
             {/* Metrics Grid */}
+            {latestMetrics ? (
+                <>
             <div className="grid grid-cols-2 gap-4 mb-6">
                 <MetricCard 
                     label="Body Score" 
                     value={latestMetrics.physiqueScore.toFixed(0)} 
-                    change="+5%" 
+                    change={metricChanges.bodyScore} 
                     icon={<Activity className="w-5 h-5 text-purple-600" />}
                     color="purple"
                 />
                 <MetricCard 
                     label="BMI" 
                     value={latestMetrics.bmi.toFixed(1)} 
-                    change="+2%" 
+                    change={metricChanges.bmi} 
                     icon={<Activity className="w-5 h-5 text-pink-600" />}
                     color="pink"
                 />
                 <MetricCard 
                     label="Body Fat" 
                     value={`${latestMetrics.bodyFat.toFixed(0)}%`} 
-                    change="-3%" 
+                    change={metricChanges.bodyFat} 
                     icon={<Activity className="w-5 h-5 text-purple-600" />}
                     color="purple"
                 />
                 <MetricCard 
                     label="Muscle Mass" 
                     value={`${latestMetrics.muscleMass.toFixed(0)}%`} 
-                    change="+4%" 
+                    change={metricChanges.muscleMass} 
                     icon={<Activity className="w-5 h-5 text-pink-600" />}
                     color="pink"
                 />
@@ -485,6 +501,17 @@ const BodyScannerScreen: React.FC = () => {
                     })}
                 </div>
             </div>
+
+            </>
+            ) : (
+                <div className="bg-white rounded-2xl p-6 text-center mb-6">
+                    <div className="w-20 h-20 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Camera className="w-10 h-10 text-purple-600" />
+                    </div>
+                    <h3 className="font-bold text-gray-900 mb-2">Start Your Journey</h3>
+                    <p className="text-sm text-gray-500 mb-6">Take your first body scan to get personalized insights and track your fitness progress</p>
+                </div>
+            )}
 
             {/* Recent Scans */}
             <div className="bg-white rounded-2xl p-5 shadow-sm">
@@ -528,53 +555,13 @@ const BodyScannerScreen: React.FC = () => {
                             </div>
                         </div>
                     )) : (
-                        <>
-                            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                                        <Activity className="w-5 h-5 text-purple-600" />
-                                    </div>
-                                    <div>
-                                        <p className="font-semibold text-gray-900 text-sm">Body Analysis</p>
-                                        <p className="text-xs text-gray-500">3 days ago</p>
-                                    </div>
-                                </div>
-                                <div className="text-right">
-                                    <p className="font-bold text-gray-900">85</p>
-                                    <p className="text-xs text-green-500">+5%</p>
-                                </div>
+                        <div className="text-center py-8">
+                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                <Camera className="w-8 h-8 text-gray-400" />
                             </div>
-                            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                                        <Activity className="w-5 h-5 text-purple-600" />
-                                    </div>
-                                    <div>
-                                        <p className="font-semibold text-gray-900 text-sm">Body Analysis</p>
-                                        <p className="text-xs text-gray-500">1 week ago</p>
-                                    </div>
-                                </div>
-                                <div className="text-right">
-                                    <p className="font-bold text-gray-900">85</p>
-                                    <p className="text-xs text-green-500">+5%</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                                        <Activity className="w-5 h-5 text-purple-600" />
-                                    </div>
-                                    <div>
-                                        <p className="font-semibold text-gray-900 text-sm">Body Analysis</p>
-                                        <p className="text-xs text-gray-500">2 weeks ago</p>
-                                    </div>
-                                </div>
-                                <div className="text-right">
-                                    <p className="font-bold text-gray-900">85</p>
-                                    <p className="text-xs text-green-500">+5%</p>
-                                </div>
-                            </div>
-                        </>
+                            <p className="text-gray-600 font-medium mb-1">No scans yet</p>
+                            <p className="text-sm text-gray-400">Start your first body scan to track your progress</p>
+                        </div>
                     )}
                 </div>
             </div>
