@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Camera, Upload, Dumbbell, Clock, ChevronRight, Loader2, TrendingDown, TrendingUp, Target, X, CheckCircle2, User, Activity } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -346,6 +345,16 @@ const BodyScannerScreen: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 p-4 pb-24">
+            {isLoading && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in-up">
+                    <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center gap-4 animate-slide-up">
+                        <Loader2 className="w-10 h-10 text-purple-600 animate-spin" />
+                        <p className="text-lg font-semibold text-gray-800">Analyzing your scan...</p>
+                        <p className="text-sm text-gray-500">This may take a few seconds</p>
+                    </div>
+                </div>
+            )}
+
             {scanner.showCamera && <CameraView onCapture={scanner.handleCapture} onClose={scanner.closeCamera} promptText="Position your full body within the frame" />}
             
             {/* Body Scan Results Modal */}
@@ -356,6 +365,7 @@ const BodyScannerScreen: React.FC = () => {
                         setShowResults(false);
                         setLatestScan(null);
                     }} 
+                    className="animate-slide-up"
                 />
             )}
             

@@ -121,8 +121,8 @@ const BodyScanResults: React.FC<BodyScanResultsProps> = ({ scan, onClose }) => {
     const sheetHeight = isExpanded ? '95vh' : '75vh';
     const transform = `translateY(${dragY}px)`;
 
-    return (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center">
+        return (
+            <div className="fixed inset-0 z-[60] flex items-end justify-center animate-slide-up">
             {/* Backdrop */}
             <div 
                 className={`absolute inset-0 bg-black transition-opacity duration-300 ${isExpanded ? 'bg-opacity-60' : 'bg-opacity-40'}`}
