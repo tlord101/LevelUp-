@@ -7,13 +7,14 @@ import { getMessaging } from 'firebase/messaging';
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyBE3KrZbhU-CXxEO_Clz6L2V9AqgdoQ1x4",
-  authDomain: "levelup-87509.firebaseapp.com",
-  projectId: "levelup-87509",
-  storageBucket: "levelup-87509.firebasestorage.app",
-  messagingSenderId: "495294111203",
-  appId: "1:495294111203:web:73f82542f7d1265f5c54d6",
-  measurementId: "G-7VMVCJ7WS1"
+  apiKey: "AIzaSyBuQojzHThQrFvHRd5Jx73RRymBLu8LeYk",
+  authDomain: "levelupai-65a36.firebaseapp.com",
+  databaseURL: "https://levelupai-65a36-default-rtdb.firebaseio.com",
+  projectId: "levelupai-65a36",
+  storageBucket: "levelupai-65a36.firebasestorage.app",
+  messagingSenderId: "257177627874",
+  appId: "1:257177627874:web:515851c7c2db6ad32082bb",
+  measurementId: "G-FGK5SLSDF9"
 };
 
 // Initialize Firebase
