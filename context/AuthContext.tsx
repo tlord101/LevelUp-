@@ -2,7 +2,7 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { User, onAuthStateChanged, getRedirectResult } from 'firebase/auth';
 import { auth, firestore } from '../config/firebase';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, onSnapshot, Unsubscribe } from 'firebase/firestore';
 import { UserProfile } from '../types';
 import { hapticSuccess } from '../utils/haptics';
 import { createOrUpdateUserProfile, getUserProfile } from '../services/firebaseService';
@@ -32,6 +32,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     let isMounted = true;
+        let profileUnsubscribe: Unsubscribe | null = null;
 
     // Function to handle auth state change
     const handleAuthChange = async (currentUser: User | null) => {
@@ -46,9 +47,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             try {
                 // Optimize: createOrUpdateUserProfile now returns the profile
                 const profile = await createOrUpdateUserProfile(currentUser);
-                
+
                 if (isMounted) {
                     setUserProfile(profile);
+                }
+
+                // Set up a real-time listener to the user's profile document so stats update live
+                try {
+                    const userRef = doc(firestore, 'users', currentUser.uid);
+                    profileUnsubscribe = onSnapshot(userRef, (snap) => {
+                        if (!snap.exists()) return;
+                        const data = snap.data();
+                        if (isMounted) {
+                            // convert any Timestamp fields if necessary (createOrUpdateUserProfile does this on read)
+                            setUserProfile({ ...(data as any) } as any);
+                        }
+                    }, (err) => {
+                        console.error('User profile onSnapshot error:', err);
+                    });
+                } catch (subErr) {
+                    console.warn('Failed to subscribe to user profile updates:', subErr);
                 }
             } catch (error) {
                 console.error("Error fetching/creating user profile:", error);
@@ -58,6 +76,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 if (isMounted) setLoading(false);
             }
         } else {
+            // If signed out, cleanup profile listener and clear profile state
+            if (profileUnsubscribe) {
+                try { profileUnsubscribe(); } catch (e) { /* ignore */ }
+                profileUnsubscribe = null;
+            }
             if (isMounted) {
                 setUser(null);
                 setUserProfile(null);
@@ -83,21 +106,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     // Run redirect check then setup listener
+    // Run redirect check then setup listener and ensure proper cleanup
+    let authUnsubscribe: Unsubscribe | null = null;
     checkRedirect().then(() => {
-        const unsubscribe = onAuthStateChanged(auth, handleAuthChange);
-        return unsubscribe;
+        authUnsubscribe = onAuthStateChanged(auth, handleAuthChange);
+    }).catch(err => {
+        console.error('Redirect check failed:', err);
     });
 
-    // Return cleanup function (note: this only cleans up if the effect re-runs, 
-    // but since dep array is [], it runs once. The real cleanup for onAuthStateChanged 
-    // is tricky inside a .then(), so we store the unsubscribe func if needed, 
-    // but for a singleton auth provider, it's mostly fine).
-    // A more robust pattern:
-    const unsubscribe = onAuthStateChanged(auth, handleAuthChange);
-    
     return () => {
         isMounted = false;
-        unsubscribe();
+        if (authUnsubscribe) try { authUnsubscribe(); } catch (e) { /* ignore */ }
+        if (profileUnsubscribe) try { profileUnsubscribe(); } catch (e) { /* ignore */ }
     };
   }, []);
 
