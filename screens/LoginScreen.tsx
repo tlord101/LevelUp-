@@ -1,9 +1,9 @@
-
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { signInWithEmail, signInWithOAuth } from '../services/firebaseService';
 import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
+import { useAuth } from '../context/AuthContext';
 
 const GoogleIcon = () => (
     <svg className="w-5 h-5" viewBox="0 0 48 48">
@@ -28,6 +28,17 @@ const LoginScreen: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
+    const { user, userProfile, loading: authLoading } = useAuth();
+
+    React.useEffect(() => {
+        if (!authLoading && user && userProfile) {
+            if (!userProfile.onboarding_completed) {
+                navigate('/onboarding', { replace: true });
+            } else {
+                navigate('/dashboard', { replace: true });
+            }
+        }
+    }, [user, userProfile, authLoading, navigate]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
