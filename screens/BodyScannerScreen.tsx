@@ -347,7 +347,7 @@ const BodyScannerScreen: React.FC = () => {
                 </div>
             )}
 
-            {scanner.showCamera && <CameraView onCapture={scanner.handleCapture} onClose={scanner.closeCamera} promptText="Position your full body within the frame" />}
+            {scanner.showCamera && <CameraView onCapture={scanner.handleCapture} onClose={scanner.closeCamera} promptText="Position your full body within the frame" scanType="body" />}
             
             {/* Body Scan Results Modal */}
             {showResults && latestScan && (

@@ -471,7 +471,7 @@ const NutritionTrackerScreen: React.FC = () => {
     return (
         <div className="min-h-screen bg-gray-50 pb-32">
             {/* Camera View Overlay */}
-            {scanner.showCamera && <CameraView onCapture={scanner.handleCapture} onClose={scanner.closeCamera} facingMode="environment" promptText="Capture your meal" />}
+            {scanner.showCamera && <CameraView onCapture={scanner.handleCapture} onClose={scanner.closeCamera} facingMode="environment" promptText="Capture your meal" scanType="food" />}
             
             {/* Plan Applied Toast */}
             {showPlanAppliedToast && (

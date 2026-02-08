@@ -158,7 +158,7 @@ const FoodScannerScreen: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 p-4 pb-24 space-y-5">
-            {scanner.showCamera && <CameraView onCapture={scanner.handleCapture} onClose={scanner.closeCamera} facingMode="environment" promptText="Position your meal in the center" />}
+            {scanner.showCamera && <CameraView onCapture={scanner.handleCapture} onClose={scanner.closeCamera} facingMode="environment" promptText="Position your meal in the center" scanType="food" />}
             
             <header className="text-center">
                 <h1 className="text-2xl font-bold text-gray-800">Food Scanner</h1>
