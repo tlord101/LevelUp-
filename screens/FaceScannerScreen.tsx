@@ -9,6 +9,7 @@ import { GoogleGenAI, Type } from '@google/genai';
 import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
 import { blobToBase64 } from '../utils/imageUtils';
 import { formatRelativeTime } from '../utils/formatDate';
+import { isScannerEnabled } from '../services/adminService';
 
 type CaptureStage = 'front' | 'left' | 'right' | 'complete';
 
@@ -25,6 +26,7 @@ const FaceScannerScreen: React.FC = () => {
     }>({});
     const [showGreenFlash, setShowGreenFlash] = useState(false);
     const [countdown, setCountdown] = useState<number | null>(null);
+    const [scannerEnabled, setScannerEnabled] = useState(true);
     
     const { user, rewardUser } = useAuth();
     const navigate = useNavigate();
@@ -48,6 +50,15 @@ const FaceScannerScreen: React.FC = () => {
     useEffect(() => {
         fetchScans();
     }, [fetchScans]);
+
+    useEffect(() => {
+        isScannerEnabled('face')
+            .then(setScannerEnabled)
+            .catch((err) => {
+                console.error('Failed to read face scanner admin settings:', err);
+                setScannerEnabled(true);
+            });
+    }, []);
 
     useEffect(() => {
         // Cleanup camera on unmount
@@ -93,6 +104,10 @@ const FaceScannerScreen: React.FC = () => {
     }, [isScanning, captureStage]);
 
     const startCamera = async () => {
+        if (!scannerEnabled) {
+            setError('Face scanner is currently disabled by admin.');
+            return;
+        }
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ 
                 video: { 
@@ -639,7 +654,7 @@ const FaceScannerScreen: React.FC = () => {
                     
                     <button
                         onClick={startCamera}
-                        disabled={isScanning || isAnalyzing}
+                        disabled={!scannerEnabled || isScanning || isAnalyzing}
                         className="w-full bg-white text-purple-600 font-bold py-4 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all disabled:bg-gray-300 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-3"
                     >
                         <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
@@ -652,6 +667,12 @@ const FaceScannerScreen: React.FC = () => {
                 {error && (
                     <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
                         <p className="text-red-600 text-sm">{error}</p>
+                    </div>
+                )}
+
+                {!scannerEnabled && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
+                        <p className="text-amber-700 text-sm">Face scanner disabled by admin settings.</p>
                     </div>
                 )}
 

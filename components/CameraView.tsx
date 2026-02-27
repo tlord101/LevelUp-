@@ -116,9 +116,15 @@ const CameraView: React.FC<CameraViewProps> = ({
             
             {/* Scanning Animation Overlay */}
             {isScanning && (
-                <div className="absolute inset-Icon */}
+                <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center">
                     <div className="relative mb-8">
-                        <svg width="120" height="120" viewBox="0 0 120 120" className="transform -rotate-90">
+                        <svg
+                            width="120"
+                            height="120"
+                            viewBox="0 0 120 120"
+                            className="transform -rotate-90"
+                            style={{ transform: `rotate(${rotationAngle - 90}deg)` }}
+                        >
                             {/* Background circle */}
                             <circle
                                 cx="60"
@@ -152,8 +158,10 @@ const CameraView: React.FC<CameraViewProps> = ({
                         {/* Icon in Center */}
                         <div className="absolute inset-0 flex items-center justify-center">
                             {scanType === 'food' ? (
-                                <svg width="40" height="40" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="2" className="animate-pulse">
-                                    <path d="M12 2c-5.33 4.55-8 8.48-8 11.8 0 2.85 1.93 5.2 5 5.2s5-2.35 5-5.2c0-3.32-2.67-7.25-8-11.8z"/>
+                                <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" className="animate-pulse">
+                                    <circle cx="12" cy="12" r="5" />
+                                    <path d="M3 12h3M18 12h3M12 3v3M12 18v3" strokeLinecap="round" />
+                                    <path d="M7 7l2 2M15 15l2 2M17 7l-2 2M9 15l-2 2" strokeLinecap="round" />
                                 </svg>
                             ) : (
                                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" className="animate-pulse">
@@ -174,8 +182,11 @@ const CameraView: React.FC<CameraViewProps> = ({
                             {scanType === 'food' ? 'Analyzing Meal' : scanType === 'face' ? 'Analyzing Face' : 'Analyzing Body'}
                         </p>
                         <p className="text-white/70 text-sm">
-                            {scanType === 'food' ? 'Identifying food & calculating macros' : scanType === 'face' ? 'Processing facial scan' : 'Processing measurements'} text-sm">
-                            Processing measurements{ellipsis}
+                            {scanType === 'food'
+                                ? `Identifying food & calculating macros${ellipsis}`
+                                : scanType === 'face'
+                                    ? `Processing facial scan${ellipsis}`
+                                    : `Processing measurements${ellipsis}`}
                         </p>
                     </div>
                 </div>
@@ -183,41 +194,43 @@ const CameraView: React.FC<CameraViewProps> = ({
             
             {/* Camera Controls */}
             {!isScanning && (
-                <div className="absolute inset-0 flex flex-col items-
-                            {scanType === 'food' ? 'Food Scan' : scanType === 'face' ? 'Face Scan' : 'Body Scan'}
-                        stify-between p-6 pb-24 md:pb-6">
+                <div className="absolute inset-0 flex flex-col items-center justify-between p-6 pb-24 md:pb-6">
                     {/* Header with close button */}
                     <div className="w-full flex items-center justify-between">
                         <button onClick={handleClose} className="text-white bg-black/50 p-2 rounded-full backdrop-blur-sm">
                             <X size={24} />
                         </button>
-                        <h2 className="text-white font-bold text-lg">Body Scan</h2>
+                        <h2 className="text-white font-bold text-lg">
+                            {scanType === 'food' ? 'Food Scan' : scanType === 'face' ? 'Face Scan' : 'Body Scan'}
+                        </h2>
                         <div className="w-10"></div>
-                    </diFrame Guide */}
+                    </div>
+
+                    {/* Frame Guide */}
                     <div className="flex-1 flex items-center justify-center relative">
                         <div className="relative w-64 h-96">
                             {/* Corner brackets to show frame */}
                             <svg className="absolute inset-0 w-full h-full" viewBox="0 0 256 384">
                                 {/* Top-left corner */}
-                                <path d="M 24 48 L 24 24 L 48 24" stroke="#a855f7" strokeWidth="4" fill="none" strokeLinecap="round"/>
+                                <path d="M 24 48 L 24 24 L 48 24" stroke={scanType === 'food' ? '#22c55e' : '#a855f7'} strokeWidth="4" fill="none" strokeLinecap="round"/>
                                 {/* Top-right corner */}
-                                <path d="M 232 24 L 232 24 L 232 48" stroke="#a855f7" strokeWidth="4" fill="none" strokeLinecap="round"/>
-                                <path d="M 208 24 L 232 24" stroke="#a855f7" strokeWidth="4" fill="none" strokeLinecap="round"/>
+                                <path d="M 232 24 L 232 24 L 232 48" stroke={scanType === 'food' ? '#22c55e' : '#a855f7'} strokeWidth="4" fill="none" strokeLinecap="round"/>
+                                <path d="M 208 24 L 232 24" stroke={scanType === 'food' ? '#22c55e' : '#a855f7'} strokeWidth="4" fill="none" strokeLinecap="round"/>
                                 {/* Bottom-left corner */}
-                                <path d="M 24 336 L 24 360 L 48 360" stroke="#a855f7" strokeWidth="4" fill="none" strokeLinecap="round"/>
+                                <path d="M 24 336 L 24 360 L 48 360" stroke={scanType === 'food' ? '#22c55e' : '#a855f7'} strokeWidth="4" fill="none" strokeLinecap="round"/>
                                 {/* Bottom-right corner */}
-                                <path d="M 208 360 L 232 360 L 232 336" stroke="#a855f7" strokeWidth="4" fill="none" strokeLinecap="round"/>
+                                <path d="M 208 360 L 232 360 L 232 336" stroke={scanType === 'food' ? '#22c55e' : '#a855f7'} strokeWidth="4" fill="none" strokeLinecap="round"/>
                             </svg>
                             
                             {/* Object silhouette guide - different based on scan type */}
                             {scanType === 'food' ? (
                                 <svg className="absolute inset-0 w-full h-full opacity-30" viewBox="0 0 256 384">
                                     {/* Plate with food items */}
-                                    <circle cx="128" cy="192" r="80" fill="#a855f7"/>
-                                    <ellipse cx="100" cy="160" rx="20" ry="25" fill="#a855f7"/>
-                                    <ellipse cx="128" cy="180" rx="25" ry="30" fill="#a855f7"/>
-                                    <ellipse cx="156" cy="170" rx="18" ry="22" fill="#a855f7"/>
-                                    <path d="M 120 220 Q 128 240 136 220" fill="none" stroke="#a855f7" strokeWidth="3"/>
+                                    <circle cx="128" cy="192" r="80" fill="#22c55e"/>
+                                    <ellipse cx="100" cy="160" rx="20" ry="25" fill="#22c55e"/>
+                                    <ellipse cx="128" cy="180" rx="25" ry="30" fill="#22c55e"/>
+                                    <ellipse cx="156" cy="170" rx="18" ry="22" fill="#22c55e"/>
+                                    <path d="M 120 220 Q 128 240 136 220" fill="none" stroke="#22c55e" strokeWidth="3"/>
                                 </svg>
                             ) : (
                                 <svg className="absolute inset-0 w-full h-full opacity-30" viewBox="0 0 256 384">
@@ -229,9 +242,7 @@ const CameraView: React.FC<CameraViewProps> = ({
                                     <ellipse cx="108" cy="280" rx="20" ry="80" fill="#a855f7"/>
                                     <ellipse cx="148" cy="280" rx="20" ry="80" fill="#a855f7"/>
                                 </svg>
-                            )}llipse cx="108" cy="280" rx="20" ry="80" fill="#a855f7"/>
-                                <ellipse cx="148" cy="280" rx="20" ry="80" fill="#a855f7"/>
-                            </svg>
+                            )}
                         </div>
                     </div>
 

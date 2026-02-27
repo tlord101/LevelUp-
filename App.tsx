@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { HashRouter, Routes, Route, Outlet, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Outlet, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import WelcomeScreen from './screens/WelcomeScreen';
 import SignupScreen from './screens/SignupScreen';
@@ -30,7 +30,51 @@ import FaceScanDetailScreen from './screens/FaceScanDetailScreen';
 import LiveCoachScreen from './screens/LiveCoachScreen';
 import EditProfileScreen from './screens/EditProfileScreen';
 import WorkoutPlanDetailScreen from './screens/WorkoutPlanDetailScreen';
+import {
+    AdminLayout,
+    AdminDashboardPage,
+    AdminUsersAllPage,
+    AdminUserDetailsPage,
+    AdminUserLevelsPage,
+    AdminUserSubscriptionsPage,
+    AdminBannedUsersPage,
+    AdminScannerBodyPage,
+    AdminScannerFacePage,
+    AdminScannerFoodPage,
+    AdminScannerFlaggedPage,
+    AdminGamificationXpPage,
+    AdminGamificationLevelsPage,
+    AdminGamificationStreaksPage,
+    AdminGamificationBadgesPage,
+    AdminPaymentsPlansPage,
+    AdminPaymentsTransactionsPage,
+    AdminPaymentsSubscriptionsPage,
+    AdminPaymentsRefundsPage,
+    AdminPaymentsStripePage,
+    AdminContentWorkoutsPage,
+    AdminContentDietsPage,
+    AdminContentSkincarePage,
+    AdminContentPromptsPage,
+    AdminCommunityPostsPage,
+    AdminCommunityGroupsPage,
+    AdminCommunityReportsPage,
+    AdminCommunityBlockedPage,
+    AdminNotificationsPushPage,
+    AdminNotificationsInAppPage,
+    AdminNotificationsEmailPage,
+    AdminSettingsGeneralPage,
+    AdminSettingsEmailPage,
+    AdminSettingsApiPage,
+    AdminSettingsSecurityPage,
+    AdminSettingsAppearancePage,
+    AdminSettingsSystemPage,
+    AdminAdminsPage,
+    AdminRouteFallback,
+    AdminLoginPage,
+    AdminForgotPasswordPage,
+} from './screens/admin';
 import { auth } from './config/firebase';
+import { isAdminLoggedIn } from './screens/admin/adminAuth';
 
 const AppLoader: React.FC = () => (
     <div className="flex items-center justify-center h-screen bg-gray-50">
@@ -121,16 +165,26 @@ const OnboardingRouteWrapper: React.FC = () => {
     return <OnboardingScreen />;
 };
 
+const AdminProtectedLayout: React.FC = () => {
+    if (!isAdminLoggedIn()) {
+        return <Navigate to="/admin/login" replace />;
+    }
+
+    return <Outlet />;
+};
+
 
 const App: React.FC = () => {
   return (
     <AuthProvider>
-        <HashRouter>
+        <BrowserRouter>
             <Routes>
                 <Route path="/" element={<WelcomeScreen />} />
                 <Route path="/signup" element={<SignupScreen />} />
                 <Route path="/login" element={<LoginScreen />} />
                 <Route path="/forgot-password" element={<ForgotPasswordScreen />} />
+                <Route path="/admin/login" element={<AdminLoginPage />} />
+                <Route path="/admin/forgot-password" element={<AdminForgotPasswordPage />} />
 
                 {/* Onboarding route with its own wrapper for protection */}
                 <Route path="/onboarding" element={<OnboardingRouteWrapper />} />
@@ -159,10 +213,64 @@ const App: React.FC = () => {
                     <Route path="/live-coach" element={<LiveCoachScreen />} />
                     <Route path="/workout-plan-details" element={<WorkoutPlanDetailScreen />} />
                 </Route>
+
+                <Route element={<AdminProtectedLayout />}>
+                    <Route path="/admin" element={<AdminLayout />}>
+                        <Route index element={<Navigate to="/admin/dashboard" replace />} />
+                        <Route path="dashboard" element={<AdminDashboardPage />} />
+
+                        <Route path="users/all" element={<AdminUsersAllPage />} />
+                        <Route path="users/:id" element={<AdminUserDetailsPage />} />
+                        <Route path="users/levels" element={<AdminUserLevelsPage />} />
+                        <Route path="users/subscriptions" element={<AdminUserSubscriptionsPage />} />
+                        <Route path="users/banned" element={<AdminBannedUsersPage />} />
+
+                        <Route path="scanners/body" element={<AdminScannerBodyPage />} />
+                        <Route path="scanners/face" element={<AdminScannerFacePage />} />
+                        <Route path="scanners/food" element={<AdminScannerFoodPage />} />
+                        <Route path="scanners/flagged" element={<AdminScannerFlaggedPage />} />
+
+                        <Route path="gamification/xp" element={<AdminGamificationXpPage />} />
+                        <Route path="gamification/levels" element={<AdminGamificationLevelsPage />} />
+                        <Route path="gamification/streaks" element={<AdminGamificationStreaksPage />} />
+                        <Route path="gamification/badges" element={<AdminGamificationBadgesPage />} />
+
+                        <Route path="payments/plans" element={<AdminPaymentsPlansPage />} />
+                        <Route path="payments/transactions" element={<AdminPaymentsTransactionsPage />} />
+                        <Route path="payments/subscriptions" element={<AdminPaymentsSubscriptionsPage />} />
+                        <Route path="payments/refunds" element={<AdminPaymentsRefundsPage />} />
+                        <Route path="payments/stripe" element={<AdminPaymentsStripePage />} />
+
+                        <Route path="content/workouts" element={<AdminContentWorkoutsPage />} />
+                        <Route path="content/diets" element={<AdminContentDietsPage />} />
+                        <Route path="content/skincare" element={<AdminContentSkincarePage />} />
+                        <Route path="content/prompts" element={<AdminContentPromptsPage />} />
+
+                        <Route path="community/posts" element={<AdminCommunityPostsPage />} />
+                        <Route path="community/groups" element={<AdminCommunityGroupsPage />} />
+                        <Route path="community/reports" element={<AdminCommunityReportsPage />} />
+                        <Route path="community/blocked" element={<AdminCommunityBlockedPage />} />
+
+                        <Route path="notifications/push" element={<AdminNotificationsPushPage />} />
+                        <Route path="notifications/in-app" element={<AdminNotificationsInAppPage />} />
+                        <Route path="notifications/email" element={<AdminNotificationsEmailPage />} />
+
+                        <Route path="settings/general" element={<AdminSettingsGeneralPage />} />
+                        <Route path="settings/email" element={<AdminSettingsEmailPage />} />
+                        <Route path="settings/api" element={<AdminSettingsApiPage />} />
+                        <Route path="settings/security" element={<AdminSettingsSecurityPage />} />
+                        <Route path="settings/appearance" element={<AdminSettingsAppearancePage />} />
+                        <Route path="settings/system" element={<AdminSettingsSystemPage />} />
+
+                        <Route path="admins" element={<AdminAdminsPage />} />
+                        <Route path="*" element={<AdminRouteFallback />} />
+                    </Route>
+                </Route>
+
                  {/* Redirect to dashboard if logged in and at root */}
                 <Route path="*" element={<Navigate to="/dashboard" />} />
             </Routes>
-        </HashRouter>
+                </BrowserRouter>
     </AuthProvider>
   );
 };

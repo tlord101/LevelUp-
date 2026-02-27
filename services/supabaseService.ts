@@ -278,6 +278,7 @@ export const createGroup = async (name: string, description: string, icon: strin
         members: [ownerId] // Owner is the first member
     }).select().single();
     if (error) throw error;
+    if (!data) throw new Error('Failed to create group');
     return data.id;
 };
 

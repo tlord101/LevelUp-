@@ -10,6 +10,7 @@ import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
 import { blobToBase64 } from '../utils/imageUtils';
 import { useImageScanner } from '../hooks/useImageScanner';
 import CameraView from '../components/CameraView';
+import { isScannerEnabled } from '../services/adminService';
 
 const StatCard: React.FC<{ label: string; value: string; color: string; }> = ({ label, value, color }) => (
     <div className="flex-1 p-3 rounded-lg text-center" style={{ backgroundColor: `${color}1A`}}>
@@ -22,6 +23,7 @@ const FoodScannerScreen: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [scans, setScans] = useState<NutritionScan[]>([]);
+    const [scannerEnabled, setScannerEnabled] = useState(true);
    
     const { user, rewardUser } = useAuth();
     const navigate = useNavigate();
@@ -45,6 +47,15 @@ const FoodScannerScreen: React.FC = () => {
     useEffect(() => {
         fetchScans();
     }, [fetchScans]);
+
+    useEffect(() => {
+        isScannerEnabled('food')
+            .then(setScannerEnabled)
+            .catch((err) => {
+                console.error('Failed to read food scanner admin settings:', err);
+                setScannerEnabled(true);
+            });
+    }, []);
 
     const weeklyAverageCalories = useMemo(() => {
         const oneWeekAgo = new Date();
@@ -74,6 +85,10 @@ const FoodScannerScreen: React.FC = () => {
     }, [scans]);
 
     const handleAnalyzeAndLog = async () => {
+        if (!scannerEnabled) {
+            setError('Food scanner is currently disabled by admin.');
+            return;
+        }
         if (!scanner.imageFile || !user) return;
         
         setIsLoading(true);
@@ -180,22 +195,23 @@ const FoodScannerScreen: React.FC = () => {
                 <input type="file" accept="image/jpeg,image/png" ref={scanner.fileInputRef} onChange={scanner.handleFileChange} className="hidden" />
 
                 <div className="grid grid-cols-2 gap-3 mt-4">
-                    <button onClick={() => { hapticTap(); scanner.openCamera(); }} className="flex items-center justify-center gap-2 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-sm hover:bg-green-700 transition">
+                    <button disabled={!scannerEnabled} onClick={() => { hapticTap(); scanner.openCamera(); }} className="flex items-center justify-center gap-2 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-sm hover:bg-green-700 transition disabled:bg-gray-300 disabled:cursor-not-allowed">
                         <Camera size={20} /> Use Camera
                     </button>
-                    <button onClick={() => { hapticTap(); scanner.triggerFileInput(); }} className="flex items-center justify-center gap-2 py-3 bg-white text-green-700 font-semibold rounded-lg border border-green-200 hover:bg-green-50 transition">
+                    <button disabled={!scannerEnabled} onClick={() => { hapticTap(); scanner.triggerFileInput(); }} className="flex items-center justify-center gap-2 py-3 bg-white text-green-700 font-semibold rounded-lg border border-green-200 hover:bg-green-50 transition disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed">
                         <Upload size={20} /> Upload Photo
                     </button>
                 </div>
 
                 <button
                     onClick={handleAnalyzeAndLog}
-                    disabled={!scanner.imageFile || isLoading}
+                    disabled={!scannerEnabled || !scanner.imageFile || isLoading}
                     className="w-full mt-3 flex items-center justify-center gap-2 py-3 bg-teal-500 text-white font-bold rounded-lg shadow-sm hover:bg-teal-600 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
                 >
                     {isLoading ? <Loader2 className="animate-spin" size={20} /> : <Apple size={20} />}
                     {isLoading ? 'Analyzing & Logging...' : 'Analyze & Log Meal'}
                 </button>
+                {!scannerEnabled && <p className="text-amber-600 text-sm text-center mt-2">Scanner disabled by admin settings.</p>}
                 {error && <p className="text-red-500 text-sm text-center mt-2">{error}</p>}
             </div>
 

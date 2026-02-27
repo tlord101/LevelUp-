@@ -48,6 +48,19 @@ const convertTimestampToISO = (data: any) => {
     return newData;
 };
 
+const toSortableTime = (value: any): number => {
+    if (!value) return 0;
+    if (value instanceof Timestamp) return value.toMillis();
+    if (typeof value === 'string') {
+        const parsed = Date.parse(value);
+        return Number.isNaN(parsed) ? 0 : parsed;
+    }
+    if (value?.seconds && typeof value.seconds === 'number') {
+        return value.seconds * 1000;
+    }
+    return 0;
+};
+
 // --- USER PROFILE ---
 
 export const createOrUpdateUserProfile = async (user: User, additionalData: Partial<UserProfile> = {}): Promise<UserProfile | null> => {
@@ -243,16 +256,12 @@ export const saveNutritionScan = async (userId: string, imageUrl: string, result
 
 export const getNutritionScans = async (userId: string): Promise<NutritionScan[]> => {
     if (!userId) return [];
-    const q = query(
-        collection(firestore, 'nutritionScans'),
-        where('userId', '==', userId),
-        orderBy('created_at', 'desc')
-    );
+    const q = query(collection(firestore, 'nutritionScans'), where('userId', '==', userId));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => {
         const data = convertTimestampToISO(doc.data());
-        return { id: doc.id, user_id: data.userId, ...data } as NutritionScan;
-    });
+        return { id: doc.id, user_id: data.userId ?? data.user_id, ...data } as NutritionScan;
+    }).sort((a, b) => toSortableTime(b.created_at) - toSortableTime(a.created_at));
 };
 
 export const saveBodyScan = async (userId: string, imageUrl: string, results: BodyScanResult) => {
@@ -381,16 +390,12 @@ export const createPost = async (userId: string, authorDisplayName: string, cont
 };
 
 export const getPosts = async (): Promise<Post[]> => {
-    const q = query(
-        collection(firestore, 'posts'),
-        where('group_id', '==', null),
-        orderBy('created_at', 'desc')
-    );
+    const q = query(collection(firestore, 'posts'), where('group_id', '==', null));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => {
          const data = convertTimestampToISO(doc.data());
-        return { id: doc.id, user_id: data.userId, ...data } as Post;
-    });
+        return { id: doc.id, user_id: data.userId ?? data.user_id, ...data } as Post;
+    }).sort((a, b) => toSortableTime(b.created_at) - toSortableTime(a.created_at));
 };
 
 export const getPostsForGroup = async (groupId: string): Promise<Post[]> => {
@@ -482,16 +487,12 @@ export const createGroup = async (name: string, description: string, icon: strin
 
 export const getUserGroups = async (userId: string): Promise<Group[]> => {
     if (!userId) return [];
-    const q = query(
-        collection(firestore, 'groups'),
-        where('members', 'array-contains', userId),
-        orderBy('created_at', 'desc')
-    );
+    const q = query(collection(firestore, 'groups'), where('members', 'array-contains', userId));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => {
          const data = convertTimestampToISO(doc.data());
         return { id: doc.id, ...data } as Group;
-    });
+    }).sort((a, b) => toSortableTime(b.created_at) - toSortableTime(a.created_at));
 };
 
 export const getAllGroups = async (): Promise<Group[]> => {

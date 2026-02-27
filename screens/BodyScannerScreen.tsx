@@ -10,6 +10,7 @@ import { blobToBase64 } from '../utils/imageUtils';
 import { useImageScanner } from '../hooks/useImageScanner';
 import CameraView from '../components/CameraView';
 import BodyScanResults from '../components/BodyScanResults';
+import { isScannerEnabled } from '../services/adminService';
 
 
 const MetricCard: React.FC<{ 
@@ -144,6 +145,7 @@ const BodyScannerScreen: React.FC = () => {
     const [showPrescanModal, setShowPrescanModal] = useState(false);
     const [showResults, setShowResults] = useState(false);
     const [latestScan, setLatestScan] = useState<BodyScan | null>(null);
+    const [scannerEnabled, setScannerEnabled] = useState(true);
     
     const { user, rewardUser } = useAuth();
     const navigate = useNavigate();
@@ -169,6 +171,15 @@ const BodyScannerScreen: React.FC = () => {
     useEffect(() => {
         fetchScans();
     }, [fetchScans]);
+
+    useEffect(() => {
+        isScannerEnabled('body')
+            .then(setScannerEnabled)
+            .catch((err) => {
+                console.error('Failed to read body scanner admin settings:', err);
+                setScannerEnabled(true);
+            });
+    }, []);
 
     const latestMetrics = useMemo(() => {
         if (scans.length === 0) return null;
@@ -416,10 +427,15 @@ const BodyScannerScreen: React.FC = () => {
                         <div className="space-y-3">
                             <button
                                 onClick={() => { 
+                                    if (!scannerEnabled) {
+                                        setError('Body scanner is currently disabled by admin.');
+                                        return;
+                                    }
                                     hapticTap(); 
                                     setShowPrescanModal(false); 
                                     scanner.openCamera(); 
                                 }}
+                                disabled={!scannerEnabled}
                                 className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition"
                             >
                                 <Camera size={20} />
@@ -427,10 +443,15 @@ const BodyScannerScreen: React.FC = () => {
                             </button>
                             <button
                                 onClick={() => { 
+                                    if (!scannerEnabled) {
+                                        setError('Body scanner is currently disabled by admin.');
+                                        return;
+                                    }
                                     hapticTap(); 
                                     setShowPrescanModal(false); 
                                     scanner.triggerFileInput(); 
                                 }}
+                                disabled={!scannerEnabled}
                                 className="w-full flex items-center justify-center gap-2 py-3.5 bg-white text-purple-700 font-bold rounded-xl border-2 border-purple-200 hover:bg-purple-50 transition"
                             >
                                 <Upload size={20} />
@@ -575,14 +596,24 @@ const BodyScannerScreen: React.FC = () => {
             {/* Floating Start Scan Button */}
             <button
                 onClick={() => { 
+                    if (!scannerEnabled) {
+                        setError('Body scanner is currently disabled by admin.');
+                        return;
+                    }
                     hapticTap(); 
                     setShowPrescanModal(true); 
                 }}
+                disabled={!scannerEnabled}
                 className="fixed bottom-24 left-1/2 transform -translate-x-1/2 w-[calc(100%-2rem)] max-w-md bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-4 rounded-full shadow-2xl hover:shadow-3xl transition-all duration-300 flex items-center justify-center gap-3 z-10"
             >
                 <Camera size={24} />
                 Start Body Scan
             </button>
+            {!scannerEnabled && (
+                <p className="fixed bottom-[6.25rem] left-1/2 -translate-x-1/2 text-xs text-amber-600 bg-white/90 px-3 py-1 rounded-full shadow">
+                    Body scanner disabled by admin settings.
+                </p>
+            )}
         </div>
     );
 };
