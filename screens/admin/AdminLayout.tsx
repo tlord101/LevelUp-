@@ -19,6 +19,7 @@ import {
   Sun,
   Menu,
   X,
+  Palette,
 } from 'lucide-react';
 import { shellClass, ThemeMode } from './components/AdminWidgets';
 import { logoutAdmin } from './adminAuth';
@@ -83,7 +84,7 @@ const navSections: NavSection[] = [
 ];
 
 const AdminLayout: React.FC = () => {
-  const [theme, setTheme] = useState<ThemeMode>(() => (localStorage.getItem('admin-theme') as ThemeMode) || 'dark');
+  const [theme, setTheme] = useState<ThemeMode>('dark');
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => Object.fromEntries(navSections.map((s) => [s.key, true])));
@@ -98,13 +99,15 @@ const AdminLayout: React.FC = () => {
   };
 
   return (
-    <div className={`min-h-screen ${shellClass[theme].page}`}>
-      <div className="flex min-h-screen">
-        <aside className={`${shellClass[theme].panel} ${collapsed ? 'w-20' : 'w-72'} fixed left-0 top-0 z-40 h-screen overflow-y-auto transition-all lg:static lg:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
-          <div className="flex items-center justify-between px-4 py-4">
-            <Link to="/admin/dashboard" className="text-lg font-bold tracking-tight">{collapsed ? 'LU' : 'LevelUp Admin'}</Link>
-            <button type="button" onClick={() => setCollapsed((v) => !v)} className="hidden rounded-md p-1 lg:block">{collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}</button>
-            <button type="button" onClick={() => setMobileOpen(false)} className="rounded-md p-1 lg:hidden"><X size={18} /></button>
+    <div className={`min-h-screen ${shellClass[theme].page} relative overflow-hidden`}>
+      <div className="pointer-events-none absolute left-[-10rem] top-[-10rem] h-80 w-80 rounded-full bg-emerald-500/20 blur-3xl" />
+      <div className="pointer-events-none absolute right-[-10rem] top-[-10rem] h-80 w-80 rounded-full bg-cyan-500/10 blur-3xl" />
+      <div className="flex min-h-screen relative z-10">
+        <aside className={`${shellClass[theme].panel} ${collapsed ? 'w-20' : 'w-72'} fixed left-0 top-0 z-40 h-screen overflow-y-auto transition-all lg:static lg:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} ${theme === 'dark' ? 'shadow-[0_0_0_1px_rgba(16,185,129,0.12)]' : ''}`}>
+          <div className="flex items-center justify-between px-4 py-4 border-b border-emerald-300/10">
+            <Link to="/admin/dashboard" className="text-lg font-bold tracking-tight text-emerald-300">{collapsed ? 'LU' : 'LevelUp Admin'}</Link>
+            <button type="button" onClick={() => setCollapsed((v) => !v)} className="hidden rounded-md p-1 lg:block hover:bg-emerald-400/10">{collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}</button>
+            <button type="button" onClick={() => setMobileOpen(false)} className="rounded-md p-1 hover:bg-emerald-400/10 lg:hidden"><X size={18} /></button>
           </div>
 
           <nav className="space-y-2 px-3 pb-6">
@@ -116,7 +119,7 @@ const AdminLayout: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => hasChildren && setOpenSections((prev) => ({ ...prev, [section.key]: !open }))}
-                    className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-sm ${shellClass[theme].muted} ${pathname.startsWith(section.basePath) ? shellClass[theme].active : 'border-transparent'}`}
+                    className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-sm transition ${shellClass[theme].muted} ${pathname.startsWith(section.basePath) ? shellClass[theme].active : 'border-transparent'}`}
                   >
                     <div className="flex items-center gap-2">{section.icon}{!collapsed ? <span>{section.label}</span> : null}</div>
                     {!collapsed && hasChildren ? <ChevronDown size={16} className={`transition ${open ? '' : '-rotate-90'}`} /> : null}
@@ -130,7 +133,7 @@ const AdminLayout: React.FC = () => {
                           <NavLink
                             key={item.path}
                             to={item.path}
-                            className={({ isActive }) => `block rounded-lg px-3 py-1.5 text-xs ${isActive ? 'bg-emerald-500/10 text-emerald-300' : shellClass[theme].muted}`}
+                            className={({ isActive }) => `block rounded-lg px-3 py-1.5 text-xs transition ${isActive ? 'bg-emerald-500/15 text-emerald-300 shadow-[0_0_18px_rgba(16,185,129,0.16)]' : shellClass[theme].muted}`}
                             onClick={() => setMobileOpen(false)}
                           >
                             {item.label}
@@ -145,27 +148,35 @@ const AdminLayout: React.FC = () => {
           </nav>
         </aside>
 
+        {mobileOpen ? <button type="button" onClick={() => setMobileOpen(false)} aria-label="Close menu overlay" className="fixed inset-0 z-30 bg-black/45 backdrop-blur-sm lg:hidden" /> : null}
+
         <div className={`flex-1 ${collapsed ? 'lg:ml-20' : 'lg:ml-72'} transition-all`}>
-          <header className="sticky top-0 z-30 border-b border-slate-200/20 bg-inherit/95 backdrop-blur">
+          <header className="sticky top-0 z-30 border-b border-emerald-300/10 bg-[#02090b]/90 backdrop-blur-xl">
             <div className="flex items-center justify-between px-4 py-3 md:px-6">
               <div className="flex items-center gap-3">
-                <button type="button" onClick={() => setMobileOpen(true)} className="rounded-md p-1 lg:hidden"><Menu size={18} /></button>
+                <button type="button" onClick={() => setMobileOpen(true)} className="rounded-md p-1 hover:bg-emerald-400/10 lg:hidden"><Menu size={18} /></button>
                 <div className="relative">
                   <Search size={16} className="absolute left-2 top-2.5 text-slate-400" />
-                  <input placeholder="Search users, scans, content..." className={`${shellClass[theme].input} rounded-lg py-2 pl-8 pr-3 text-sm outline-none`} />
+                  <input placeholder="Search users, scans, content..." className={`${shellClass[theme].input} w-72 rounded-lg py-2 pl-8 pr-3 text-sm outline-none`} />
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
                 <button type="button" onClick={toggleTheme} className={`${shellClass[theme].card} rounded-lg p-2`}>{theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}</button>
-                <Link to="/dashboard" className="rounded-lg border border-slate-400/30 px-3 py-1.5 text-xs">Main App</Link>
+                <button type="button" className={`${shellClass[theme].card} rounded-lg p-2 text-slate-300`}><Palette size={16} /></button>
+                <button type="button" className={`${shellClass[theme].card} relative rounded-lg p-2 text-slate-300`}>
+                  <Bell size={16} />
+                  <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-rose-500" />
+                </button>
+                <div className="h-9 w-9 rounded-full border border-emerald-400/30 bg-emerald-500/20 text-sm font-semibold text-emerald-300 grid place-items-center">AS</div>
+                <Link to="/dashboard" className="rounded-lg border border-emerald-300/30 px-3 py-1.5 text-xs hover:bg-emerald-500/10">Main App</Link>
                 <button
                   type="button"
                   onClick={() => {
                     logoutAdmin();
                     window.location.href = '/admin/login';
                   }}
-                  className="rounded-lg border border-rose-400/30 px-3 py-1.5 text-xs text-rose-400"
+                  className="rounded-lg border border-rose-400/30 px-3 py-1.5 text-xs text-rose-400 hover:bg-rose-500/10"
                 >
                   Logout Admin
                 </button>

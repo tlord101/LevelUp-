@@ -22,10 +22,10 @@ const DashboardPage: React.FC = () => {
   const totalSubs = Math.max(metrics.totalUsers, 1);
 
   return (
-    <PageScaffold title="Dashboard" description="Live app metrics from database" theme={theme}>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+    <PageScaffold title="Dashboard" description="Welcome back. Here's what's happening with your platform today." theme={theme}>
+      <div className="grid gap-6 md:grid-cols-2">
         <StatCard
-          title="Revenue (Mock)"
+          title="Total Revenue"
           value={`$${metrics.totalRevenueMock.toLocaleString()}`}
           trend="+12.5%"
           subtitle="vs last month"
@@ -33,13 +33,16 @@ const DashboardPage: React.FC = () => {
           theme={theme}
         />
         <StatCard
-          title="Active Users (24h)"
+          title="Active Users"
           value={String(metrics.active24h)}
           trend="+8.2%"
           subtitle="vs last month"
           icon={<Users size={28} />}
           theme={theme}
         />
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2">
         <StatCard
           title="Total Users"
           value={String(metrics.totalUsers)}
@@ -56,7 +59,7 @@ const DashboardPage: React.FC = () => {
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2">
         <div className={`${shellClass[theme].card} rounded-3xl p-6`}>
           <h3 className="mb-3 font-semibold">XP Activity (7 days)</h3>
           <LineChart points={metrics.xpSeries} />

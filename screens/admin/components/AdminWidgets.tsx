@@ -6,21 +6,21 @@ export type ThemeMode = 'light' | 'dark';
 export const shellClass = {
   light: {
     page: 'bg-slate-100 text-slate-900',
-    card: 'bg-white border border-slate-200 shadow-sm',
+    card: 'bg-white/95 border border-slate-200 shadow-[0_10px_30px_rgba(2,6,23,0.06)]',
     subtle: 'text-slate-500',
-    panel: 'bg-white border-r border-slate-200',
-    input: 'bg-white border border-slate-300 text-slate-900',
-    active: 'bg-teal-50 text-teal-700 border-teal-200',
+    panel: 'bg-white/95 border-r border-slate-200 backdrop-blur-sm',
+    input: 'bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400',
+    active: 'bg-emerald-50 text-emerald-700 border-emerald-300 shadow-[0_0_0_1px_rgba(16,185,129,0.12)]',
     muted: 'text-slate-600 hover:bg-slate-100',
   },
   dark: {
-    page: 'bg-[#020a0a] text-slate-100',
-    card: 'bg-[#031012] border border-emerald-300/15 shadow-[0_0_0_1px_rgba(16,185,129,0.03)]',
+    page: 'bg-[#02090b] text-slate-100',
+    card: 'bg-[#031114]/95 border border-emerald-400/20 shadow-[0_8px_30px_rgba(0,0,0,0.45),0_0_0_1px_rgba(16,185,129,0.08)] backdrop-blur-sm',
     subtle: 'text-slate-400',
-    panel: 'bg-[#020a0a] border-r border-emerald-300/10',
-    input: 'bg-[#041417] border border-emerald-300/20 text-slate-100 placeholder:text-slate-500',
-    active: 'bg-emerald-500/10 text-emerald-300 border-emerald-400/40',
-    muted: 'text-slate-300 hover:bg-[#071b1f]',
+    panel: 'bg-[#02090b]/95 border-r border-emerald-400/15 backdrop-blur-sm',
+    input: 'bg-[#05171a] border border-emerald-400/20 text-slate-100 placeholder:text-slate-500 focus:border-emerald-400/45',
+    active: 'bg-emerald-500/15 text-emerald-300 border-emerald-400/40 shadow-[0_0_0_1px_rgba(16,185,129,0.25),0_0_30px_rgba(16,185,129,0.12)]',
+    muted: 'text-slate-300 hover:bg-[#082025]',
   },
 };
 
@@ -52,11 +52,11 @@ export const StatCard: React.FC<{ title: string; value: string; subtitle?: strin
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className={`text-sm ${shellClass[theme].subtle}`}>{title}</p>
-          <p className="mt-2 text-4xl font-bold tracking-tight">{value}</p>
+          <p className="mt-2 text-5xl font-bold tracking-tight">{value}</p>
           {trend ? <p className="mt-2 text-sm font-semibold text-emerald-400">↗ {trend}</p> : null}
           {subtitle ? <p className={`mt-1 text-sm ${shellClass[theme].subtle}`}>{subtitle}</p> : null}
         </div>
-        <div className="rounded-2xl bg-emerald-500/10 p-3 text-emerald-300">{icon}</div>
+        <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-emerald-300 shadow-[0_0_24px_rgba(16,185,129,0.22)]">{icon}</div>
       </div>
       <div className="mt-5 border-t border-emerald-300/10 pt-3">
         <svg viewBox={`0 0 ${width} ${height}`} className="h-10 w-full text-emerald-400">
@@ -75,8 +75,8 @@ export const PageScaffold: React.FC<{ title: string; description: string; theme:
 }) => (
   <div className="space-y-6">
     <div>
-      <h1 className="text-5xl font-bold tracking-tight">{title}</h1>
-      <p className={`mt-2 text-2xl ${shellClass[theme].subtle}`}>{description}</p>
+      <h1 className="text-4xl font-bold tracking-tight md:text-5xl">{title}</h1>
+      <p className={`mt-2 text-lg ${shellClass[theme].subtle}`}>{description}</p>
     </div>
     {children}
   </div>
@@ -86,9 +86,9 @@ export const Table: React.FC<{ headers: string[]; rows: React.ReactNode[][]; the
   <div className={`${shellClass[theme].card} overflow-hidden rounded-3xl`}>
     <table className="w-full text-left text-sm">
       <thead>
-        <tr className={theme === 'light' ? 'bg-slate-50' : 'bg-[#06181b]'}>
+        <tr className={theme === 'light' ? 'bg-slate-50' : 'bg-[#071b1f]'}>
           {headers.map((header) => (
-            <th key={header} className="px-4 py-3 font-semibold text-slate-300">
+            <th key={header} className={`px-4 py-3 font-semibold ${theme === 'light' ? 'text-slate-600' : 'text-slate-300'}`}>
               {header}
             </th>
           ))}
@@ -96,7 +96,7 @@ export const Table: React.FC<{ headers: string[]; rows: React.ReactNode[][]; the
       </thead>
       <tbody>
         {rows.map((row, index) => (
-          <tr key={index} className="border-t border-emerald-200/10">
+          <tr key={index} className="border-t border-emerald-300/12">
             {row.map((cell, cellIndex) => (
               <td key={cellIndex} className="px-4 py-3">
                 {cell}
