@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { deleteCommunityPost, getCommunityGroups, getCommunityPosts } from '../../../services/adminService';
-import { PageScaffold, Table, useAdminTheme } from '../components/AdminWidgets';
+import { PageScaffold, Table, shellClass, useAdminTheme } from '../components/AdminWidgets';
 
 export const AdminCommunityPostsPage: React.FC = () => {
   const theme = useAdminTheme();
@@ -46,10 +46,10 @@ export const AdminCommunityGroupsPage: React.FC = () => {
 
 export const AdminCommunityReportsPage: React.FC = () => {
   const theme = useAdminTheme();
-  return <PageScaffold title="Reports" description="Reports collection can be added to moderation pipeline" theme={theme}><div className="bg-white rounded-2xl p-4">No reports document source configured yet.</div></PageScaffold>;
+  return <PageScaffold title="Reports" description="Reports collection can be added to moderation pipeline" theme={theme}><div className={`${shellClass[theme].card} rounded-3xl p-5`}>No reports document source configured yet.</div></PageScaffold>;
 };
 
 export const AdminCommunityBlockedPage: React.FC = () => {
   const theme = useAdminTheme();
-  return <PageScaffold title="Blocked Users" description="Use User Management > Banned Users to manage blocked users" theme={theme}><div className="bg-white rounded-2xl p-4">Blocked users are controlled from the users collection status field.</div></PageScaffold>;
+  return <PageScaffold title="Blocked Users" description="Use User Management > Banned Users to manage blocked users" theme={theme}><div className={`${shellClass[theme].card} rounded-3xl p-5`}>Blocked users are controlled from the users collection status field.</div></PageScaffold>;
 };

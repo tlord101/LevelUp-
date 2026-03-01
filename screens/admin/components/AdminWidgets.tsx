@@ -10,29 +10,62 @@ export const shellClass = {
     subtle: 'text-slate-500',
     panel: 'bg-white border-r border-slate-200',
     input: 'bg-white border border-slate-300 text-slate-900',
-    active: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-    muted: 'hover:bg-slate-100',
+    active: 'bg-teal-50 text-teal-700 border-teal-200',
+    muted: 'text-slate-600 hover:bg-slate-100',
   },
   dark: {
-    page: 'bg-slate-950 text-slate-100',
-    card: 'bg-slate-900 border border-slate-800 shadow-sm',
+    page: 'bg-[#020a0a] text-slate-100',
+    card: 'bg-[#031012] border border-emerald-300/15 shadow-[0_0_0_1px_rgba(16,185,129,0.03)]',
     subtle: 'text-slate-400',
-    panel: 'bg-slate-950 border-r border-slate-800',
-    input: 'bg-slate-900 border border-slate-700 text-slate-100',
-    active: 'bg-indigo-500/20 text-indigo-200 border-indigo-500/40',
-    muted: 'hover:bg-slate-900',
+    panel: 'bg-[#020a0a] border-r border-emerald-300/10',
+    input: 'bg-[#041417] border border-emerald-300/20 text-slate-100 placeholder:text-slate-500',
+    active: 'bg-emerald-500/10 text-emerald-300 border-emerald-400/40',
+    muted: 'text-slate-300 hover:bg-[#071b1f]',
   },
 };
 
-export const useAdminTheme = (): ThemeMode => ((localStorage.getItem('admin-theme') as ThemeMode) || 'light');
+export const useAdminTheme = (): ThemeMode => ((localStorage.getItem('admin-theme') as ThemeMode) || 'dark');
 
-export const StatCard: React.FC<{ title: string; value: string; subtitle?: string; theme: ThemeMode }> = ({ title, value, subtitle, theme }) => (
-  <div className={`${shellClass[theme].card} rounded-2xl p-5`}>
-    <p className={`text-sm ${shellClass[theme].subtle}`}>{title}</p>
-    <p className="mt-2 text-3xl font-bold">{value}</p>
-    {subtitle ? <p className={`mt-1 text-xs ${shellClass[theme].subtle}`}>{subtitle}</p> : null}
-  </div>
-);
+export const StatCard: React.FC<{ title: string; value: string; subtitle?: string; trend?: string; icon?: React.ReactNode; theme: ThemeMode }> = ({
+  title,
+  value,
+  subtitle,
+  trend,
+  icon,
+  theme,
+}) => {
+  const sparkline = [14, 18, 15, 21, 19, 26, 24, 28];
+  const width = 220;
+  const height = 40;
+  const step = width / Math.max(sparkline.length - 1, 1);
+  const max = Math.max(...sparkline, 1);
+  const path = sparkline
+    .map((point, index) => {
+      const x = index * step;
+      const y = height - (point / max) * (height - 10) - 3;
+      return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
+    })
+    .join(' ');
+
+  return (
+    <div className={`${shellClass[theme].card} rounded-3xl p-6`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className={`text-sm ${shellClass[theme].subtle}`}>{title}</p>
+          <p className="mt-2 text-4xl font-bold tracking-tight">{value}</p>
+          {trend ? <p className="mt-2 text-sm font-semibold text-emerald-400">↗ {trend}</p> : null}
+          {subtitle ? <p className={`mt-1 text-sm ${shellClass[theme].subtle}`}>{subtitle}</p> : null}
+        </div>
+        <div className="rounded-2xl bg-emerald-500/10 p-3 text-emerald-300">{icon}</div>
+      </div>
+      <div className="mt-5 border-t border-emerald-300/10 pt-3">
+        <svg viewBox={`0 0 ${width} ${height}`} className="h-10 w-full text-emerald-400">
+          <path d={path} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+        </svg>
+      </div>
+    </div>
+  );
+};
 
 export const PageScaffold: React.FC<{ title: string; description: string; theme: ThemeMode; children: React.ReactNode }> = ({
   title,
@@ -42,20 +75,20 @@ export const PageScaffold: React.FC<{ title: string; description: string; theme:
 }) => (
   <div className="space-y-6">
     <div>
-      <h1 className="text-2xl font-bold">{title}</h1>
-      <p className={`text-sm ${shellClass[theme].subtle}`}>{description}</p>
+      <h1 className="text-5xl font-bold tracking-tight">{title}</h1>
+      <p className={`mt-2 text-2xl ${shellClass[theme].subtle}`}>{description}</p>
     </div>
     {children}
   </div>
 );
 
 export const Table: React.FC<{ headers: string[]; rows: React.ReactNode[][]; theme: ThemeMode }> = ({ headers, rows, theme }) => (
-  <div className={`${shellClass[theme].card} overflow-hidden rounded-2xl`}>
+  <div className={`${shellClass[theme].card} overflow-hidden rounded-3xl`}>
     <table className="w-full text-left text-sm">
       <thead>
-        <tr className={theme === 'light' ? 'bg-slate-50' : 'bg-slate-800'}>
+        <tr className={theme === 'light' ? 'bg-slate-50' : 'bg-[#06181b]'}>
           {headers.map((header) => (
-            <th key={header} className="px-4 py-3 font-semibold">
+            <th key={header} className="px-4 py-3 font-semibold text-slate-300">
               {header}
             </th>
           ))}
@@ -63,7 +96,7 @@ export const Table: React.FC<{ headers: string[]; rows: React.ReactNode[][]; the
       </thead>
       <tbody>
         {rows.map((row, index) => (
-          <tr key={index} className="border-t border-slate-200/20">
+          <tr key={index} className="border-t border-emerald-200/10">
             {row.map((cell, cellIndex) => (
               <td key={cellIndex} className="px-4 py-3">
                 {cell}
@@ -100,7 +133,7 @@ export const LineChart: React.FC<{ points: number[]; height?: number }> = ({ poi
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className="w-full">
-      <path d={path} fill="none" stroke="currentColor" strokeWidth="3" className="text-indigo-500" />
+      <path d={path} fill="none" stroke="currentColor" strokeWidth="3" className="text-emerald-400" />
     </svg>
   );
 };

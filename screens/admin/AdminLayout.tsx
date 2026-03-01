@@ -83,7 +83,7 @@ const navSections: NavSection[] = [
 ];
 
 const AdminLayout: React.FC = () => {
-  const [theme, setTheme] = useState<ThemeMode>(() => (localStorage.getItem('admin-theme') as ThemeMode) || 'light');
+  const [theme, setTheme] = useState<ThemeMode>(() => (localStorage.getItem('admin-theme') as ThemeMode) || 'dark');
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => Object.fromEntries(navSections.map((s) => [s.key, true])));
@@ -130,7 +130,7 @@ const AdminLayout: React.FC = () => {
                           <NavLink
                             key={item.path}
                             to={item.path}
-                            className={({ isActive }) => `block rounded-lg px-3 py-1.5 text-xs ${isActive ? 'bg-indigo-500/15 text-indigo-500' : shellClass[theme].muted}`}
+                            className={({ isActive }) => `block rounded-lg px-3 py-1.5 text-xs ${isActive ? 'bg-emerald-500/10 text-emerald-300' : shellClass[theme].muted}`}
                             onClick={() => setMobileOpen(false)}
                           >
                             {item.label}

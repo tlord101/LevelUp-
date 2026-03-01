@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Activity, DollarSign, ScanLine, Users } from 'lucide-react';
 import { getDashboardMetrics } from '../../../services/adminService';
 import { LineChart, PageScaffold, PieChart, StatCard, shellClass, useAdminTheme } from '../components/AdminWidgets';
 
@@ -22,26 +23,51 @@ const DashboardPage: React.FC = () => {
 
   return (
     <PageScaffold title="Dashboard" description="Live app metrics from database" theme={theme}>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <StatCard title="Total Users" value={String(metrics.totalUsers)} theme={theme} />
-        <StatCard title="Active Users (24h)" value={String(metrics.active24h)} theme={theme} />
-        <StatCard title="Active Users (7d)" value={String(metrics.active7d)} theme={theme} />
-        <StatCard title="Total AI Scans" value={String(metrics.totalScans)} theme={theme} />
-        <StatCard title="Revenue (Mock)" value={`$${metrics.totalRevenueMock.toLocaleString()}`} theme={theme} />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <StatCard
+          title="Revenue (Mock)"
+          value={`$${metrics.totalRevenueMock.toLocaleString()}`}
+          trend="+12.5%"
+          subtitle="vs last month"
+          icon={<DollarSign size={28} />}
+          theme={theme}
+        />
+        <StatCard
+          title="Active Users (24h)"
+          value={String(metrics.active24h)}
+          trend="+8.2%"
+          subtitle="vs last month"
+          icon={<Users size={28} />}
+          theme={theme}
+        />
+        <StatCard
+          title="Total Users"
+          value={String(metrics.totalUsers)}
+          subtitle={`7d active: ${metrics.active7d}`}
+          icon={<Activity size={28} />}
+          theme={theme}
+        />
+        <StatCard
+          title="Total AI Scans"
+          value={String(metrics.totalScans)}
+          subtitle="Across body, face and food"
+          icon={<ScanLine size={28} />}
+          theme={theme}
+        />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className={`${shellClass[theme].card} rounded-2xl p-5`}>
+        <div className={`${shellClass[theme].card} rounded-3xl p-6`}>
           <h3 className="mb-3 font-semibold">XP Activity (7 days)</h3>
           <LineChart points={metrics.xpSeries} />
         </div>
-        <div className={`${shellClass[theme].card} rounded-2xl p-5`}>
+        <div className={`${shellClass[theme].card} rounded-3xl p-6`}>
           <h3 className="mb-3 font-semibold">Subscription Breakdown</h3>
           <PieChart
             slices={[
-              { label: 'Basic', value: Math.round((metrics.subscriptionBreakdown.basic / totalSubs) * 100), color: '#94a3b8' },
-              { label: 'Pro', value: Math.round((metrics.subscriptionBreakdown.pro / totalSubs) * 100), color: '#6366f1' },
-              { label: 'Elite', value: Math.round((metrics.subscriptionBreakdown.elite / totalSubs) * 100), color: '#22c55e' },
+              { label: 'Basic', value: Math.round((metrics.subscriptionBreakdown.basic / totalSubs) * 100), color: '#334155' },
+              { label: 'Pro', value: Math.round((metrics.subscriptionBreakdown.pro / totalSubs) * 100), color: '#10b981' },
+              { label: 'Elite', value: Math.round((metrics.subscriptionBreakdown.elite / totalSubs) * 100), color: '#22d3ee' },
             ]}
           />
         </div>

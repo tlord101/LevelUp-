@@ -21,12 +21,12 @@ const ScannerPage: React.FC<{ scanner: 'body' | 'face' | 'food'; title: string }
         <StatCard title="Total scans" value={String(metrics.total)} theme={theme} />
         <StatCard title="Avg confidence" value={`${metrics.confidence.toFixed(1)}%`} theme={theme} />
         <StatCard title="Daily basic limit" value={String(metrics.limits.basic)} theme={theme} />
-        <div className={`${shellClass[theme].card} rounded-2xl p-5`}>
+        <div className={`${shellClass[theme].card} rounded-3xl p-6`}>
           <p className={`text-sm ${shellClass[theme].subtle}`}>Enabled</p>
           <div className="mt-2"><Toggle checked={metrics.enabled} onChange={onToggle} /></div>
         </div>
       </div>
-      {loading ? <div className={`${shellClass[theme].card} rounded-2xl p-4`}>Loading scanner metrics...</div> : null}
+      {loading ? <div className={`${shellClass[theme].card} rounded-3xl p-5`}>Loading scanner metrics...</div> : null}
     </PageScaffold>
   );
 };

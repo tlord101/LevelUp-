@@ -17,10 +17,10 @@ export const AdminGamificationXpPage: React.FC = () => {
 
   return (
     <PageScaffold title="XP Rules" description="Persisted admin XP configuration" theme={theme}>
-      <div className={`${shellClass[theme].card} max-w-xl rounded-2xl p-4 space-y-3`}>
+      <div className={`${shellClass[theme].card} max-w-xl rounded-3xl p-5 space-y-3`}>
         <label className="text-sm">XP per scan<input value={xpPerScan} onChange={(e) => setXpPerScan(Number(e.target.value))} className={`${shellClass[theme].input} mt-1 w-full rounded-lg px-3 py-2`} /></label>
         <label className="text-sm">XP per workout<input value={xpPerWorkout} onChange={(e) => setXpPerWorkout(Number(e.target.value))} className={`${shellClass[theme].input} mt-1 w-full rounded-lg px-3 py-2`} /></label>
-        <button className="rounded-lg bg-indigo-500 px-4 py-2 text-sm text-white" onClick={() => saveAdminSettings('gamification', { xpPerScan, xpPerWorkout })}>Save Rules</button>
+        <button className="rounded-lg bg-emerald-500 px-4 py-2 text-sm text-emerald-950" onClick={() => saveAdminSettings('gamification', { xpPerScan, xpPerWorkout })}>Save Rules</button>
       </div>
     </PageScaffold>
   );
@@ -32,7 +32,7 @@ export const AdminGamificationLevelsPage: React.FC = () => {
 };
 export const AdminGamificationStreaksPage: React.FC = () => {
   const theme = useAdminTheme();
-  return <PageScaffold title="Streaks & Rewards" description="Streak bonuses" theme={theme}><div className={`${shellClass[theme].card} rounded-2xl p-4`}>Streak logic can be attached to daily activity logs.</div></PageScaffold>;
+  return <PageScaffold title="Streaks & Rewards" description="Streak bonuses" theme={theme}><div className={`${shellClass[theme].card} rounded-3xl p-5`}>Streak logic can be attached to daily activity logs.</div></PageScaffold>;
 };
 export const AdminGamificationBadgesPage: React.FC = () => {
   const theme = useAdminTheme();
@@ -41,7 +41,7 @@ export const AdminGamificationBadgesPage: React.FC = () => {
 
 export const AdminPaymentsPlansPage: React.FC = () => {
   const theme = useAdminTheme();
-  return <PageScaffold title="Plans" description="Stripe-ready plan cards" theme={theme}><div className="grid gap-4 md:grid-cols-3"><div className={`${shellClass[theme].card} rounded-2xl p-4`}>Basic</div><div className={`${shellClass[theme].card} rounded-2xl p-4`}>Pro</div><div className={`${shellClass[theme].card} rounded-2xl p-4`}>Elite</div></div></PageScaffold>;
+  return <PageScaffold title="Plans" description="Stripe-ready plan cards" theme={theme}><div className="grid gap-4 md:grid-cols-3"><div className={`${shellClass[theme].card} rounded-3xl p-5`}>Basic</div><div className={`${shellClass[theme].card} rounded-3xl p-5`}>Pro</div><div className={`${shellClass[theme].card} rounded-3xl p-5`}>Elite</div></div></PageScaffold>;
 };
 export const AdminPaymentsTransactionsPage: React.FC = () => {
   const theme = useAdminTheme();
@@ -57,7 +57,7 @@ export const AdminPaymentsRefundsPage: React.FC = () => {
 };
 export const AdminPaymentsStripePage: React.FC = () => {
   const theme = useAdminTheme();
-  return <PageScaffold title="Stripe Status" description="Integration status" theme={theme}><div className={`${shellClass[theme].card} rounded-2xl p-4`}>Not Connected</div></PageScaffold>;
+  return <PageScaffold title="Stripe Status" description="Integration status" theme={theme}><div className={`${shellClass[theme].card} rounded-3xl p-5`}>Not Connected</div></PageScaffold>;
 };
 
 const ContentPage: React.FC<{ type: 'workout' | 'diet' | 'skincare' | 'prompt'; title: string }> = ({ type, title }) => {
@@ -80,10 +80,10 @@ const ContentPage: React.FC<{ type: 'workout' | 'diet' | 'skincare' | 'prompt'; 
 
   return (
     <PageScaffold title={title} description="CRUD connected to adminContent collection" theme={theme}>
-      <div className={`${shellClass[theme].card} rounded-2xl p-4`}> 
+      <div className={`${shellClass[theme].card} rounded-3xl p-5`}> 
         <div className="flex gap-2">
           <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="New content title" className={`${shellClass[theme].input} flex-1 rounded-lg px-3 py-2`} />
-          <button className="rounded-lg bg-indigo-500 px-4 py-2 text-white" onClick={createItem}>Create</button>
+          <button className="rounded-lg bg-emerald-500 px-4 py-2 text-emerald-950" onClick={createItem}>Create</button>
         </div>
       </div>
       <Table theme={theme} headers={['Title', 'Plan', 'Level', 'Premium']} rows={items.map((item) => [item.title, String(item.plan).toUpperCase(), String(item.level), item.premium ? 'Yes' : 'No'])} />
@@ -112,9 +112,9 @@ const NotificationPage: React.FC<{ type: 'push' | 'in-app' | 'email'; title: str
 
   return (
     <PageScaffold title={title} description="Queue notification messages to database" theme={theme}>
-      <div className={`${shellClass[theme].card} rounded-2xl p-4`}>
+      <div className={`${shellClass[theme].card} rounded-3xl p-5`}>
         <textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Write message" className={`${shellClass[theme].input} h-32 w-full rounded-lg px-3 py-2`} />
-        <button className="mt-2 rounded-lg bg-indigo-500 px-4 py-2 text-white" onClick={send}>Queue</button>
+        <button className="mt-2 rounded-lg bg-emerald-500 px-4 py-2 text-emerald-950" onClick={send}>Queue</button>
       </div>
       {toast ? <Toast message="Notification queued" theme={theme} /> : null}
     </PageScaffold>
@@ -134,10 +134,10 @@ export const AdminSettingsGeneralPage: React.FC = () => {
 
   return (
     <PageScaffold title="General Settings" description="App-level config" theme={theme}>
-      <div className={`${shellClass[theme].card} rounded-2xl p-4 space-y-3`}>
+      <div className={`${shellClass[theme].card} rounded-3xl p-5 space-y-3`}>
         <input value={appName} onChange={(e) => setAppName(e.target.value)} className={`${shellClass[theme].input} w-full rounded-lg px-3 py-2`} />
         <label className="flex items-center justify-between text-sm">Maintenance Mode <input type="checkbox" checked={maintenanceMode} onChange={(e) => setMaintenanceMode(e.target.checked)} /></label>
-        <button className="rounded-lg bg-indigo-500 px-4 py-2 text-white" onClick={() => saveAdminSettings('general', { appName, maintenanceMode })}>Save</button>
+        <button className="rounded-lg bg-emerald-500 px-4 py-2 text-emerald-950" onClick={() => saveAdminSettings('general', { appName, maintenanceMode })}>Save</button>
       </div>
     </PageScaffold>
   );
@@ -164,13 +164,13 @@ export const AdminSettingsEmailPage: React.FC = () => {
 
   return (
     <PageScaffold title="Email (Gmail / SMTP)" description="Signup and lifecycle email settings" theme={theme}>
-      <div className={`${shellClass[theme].card} grid gap-3 rounded-2xl p-4 md:grid-cols-2`}>
+      <div className={`${shellClass[theme].card} grid gap-3 rounded-3xl p-5 md:grid-cols-2`}>
         <input value={smtpHost} onChange={(e) => setSmtpHost(e.target.value)} className={`${shellClass[theme].input} rounded-lg px-3 py-2`} placeholder="SMTP host" />
         <input value={port} onChange={(e) => setPort(e.target.value)} className={`${shellClass[theme].input} rounded-lg px-3 py-2`} placeholder="Port" />
         <input value={gmail} onChange={(e) => setGmail(e.target.value)} className={`${shellClass[theme].input} rounded-lg px-3 py-2`} placeholder="Gmail" />
         <input value={appPassword} onChange={(e) => setAppPassword(e.target.value)} className={`${shellClass[theme].input} rounded-lg px-3 py-2`} placeholder="App password" type="password" />
         <input value={senderName} onChange={(e) => setSenderName(e.target.value)} className={`${shellClass[theme].input} rounded-lg px-3 py-2 md:col-span-2`} placeholder="Sender name" />
-        <button className="rounded-lg bg-indigo-500 px-4 py-2 text-white md:col-span-2" onClick={() => saveAdminSettings('email', { smtpHost, port, gmail, appPassword, senderName })}>Save Email Config</button>
+        <button className="rounded-lg bg-emerald-500 px-4 py-2 text-emerald-950 md:col-span-2" onClick={() => saveAdminSettings('email', { smtpHost, port, gmail, appPassword, senderName })}>Save Email Config</button>
       </div>
     </PageScaffold>
   );
@@ -178,19 +178,19 @@ export const AdminSettingsEmailPage: React.FC = () => {
 
 export const AdminSettingsApiPage: React.FC = () => {
   const theme = useAdminTheme();
-  return <PageScaffold title="API & Integrations" description="OpenAI, Stripe (locked), webhooks" theme={theme}><div className={`${shellClass[theme].card} rounded-2xl p-4`}>Use environment variables for production secrets.</div></PageScaffold>;
+  return <PageScaffold title="API & Integrations" description="OpenAI, Stripe (locked), webhooks" theme={theme}><div className={`${shellClass[theme].card} rounded-3xl p-5`}>Use environment variables for production secrets.</div></PageScaffold>;
 };
 export const AdminSettingsSecurityPage: React.FC = () => {
   const theme = useAdminTheme();
-  return <PageScaffold title="Security & Roles" description="Admin roles and audit policy" theme={theme}><div className={`${shellClass[theme].card} rounded-2xl p-4`}>Roles can be managed in `adminUsers` collection.</div></PageScaffold>;
+  return <PageScaffold title="Security & Roles" description="Admin roles and audit policy" theme={theme}><div className={`${shellClass[theme].card} rounded-3xl p-5`}>Roles can be managed in `adminUsers` collection.</div></PageScaffold>;
 };
 export const AdminSettingsAppearancePage: React.FC = () => {
   const theme = useAdminTheme();
-  return <PageScaffold title="Appearance" description="Theme and sidebar style" theme={theme}><div className={`${shellClass[theme].card} rounded-2xl p-4`}>Use top-right toggle for dark/light mode.</div></PageScaffold>;
+  return <PageScaffold title="Appearance" description="Theme and sidebar style" theme={theme}><div className={`${shellClass[theme].card} rounded-3xl p-5`}>Use top-right toggle for dark/light mode.</div></PageScaffold>;
 };
 export const AdminSettingsSystemPage: React.FC = () => {
   const theme = useAdminTheme();
-  return <PageScaffold title="System & Cache" description="Maintenance actions" theme={theme}><div className={`${shellClass[theme].card} rounded-2xl p-4`}>System health checks can be connected to Cloud Functions.</div></PageScaffold>;
+  return <PageScaffold title="System & Cache" description="Maintenance actions" theme={theme}><div className={`${shellClass[theme].card} rounded-3xl p-5`}>System health checks can be connected to Cloud Functions.</div></PageScaffold>;
 };
 
 export const AdminAdminsPage: React.FC = () => {
@@ -200,5 +200,5 @@ export const AdminAdminsPage: React.FC = () => {
 
 export const AdminRouteFallback: React.FC = () => {
   const theme = useAdminTheme();
-  return <PageScaffold title="Admin" description="Choose a section from sidebar" theme={theme}><div className={`${shellClass[theme].card} rounded-2xl p-4`}>Route not found.</div></PageScaffold>;
+  return <PageScaffold title="Admin" description="Choose a section from sidebar" theme={theme}><div className={`${shellClass[theme].card} rounded-3xl p-5`}>Route not found.</div></PageScaffold>;
 };
