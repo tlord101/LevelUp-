@@ -12,6 +12,13 @@ export const shellClass = {
     input: 'bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400',
     active: 'bg-emerald-50 text-emerald-700 border-emerald-300 shadow-[0_0_0_1px_rgba(16,185,129,0.12)]',
     muted: 'text-slate-600 hover:bg-slate-100',
+    navBrand: 'text-emerald-700',
+    header: 'border-b border-slate-200/90 bg-white/85',
+    iconButton: 'text-slate-600 hover:text-slate-900',
+    iconBadge: 'rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-emerald-700 shadow-[0_8px_24px_rgba(16,185,129,0.12)]',
+    trend: 'text-emerald-600',
+    divider: 'border-slate-200/90',
+    subActive: 'bg-emerald-50 text-emerald-700 shadow-[0_0_0_1px_rgba(16,185,129,0.14)]',
   },
   dark: {
     page: 'bg-[#02090b] text-slate-100',
@@ -21,10 +28,22 @@ export const shellClass = {
     input: 'bg-[#05171a] border border-emerald-400/20 text-slate-100 placeholder:text-slate-500 focus:border-emerald-400/45',
     active: 'bg-emerald-500/15 text-emerald-300 border-emerald-400/40 shadow-[0_0_0_1px_rgba(16,185,129,0.25),0_0_30px_rgba(16,185,129,0.12)]',
     muted: 'text-slate-300 hover:bg-[#082025]',
+    navBrand: 'text-emerald-300',
+    header: 'border-b border-emerald-300/10 bg-[#02090b]/90',
+    iconButton: 'text-slate-300 hover:text-slate-100',
+    iconBadge: 'rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-emerald-300 shadow-[0_0_24px_rgba(16,185,129,0.22)]',
+    trend: 'text-emerald-400',
+    divider: 'border-emerald-300/10',
+    subActive: 'bg-emerald-500/15 text-emerald-300 shadow-[0_0_18px_rgba(16,185,129,0.16)]',
   },
 };
 
-export const useAdminTheme = (): ThemeMode => ((localStorage.getItem('admin-theme') as ThemeMode) || 'dark');
+export const getStoredAdminTheme = (): ThemeMode => {
+  const stored = localStorage.getItem('admin-theme');
+  return stored === 'light' || stored === 'dark' ? stored : 'dark';
+};
+
+export const useAdminTheme = (): ThemeMode => getStoredAdminTheme();
 
 export const StatCard: React.FC<{ title: string; value: string; subtitle?: string; trend?: string; icon?: React.ReactNode; theme: ThemeMode }> = ({
   title,
@@ -53,12 +72,12 @@ export const StatCard: React.FC<{ title: string; value: string; subtitle?: strin
         <div>
           <p className={`text-sm ${shellClass[theme].subtle}`}>{title}</p>
           <p className="mt-2 text-5xl font-bold tracking-tight">{value}</p>
-          {trend ? <p className="mt-2 text-sm font-semibold text-emerald-400">↗ {trend}</p> : null}
+          {trend ? <p className={`mt-2 text-sm font-semibold ${shellClass[theme].trend}`}>↗ {trend}</p> : null}
           {subtitle ? <p className={`mt-1 text-sm ${shellClass[theme].subtle}`}>{subtitle}</p> : null}
         </div>
-        <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-emerald-300 shadow-[0_0_24px_rgba(16,185,129,0.22)]">{icon}</div>
+        <div className={shellClass[theme].iconBadge}>{icon}</div>
       </div>
-      <div className="mt-5 border-t border-emerald-300/10 pt-3">
+      <div className={`mt-5 border-t pt-3 ${shellClass[theme].divider}`}>
         <svg viewBox={`0 0 ${width} ${height}`} className="h-10 w-full text-emerald-400">
           <path d={path} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
         </svg>

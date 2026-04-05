@@ -33,6 +33,7 @@ import {
 import { auth, firestore, messaging } from '../config/firebase';
 import { UserGoal, UserProfile, NutritionScan, BodyScan, FaceScan, Post, Group, Comment, NutritionLog, NutritionScanResult, BodyScanResult, FaceScanResult } from '../types';
 import { getToken, onMessage, Unsubscribe } from 'firebase/messaging';
+import { queueWelcomeEmail } from './adminService';
 
 // --- HELPER ---
 const convertTimestampToISO = (data: any) => {
@@ -99,6 +100,16 @@ export const createOrUpdateUserProfile = async (user: User, additionalData: Part
       },
     };
     await setDoc(userRef, profileData);
+        try {
+            if (user.email) {
+                await queueWelcomeEmail({
+                    email: user.email,
+                    displayName: profileData.display_name,
+                });
+            }
+        } catch (mailError) {
+            console.error('Welcome email queue error:', mailError);
+        }
     
     // Return the new profile data with ISO timestamp for consistent usage
     return {

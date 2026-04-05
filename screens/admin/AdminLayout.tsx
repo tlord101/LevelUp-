@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -21,8 +21,9 @@ import {
   X,
   Palette,
 } from 'lucide-react';
-import { shellClass, ThemeMode } from './components/AdminWidgets';
+import { getStoredAdminTheme, shellClass, ThemeMode } from './components/AdminWidgets';
 import { logoutAdmin } from './adminAuth';
+import { getAdminNotifications, markAdminNotificationRead, markAllAdminNotificationsRead, AdminNotificationRecord } from '../../services/adminService';
 
 type NavItem = { label: string; path: string; disabled?: boolean };
 type NavSection = { key: string; label: string; icon: React.ReactNode; basePath: string; items?: NavItem[] };
@@ -84,10 +85,14 @@ const navSections: NavSection[] = [
 ];
 
 const AdminLayout: React.FC = () => {
-  const [theme, setTheme] = useState<ThemeMode>('dark');
+  const [theme, setTheme] = useState<ThemeMode>(getStoredAdminTheme());
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => Object.fromEntries(navSections.map((s) => [s.key, true])));
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const [notifications, setNotifications] = useState<AdminNotificationRecord[]>([]);
+  const bellRef = useRef<HTMLDivElement | null>(null);
 
   const location = useLocation();
   const pathname = location.pathname;
@@ -98,6 +103,34 @@ const AdminLayout: React.FC = () => {
     localStorage.setItem('admin-theme', next);
   };
 
+  const loadNotifications = async () => {
+    setNotifLoading(true);
+    try {
+      const items = await getAdminNotifications(20);
+      setNotifications(items);
+    } finally {
+      setNotifLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadNotifications();
+    const interval = window.setInterval(loadNotifications, 25000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const onDocClick = (event: MouseEvent) => {
+      if (bellRef.current && !bellRef.current.contains(event.target as Node)) {
+        setNotifOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, []);
+
+  const unreadCount = notifications.filter((item) => !item.read).length;
+
   return (
     <div className={`min-h-screen ${shellClass[theme].page} relative overflow-hidden`}>
       <div className="pointer-events-none absolute left-[-10rem] top-[-10rem] h-80 w-80 rounded-full bg-emerald-500/20 blur-3xl" />
@@ -105,7 +138,7 @@ const AdminLayout: React.FC = () => {
       <div className="flex min-h-screen relative z-10">
         <aside className={`${shellClass[theme].panel} ${collapsed ? 'w-20' : 'w-72'} fixed left-0 top-0 z-40 h-screen overflow-y-auto transition-all lg:static lg:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} ${theme === 'dark' ? 'shadow-[0_0_0_1px_rgba(16,185,129,0.12)]' : ''}`}>
           <div className="flex items-center justify-between px-4 py-4 border-b border-emerald-300/10">
-            <Link to="/admin/dashboard" className="text-lg font-bold tracking-tight text-emerald-300">{collapsed ? 'LU' : 'LevelUp Admin'}</Link>
+            <Link to="/admin/dashboard" className={`text-lg font-bold tracking-tight ${shellClass[theme].navBrand}`}>{collapsed ? 'LU' : 'LevelUp Admin'}</Link>
             <button type="button" onClick={() => setCollapsed((v) => !v)} className="hidden rounded-md p-1 lg:block hover:bg-emerald-400/10">{collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}</button>
             <button type="button" onClick={() => setMobileOpen(false)} className="rounded-md p-1 hover:bg-emerald-400/10 lg:hidden"><X size={18} /></button>
           </div>
@@ -133,7 +166,7 @@ const AdminLayout: React.FC = () => {
                           <NavLink
                             key={item.path}
                             to={item.path}
-                            className={({ isActive }) => `block rounded-lg px-3 py-1.5 text-xs transition ${isActive ? 'bg-emerald-500/15 text-emerald-300 shadow-[0_0_18px_rgba(16,185,129,0.16)]' : shellClass[theme].muted}`}
+                            className={({ isActive }) => `block rounded-lg px-3 py-1.5 text-xs transition ${isActive ? shellClass[theme].subActive : shellClass[theme].muted}`}
                             onClick={() => setMobileOpen(false)}
                           >
                             {item.label}
@@ -151,7 +184,7 @@ const AdminLayout: React.FC = () => {
         {mobileOpen ? <button type="button" onClick={() => setMobileOpen(false)} aria-label="Close menu overlay" className="fixed inset-0 z-30 bg-black/45 backdrop-blur-sm lg:hidden" /> : null}
 
         <div className={`flex-1 ${collapsed ? 'lg:ml-20' : 'lg:ml-72'} transition-all`}>
-          <header className="sticky top-0 z-30 border-b border-emerald-300/10 bg-[#02090b]/90 backdrop-blur-xl">
+          <header className={`sticky top-0 z-30 backdrop-blur-xl ${shellClass[theme].header}`}>
             <div className="flex items-center justify-between px-4 py-3 md:px-6">
               <div className="flex items-center gap-3">
                 <button type="button" onClick={() => setMobileOpen(true)} className="rounded-md p-1 hover:bg-emerald-400/10 lg:hidden"><Menu size={18} /></button>
@@ -163,12 +196,66 @@ const AdminLayout: React.FC = () => {
 
               <div className="flex items-center gap-2">
                 <button type="button" onClick={toggleTheme} className={`${shellClass[theme].card} rounded-lg p-2`}>{theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}</button>
-                <button type="button" className={`${shellClass[theme].card} rounded-lg p-2 text-slate-300`}><Palette size={16} /></button>
-                <button type="button" className={`${shellClass[theme].card} relative rounded-lg p-2 text-slate-300`}>
-                  <Bell size={16} />
-                  <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-rose-500" />
-                </button>
-                <div className="h-9 w-9 rounded-full border border-emerald-400/30 bg-emerald-500/20 text-sm font-semibold text-emerald-300 grid place-items-center">AS</div>
+                <button type="button" className={`${shellClass[theme].card} ${shellClass[theme].iconButton} rounded-lg p-2`}><Palette size={16} /></button>
+                <div className="relative" ref={bellRef}>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const next = !notifOpen;
+                      setNotifOpen(next);
+                      if (next) {
+                        await loadNotifications();
+                      }
+                    }}
+                    className={`${shellClass[theme].card} ${shellClass[theme].iconButton} relative rounded-lg p-2`}
+                  >
+                    <Bell size={16} />
+                    {unreadCount > 0 ? <span className="absolute right-1 top-1 min-w-2 rounded-full bg-rose-500 px-1 text-[10px] leading-4 text-white">{unreadCount > 9 ? '9+' : unreadCount}</span> : null}
+                  </button>
+
+                  {notifOpen ? (
+                    <div className={`${shellClass[theme].card} absolute right-0 top-12 z-50 w-[340px] rounded-xl p-3 shadow-2xl`}>
+                      <div className="mb-2 flex items-center justify-between">
+                        <h4 className="text-sm font-semibold">Notification Center</h4>
+                        <button
+                          type="button"
+                          className={`text-xs ${shellClass[theme].subtle}`}
+                          onClick={async () => {
+                            await markAllAdminNotificationsRead();
+                            await loadNotifications();
+                          }}
+                        >
+                          Mark all read
+                        </button>
+                      </div>
+
+                      <div className="max-h-80 space-y-2 overflow-y-auto">
+                        {notifLoading ? <p className={`text-xs ${shellClass[theme].subtle}`}>Loading...</p> : null}
+                        {!notifLoading && notifications.length === 0 ? <p className={`text-xs ${shellClass[theme].subtle}`}>No notifications yet.</p> : null}
+                        {notifications.map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={async () => {
+                              if (!item.read) {
+                                await markAdminNotificationRead(item.id);
+                                await loadNotifications();
+                              }
+                            }}
+                            className={`w-full rounded-lg border px-3 py-2 text-left text-xs transition ${item.read ? 'border-transparent opacity-80' : theme === 'light' ? 'border-emerald-200 bg-emerald-50/60' : 'border-emerald-400/20 bg-emerald-500/10'}`}
+                          >
+                            <div className="mb-1 flex items-center justify-between gap-2">
+                              <span className="font-semibold">{item.title}</span>
+                              <span className={`uppercase ${shellClass[theme].subtle}`}>{item.type}</span>
+                            </div>
+                            <p className={shellClass[theme].subtle}>{item.message}</p>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+                <div className={`h-9 w-9 rounded-full border text-sm font-semibold grid place-items-center ${theme === 'light' ? 'border-emerald-300 bg-emerald-100 text-emerald-700' : 'border-emerald-400/30 bg-emerald-500/20 text-emerald-300'}`}>AS</div>
                 <Link to="/dashboard" className="rounded-lg border border-emerald-300/30 px-3 py-1.5 text-xs hover:bg-emerald-500/10">Main App</Link>
                 <button
                   type="button"
