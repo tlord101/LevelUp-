@@ -46,3 +46,10 @@ export {
   AdminAdminsPage,
   AdminRouteFallback,
 } from './pages/MiscPages';
+export {
+  AdminSettingsSeoPage,
+  AdminEmailGlobalTemplatePage,
+  AdminEmailTemplatesPage,
+  AdminEmailTemplateDetailPage,
+  AdminEmailConfigurePage,
+} from './pages/SeoAndEmailPages';

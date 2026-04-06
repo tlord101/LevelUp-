@@ -75,7 +75,10 @@ const navSections: NavSection[] = [
   ] },
   { key: 'settings', label: 'System Settings', icon: <Settings size={18} />, basePath: '/admin/settings', items: [
     { label: 'General Settings', path: '/admin/settings/general' },
-    { label: 'Email (Gmail / SMTP)', path: '/admin/settings/email' },
+    { label: 'SEO Manager', path: '/admin/settings/seo' },
+    { label: 'Email Manager: Global', path: '/admin/settings/email/global-template' },
+    { label: 'Email Manager: Templates', path: '/admin/settings/email/templates' },
+    { label: 'Email Manager: Configure', path: '/admin/settings/email/configure' },
     { label: 'API & Integrations', path: '/admin/settings/api' },
     { label: 'Security & Roles', path: '/admin/settings/security' },
     { label: 'Appearance', path: '/admin/settings/appearance' },

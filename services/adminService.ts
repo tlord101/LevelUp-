@@ -43,6 +43,8 @@ export type AdminNotificationRecord = {
 };
 
 export type AdminEmailSettings = {
+  method?: 'smtp' | 'mailgun' | 'sendgrid';
+  encryption?: 'ssl' | 'tls' | 'none';
   smtpHost?: string;
   port?: string;
   gmail?: string;
@@ -51,6 +53,23 @@ export type AdminEmailSettings = {
   deliveryWebhookUrl?: string;
   deliveryWebhookApiKey?: string;
   welcomeEmailEnabled?: boolean;
+};
+
+export type AdminEmailTemplateVariable = {
+  key: string;
+  description: string;
+};
+
+export type AdminEmailTemplate = {
+  id?: string;
+  key: string;
+  name: string;
+  subject: string;
+  body: string;
+  status: 'active' | 'inactive';
+  variables: AdminEmailTemplateVariable[];
+  created_at?: any;
+  updated_at?: any;
 };
 
 const toMillis = (value: any): number => {
@@ -527,6 +546,76 @@ export const queueWelcomeEmail = async (payload: { email: string; displayName?: 
 export const getAdminSettings = async (section: string) => {
   const snap = await getDoc(doc(firestore, 'adminSettings', section));
   return snap.exists() ? snap.data() : null;
+};
+
+export const getAdminEmailTemplates = async (): Promise<AdminEmailTemplate[]> => {
+  const snap = await getDocs(collection(firestore, 'adminEmailTemplates'));
+  return snap.docs.map((item) => {
+    const data = item.data() as any;
+    return {
+      id: item.id,
+      key: data.key || item.id,
+      name: data.name || 'Untitled Template',
+      subject: data.subject || '',
+      body: data.body || '',
+      status: data.status === 'inactive' ? 'inactive' : 'active',
+      variables: Array.isArray(data.variables) ? data.variables : [],
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+    };
+  });
+};
+
+export const getAdminEmailTemplate = async (templateId: string): Promise<AdminEmailTemplate | null> => {
+  const snap = await getDoc(doc(firestore, 'adminEmailTemplates', templateId));
+  if (!snap.exists()) return null;
+  const data = snap.data() as any;
+  return {
+    id: snap.id,
+    key: data.key || snap.id,
+    name: data.name || 'Untitled Template',
+    subject: data.subject || '',
+    body: data.body || '',
+    status: data.status === 'inactive' ? 'inactive' : 'active',
+    variables: Array.isArray(data.variables) ? data.variables : [],
+    created_at: data.created_at,
+    updated_at: data.updated_at,
+  };
+};
+
+export const upsertAdminEmailTemplate = async (payload: AdminEmailTemplate): Promise<AdminEmailTemplate> => {
+  if (payload.id) {
+    const ref = doc(firestore, 'adminEmailTemplates', payload.id);
+    await setDoc(
+      ref,
+      {
+        key: payload.key,
+        name: payload.name,
+        subject: payload.subject,
+        body: payload.body,
+        status: payload.status,
+        variables: payload.variables,
+        updated_at: serverTimestamp(),
+      },
+      { merge: true }
+    );
+    const updated = await getAdminEmailTemplate(payload.id);
+    return updated || payload;
+  }
+
+  const ref = await addDoc(collection(firestore, 'adminEmailTemplates'), {
+    key: payload.key,
+    name: payload.name,
+    subject: payload.subject,
+    body: payload.body,
+    status: payload.status,
+    variables: payload.variables,
+    created_at: serverTimestamp(),
+    updated_at: serverTimestamp(),
+  });
+
+  const created = await getAdminEmailTemplate(ref.id);
+  return created || { ...payload, id: ref.id };
 };
 
 export const saveAdminSettings = async (section: string, values: Record<string, any>) => {

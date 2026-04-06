@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { BrowserRouter, Routes, Route, Outlet, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Outlet, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import WelcomeScreen from './screens/WelcomeScreen';
 import SignupScreen from './screens/SignupScreen';
@@ -63,7 +63,6 @@ import {
     AdminNotificationsInAppPage,
     AdminNotificationsEmailPage,
     AdminSettingsGeneralPage,
-    AdminSettingsEmailPage,
     AdminSettingsApiPage,
     AdminSettingsSecurityPage,
     AdminSettingsAppearancePage,
@@ -72,9 +71,89 @@ import {
     AdminRouteFallback,
     AdminLoginPage,
     AdminForgotPasswordPage,
+    AdminSettingsSeoPage,
+    AdminEmailGlobalTemplatePage,
+    AdminEmailTemplatesPage,
+    AdminEmailTemplateDetailPage,
+    AdminEmailConfigurePage,
 } from './screens/admin';
 import { auth } from './config/firebase';
 import { isAdminLoggedIn } from './screens/admin/adminAuth';
+import { getAdminSettings } from './services/adminService';
+
+const upsertMetaTag = (attr: 'name' | 'property', key: string, content: string) => {
+    const selector = `meta[${attr}="${key}"]`;
+    let tag = document.head.querySelector(selector) as HTMLMetaElement | null;
+    if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute(attr, key);
+        document.head.appendChild(tag);
+    }
+    tag.setAttribute('content', content);
+};
+
+const upsertCanonical = (url: string) => {
+    let tag = document.head.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+    if (!tag) {
+        tag = document.createElement('link');
+        tag.setAttribute('rel', 'canonical');
+        document.head.appendChild(tag);
+    }
+    tag.setAttribute('href', url);
+};
+
+const AdminSeoBridge: React.FC = () => {
+    const location = useLocation();
+
+    useEffect(() => {
+        let mounted = true;
+
+        getAdminSettings('seo')
+            .then((seo: any) => {
+                if (!mounted || !seo) return;
+
+                const title = String(seo.pageTitle || '').trim();
+                if (title) document.title = title;
+
+                const description = String(seo.metaDescription || '').trim();
+                if (description) {
+                    upsertMetaTag('name', 'description', description);
+                    upsertMetaTag('property', 'og:description', description);
+                    upsertMetaTag('name', 'twitter:description', description);
+                }
+
+                const socialTitle = String(seo.socialTitle || title).trim();
+                if (socialTitle) {
+                    upsertMetaTag('property', 'og:title', socialTitle);
+                    upsertMetaTag('name', 'twitter:title', socialTitle);
+                }
+
+                const keywords = Array.isArray(seo.metaKeywords) ? seo.metaKeywords.filter(Boolean).join(',') : String(seo.metaKeywords || '');
+                if (keywords.trim()) upsertMetaTag('name', 'keywords', keywords.trim());
+
+                const image = String(seo.socialImageUrl || '').trim();
+                if (image) {
+                    upsertMetaTag('property', 'og:image', image);
+                    upsertMetaTag('name', 'twitter:image', image);
+                }
+
+                const robots = String(seo.robots || '').trim();
+                if (robots) upsertMetaTag('name', 'robots', robots);
+
+                const canonical = String(seo.canonicalUrl || '').trim();
+                if (canonical) upsertCanonical(canonical);
+            })
+            .catch((error) => {
+                console.error('seo settings load error', error);
+            });
+
+        return () => {
+            mounted = false;
+        };
+    }, [location.pathname]);
+
+    return null;
+};
 
 const AppLoader: React.FC = () => (
     <div className="flex items-center justify-center h-screen bg-gray-50">
@@ -178,6 +257,7 @@ const App: React.FC = () => {
   return (
     <AuthProvider>
         <BrowserRouter>
+            <AdminSeoBridge />
             <Routes>
                 <Route path="/" element={<WelcomeScreen />} />
                 <Route path="/signup" element={<SignupScreen />} />
@@ -256,7 +336,12 @@ const App: React.FC = () => {
                         <Route path="notifications/email" element={<AdminNotificationsEmailPage />} />
 
                         <Route path="settings/general" element={<AdminSettingsGeneralPage />} />
-                        <Route path="settings/email" element={<AdminSettingsEmailPage />} />
+                        <Route path="settings/seo" element={<AdminSettingsSeoPage />} />
+                        <Route path="settings/email" element={<Navigate to="/admin/settings/email/configure" replace />} />
+                        <Route path="settings/email/global-template" element={<AdminEmailGlobalTemplatePage />} />
+                        <Route path="settings/email/templates" element={<AdminEmailTemplatesPage />} />
+                        <Route path="settings/email/templates/:id" element={<AdminEmailTemplateDetailPage />} />
+                        <Route path="settings/email/configure" element={<AdminEmailConfigurePage />} />
                         <Route path="settings/api" element={<AdminSettingsApiPage />} />
                         <Route path="settings/security" element={<AdminSettingsSecurityPage />} />
                         <Route path="settings/appearance" element={<AdminSettingsAppearancePage />} />
