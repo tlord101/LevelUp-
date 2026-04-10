@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Mic, MicOff, X, Loader2, Volume2, VolumeX } from 'lucide-react';
-import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
+import { LiveServerMessage, Modality } from '@google/genai';
 import { useAuth } from '../context/AuthContext';
 import { hapticTap, hapticSuccess } from '../utils/haptics';
+import { createGeminiClient, GEMINI_LIVE_AUDIO_MODEL } from '../utils/gemini';
 
 const LiveCoachScreen: React.FC = () => {
     const navigate = useNavigate();
@@ -92,10 +93,10 @@ const LiveCoachScreen: React.FC = () => {
                 
                 // Init GenAI
                 setStatus('Connecting to Gemini...');
-                const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+                const ai = createGeminiClient();
 
                 const sessionPromise = ai.live.connect({
-                    model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+                    model: GEMINI_LIVE_AUDIO_MODEL,
                     config: {
                         responseModalities: [Modality.AUDIO],
                         speechConfig: {

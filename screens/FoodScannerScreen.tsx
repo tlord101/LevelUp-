@@ -5,12 +5,13 @@ import { useAuth } from '../context/AuthContext';
 import { uploadImage, saveNutritionScan, getNutritionScans, logNutritionIntake } from '../services/firebaseService';
 import { NutritionScanResult, NutritionScan } from '../types';
 import { useNavigate } from 'react-router-dom';
-import { GoogleGenAI, Type } from '@google/genai';
+import { Type } from '@google/genai';
 import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
 import { blobToBase64 } from '../utils/imageUtils';
 import { useImageScanner } from '../hooks/useImageScanner';
 import CameraView from '../components/CameraView';
 import { isScannerEnabled } from '../services/adminService';
+import { createGeminiClient, GEMINI_TEXT_MODEL } from '../utils/gemini';
 
 const StatCard: React.FC<{ label: string; value: string; color: string; }> = ({ label, value, color }) => (
     <div className="flex-1 p-3 rounded-lg text-center" style={{ backgroundColor: `${color}1A`}}>
@@ -97,12 +98,12 @@ const FoodScannerScreen: React.FC = () => {
         
         try {
             // Step 1: Get AI Analysis
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+            const ai = createGeminiClient();
             const base64Image = await blobToBase64(scanner.imageFile);
             const imagePart = { inlineData: { mimeType: scanner.imageFile.type, data: base64Image } };
 
             const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
+                model: GEMINI_TEXT_MODEL,
                 contents: { parts: [imagePart, { text: 'Analyze the food item in this image and provide its nutritional information. If there are multiple items, analyze the most prominent one or provide an aggregate. If it is not food, indicate that.' }] },
                 config: {
                     responseMimeType: "application/json",

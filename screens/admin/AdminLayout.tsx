@@ -263,8 +263,9 @@ const AdminLayout: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    logoutAdmin();
-                    window.location.href = '/admin/login';
+                    void logoutAdmin().finally(() => {
+                      window.location.href = '/admin/login';
+                    });
                   }}
                   className="rounded-lg border border-rose-400/30 px-3 py-1.5 text-xs text-rose-400 hover:bg-rose-500/10"
                 >

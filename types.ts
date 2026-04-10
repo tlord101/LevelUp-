@@ -42,6 +42,19 @@ export interface UserProfile {
     meals_per_day: number;
     applied_at: string;
   };
+  personalized_workout_plan?: {
+    generated_at: string;
+    source_plan: string;
+    title: string;
+    objective: string;
+    weeklyFocus: string;
+    intensityNote: string;
+    schedule: {
+      day: string;
+      focus: string;
+      exercises: string[];
+    }[];
+  };
 }
 
 export interface NutritionScanResult {
@@ -93,6 +106,14 @@ export interface BodyScanResult {
   // Symmetry analysis
   bodySymmetry?: number; // 0-100 score
   postureScore?: number; // 0-100 score
+  // Rich AI commentary
+  summaryTitle?: string;
+  uniqueInsights?: string;
+  focusAreas?: string[];
+  trainingFocus?: string;
+  comparisonSummary?: string;
+  riskFlags?: string[];
+  confidence?: number; // 0-100 score
 }
 
 export interface BodyScan {
@@ -114,9 +135,17 @@ export interface FaceScanResult {
     hydration: string;
     clarity: string;
     radiance: string;
+    texture?: string;
+    tone?: string;
   };
   skinRating: number;
   recommendations: ProductRecommendation[];
+  skinCondition?: string;
+  visibleConcerns?: string[];
+  dailyPlan?: string[];
+  comparisonSummary?: string;
+  confidence?: number; // 0-100 score
+  summaryTitle?: string;
 }
 
 export interface FaceScan {

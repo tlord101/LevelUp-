@@ -1,11 +1,12 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, Mic, Loader2 } from 'lucide-react';
-import { GoogleGenAI, Chat, FunctionDeclaration, Type, Part } from '@google/genai';
+import { Chat, FunctionDeclaration, Type, Part } from '@google/genai';
 import { useAuth } from '../context/AuthContext';
 import { hapticTap } from '../utils/haptics';
 import { getUserStats, getLatestScan, getWeeklyNutritionSummary } from '../services/firebaseService';
+import { createGeminiClient, GEMINI_TEXT_MODEL } from '../utils/gemini';
 
 interface Message {
     role: 'user' | 'model';
@@ -42,6 +43,7 @@ const tools: FunctionDeclaration[] = [
 
 const AICoachScreen: React.FC = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { user, userProfile } = useAuth();
     const [chat, setChat] = useState<Chat | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
@@ -49,14 +51,15 @@ const AICoachScreen: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
+    const hasInjectedInitialMessage = useRef(false);
 
     // Initialize the chat model
     useEffect(() => {
         const initializeChat = () => {
             try {
-                const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+                const ai = createGeminiClient();
                 const chatInstance = ai.chats.create({
-                    model: 'gemini-2.5-flash',
+                    model: GEMINI_TEXT_MODEL,
                     config: {
                         systemInstruction: `You are LevelUp AI, a friendly and motivating personal coach for the LevelUp app. Your goal is to help users improve their fitness, nutrition, and appearance (a concept they might call 'looksmacking'). Be encouraging, provide actionable advice, and keep responses concise and easy to understand. The user's name is ${userProfile?.display_name || 'User'}. You have access to tools that can retrieve the user's scan history and stats. Use this data to provide holistic, interconnected advice. For example, you can use body scan results to inform nutrition recommendations.`,
                         tools: [{functionDeclarations: tools}]
@@ -172,6 +175,68 @@ const AICoachScreen: React.FC = () => {
             handleSendMessage();
         }
     };
+
+    useEffect(() => {
+        const initialMessage = location.state?.initialMessage as string | undefined;
+        if (!initialMessage || !chat || !user || hasInjectedInitialMessage.current) return;
+
+        hasInjectedInitialMessage.current = true;
+        setUserInput(initialMessage);
+
+        // Auto-send contextual prompt once chat is initialized.
+        setTimeout(() => {
+            setUserInput('');
+            setMessages(prev => [...prev, { role: 'user', text: initialMessage }]);
+            setIsLoading(true);
+
+            (async () => {
+                try {
+                    let response = await chat.sendMessage({ message: initialMessage });
+
+                    if (response.functionCalls && response.functionCalls.length > 0) {
+                        const functionResponseParts: Part[] = [];
+                        for (const fc of response.functionCalls) {
+                            let result;
+                            try {
+                                switch (fc.name) {
+                                    case 'get_user_stats':
+                                        result = await getUserStats(user.uid);
+                                        break;
+                                    case 'get_latest_scan':
+                                        result = await getLatestScan(user.uid, fc.args.scan_type as 'nutrition' | 'body' | 'face');
+                                        break;
+                                    case 'get_weekly_nutrition_summary':
+                                        result = await getWeeklyNutritionSummary(user.uid);
+                                        break;
+                                    default:
+                                        result = { error: `Function ${fc.name} not found.` };
+                                }
+                            } catch (e: any) {
+                                result = { error: e.message };
+                            }
+
+                            functionResponseParts.push({
+                                functionResponse: {
+                                    name: fc.name,
+                                    response: result,
+                                },
+                            });
+                        }
+
+                        response = await chat.sendMessage({ message: functionResponseParts });
+                    }
+
+                    setMessages(prev => [...prev, { role: 'model', text: response.text }]);
+                } catch (error) {
+                    console.error('Error sending initial message:', error);
+                    setMessages(prev => [...prev, { role: 'model', text: 'Sorry, I encountered an error while loading your plan context.' }]);
+                } finally {
+                    setIsLoading(false);
+                    navigate(location.pathname, { replace: true, state: {} });
+                }
+            })();
+        }, 120);
+    }, [chat, user, location, navigate]);
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col h-screen">

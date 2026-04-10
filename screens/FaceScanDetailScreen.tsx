@@ -103,12 +103,77 @@ const FaceScanDetailScreen: React.FC = () => {
                     <p className="font-semibold text-gray-500 text-sm">Overall Skin Rating</p>
                     <p className={`text-6xl font-extrabold ${ratingColor}`}>{scan.results.skinRating.toFixed(1)}<span className="text-3xl">/10</span></p>
                 </div>
+
+                <div className="bg-gradient-to-r from-slate-900 to-slate-700 rounded-xl p-4 text-white">
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <p className="text-xs uppercase tracking-wider text-slate-300">AI Summary</p>
+                            <p className="font-semibold mt-1">{scan.results.summaryTitle || 'Skin Health Snapshot'}</p>
+                            <p className="text-xs text-slate-200 mt-2">{scan.results.comparisonSummary || 'No previous comparison available.'}</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-xs text-slate-300">Confidence</p>
+                            <p className="text-2xl font-extrabold">{Math.round(scan.results.confidence || 75)}%</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <h3 className="font-bold text-gray-800 mb-2">Skin Condition</h3>
+                    <p className="text-sm text-gray-700">{scan.results.skinCondition || 'No condition summary provided.'}</p>
+                </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <AnalysisItem label="Hydration" value={scan.results.skinAnalysis.hydration} icon={Droplets} />
                     <AnalysisItem label="Clarity" value={scan.results.skinAnalysis.clarity} icon={Wind} />
                     <AnalysisItem label="Radiance" value={scan.results.skinAnalysis.radiance} icon={Sun} />
                 </div>
+
+                {(scan.results.skinAnalysis.texture || scan.results.skinAnalysis.tone) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {scan.results.skinAnalysis.texture && (
+                            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                                <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-1">Texture</p>
+                                <p className="text-sm font-medium text-gray-800">{scan.results.skinAnalysis.texture}</p>
+                            </div>
+                        )}
+                        {scan.results.skinAnalysis.tone && (
+                            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                                <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-1">Tone Evenness</p>
+                                <p className="text-sm font-medium text-gray-800">{scan.results.skinAnalysis.tone}</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {scan.results.visibleConcerns && scan.results.visibleConcerns.length > 0 && (
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                        <h3 className="font-bold text-gray-800 mb-3">Visible Concerns</h3>
+                        <div className="flex flex-wrap gap-2">
+                            {scan.results.visibleConcerns.map((concern, index) => (
+                                <span key={index} className="px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 text-xs font-medium border border-rose-100">
+                                    {concern}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {scan.results.dailyPlan && scan.results.dailyPlan.length > 0 && (
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                        <h3 className="font-bold text-gray-800 mb-3">Daily Routine Plan</h3>
+                        <div className="space-y-2">
+                            {scan.results.dailyPlan.map((step, index) => (
+                                <div key={index} className="flex items-start gap-2.5 bg-gray-50 rounded-lg p-2.5">
+                                    <span className="w-5 h-5 rounded-full bg-purple-100 text-purple-700 text-xs font-bold flex items-center justify-center mt-0.5">
+                                        {index + 1}
+                                    </span>
+                                    <p className="text-sm text-gray-700">{step}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
                 
                 <div className="bg-white p-4 rounded-xl shadow-sm">
                      <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><Sparkles size={18} /> Skincare Recommendations</h3>

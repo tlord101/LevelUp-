@@ -72,6 +72,49 @@ export type AdminEmailTemplate = {
   updated_at?: any;
 };
 
+export type AdminPaymentPlan = {
+  id: 'basic' | 'pro' | 'elite';
+  name: string;
+  priceMonthly: number;
+  features: string[];
+  active: boolean;
+};
+
+export type AdminPaymentTransaction = {
+  id: string;
+  userId: string;
+  userEmail: string;
+  amount: number;
+  currency: string;
+  status: string;
+  provider: string;
+  created_at?: any;
+};
+
+export type AdminRefundRequest = {
+  id: string;
+  transactionId: string;
+  userId: string;
+  amount: number;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  created_by: string;
+  created_at?: any;
+  updated_at?: any;
+};
+
+export type CommunityReportRecord = {
+  id: string;
+  targetType: 'post' | 'comment' | 'group' | 'user';
+  targetId: string;
+  reportedBy: string;
+  reason: string;
+  status: 'open' | 'resolved' | 'dismissed';
+  resolution?: string;
+  created_at?: any;
+  updated_at?: any;
+};
+
 const toMillis = (value: any): number => {
   if (!value) return 0;
   if (typeof value?.toMillis === 'function') return value.toMillis();
@@ -186,6 +229,93 @@ export const getSubscriptionsOverview = async () => {
       pro: rows.filter((item) => item.plan === 'pro').length,
       elite: rows.filter((item) => item.plan === 'elite').length,
     },
+  };
+};
+
+export const getAdminPaymentPlans = async (): Promise<AdminPaymentPlan[]> => {
+  const settings = (await getAdminSettings('billingPlans')) as { plans?: AdminPaymentPlan[] } | null;
+  if (settings?.plans?.length) return settings.plans;
+  return [
+    { id: 'basic', name: 'Basic', priceMonthly: 9, features: ['Daily scans', 'Community access'], active: true },
+    { id: 'pro', name: 'Pro', priceMonthly: 19, features: ['All scanners', 'Advanced AI coaching'], active: true },
+    { id: 'elite', name: 'Elite', priceMonthly: 39, features: ['Priority support', 'Premium plans'], active: true },
+  ];
+};
+
+export const saveAdminPaymentPlans = async (plans: AdminPaymentPlan[]) => {
+  await saveAdminSettings('billingPlans', { plans, updated_at: serverTimestamp() });
+};
+
+export const getAdminPaymentTransactions = async (max = 80): Promise<AdminPaymentTransaction[]> => {
+  const snap = await getDocs(query(collection(firestore, 'payments'), orderBy('created_at', 'desc'), limit(max)));
+  return snap.docs.map((item) => {
+    const data = item.data() as any;
+    return {
+      id: item.id,
+      userId: data.userId || data.user_id || '-',
+      userEmail: data.userEmail || data.email || '-',
+      amount: Number(data.amount || 0),
+      currency: data.currency || 'USD',
+      status: data.status || 'unknown',
+      provider: data.provider || 'stripe',
+      created_at: data.created_at,
+    };
+  });
+};
+
+export const getAdminRefundRequests = async (max = 80): Promise<AdminRefundRequest[]> => {
+  const snap = await getDocs(query(collection(firestore, 'adminRefundRequests'), orderBy('created_at', 'desc'), limit(max)));
+  return snap.docs.map((item) => {
+    const data = item.data() as any;
+    return {
+      id: item.id,
+      transactionId: data.transactionId || '-',
+      userId: data.userId || '-',
+      amount: Number(data.amount || 0),
+      reason: data.reason || '-',
+      status: data.status || 'pending',
+      created_by: data.created_by || '-',
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+    };
+  });
+};
+
+export const createAdminRefundRequest = async (payload: {
+  transactionId: string;
+  userId: string;
+  amount: number;
+  reason: string;
+  createdBy: string;
+}) => {
+  const ref = await addDoc(collection(firestore, 'adminRefundRequests'), {
+    transactionId: payload.transactionId,
+    userId: payload.userId,
+    amount: payload.amount,
+    reason: payload.reason,
+    status: 'pending',
+    created_by: payload.createdBy,
+    created_at: serverTimestamp(),
+    updated_at: serverTimestamp(),
+  });
+
+  await writeSystemLog({
+    type: 'refund-request',
+    message: `Refund request created for transaction ${payload.transactionId}`,
+    meta: { refundId: ref.id, amount: payload.amount },
+  });
+
+  return ref.id;
+};
+
+export const getAdminStripeStatus = async () => {
+  const settings = (await getAdminSettings('api')) as any;
+  return {
+    connected: settings?.stripeConnected === true,
+    accountId: settings?.stripeAccountId || '-',
+    mode: settings?.stripeMode || 'test',
+    webhookHealthy: settings?.stripeWebhookHealthy !== false,
+    lastSyncAt: settings?.stripeLastSyncAt || null,
   };
 };
 
@@ -380,6 +510,61 @@ export const deleteCommunityPost = async (postId: string) => {
 export const getCommunityGroups = async (): Promise<Group[]> => {
   const snap = await getDocs(query(collection(firestore, 'groups'), orderBy('created_at', 'desc'), limit(50)));
   return snap.docs.map((item) => ({ ...(item.data() as Group), id: item.id }));
+};
+
+export const getCommunityReports = async (max = 80): Promise<CommunityReportRecord[]> => {
+  const snap = await getDocs(query(collection(firestore, 'communityReports'), orderBy('created_at', 'desc'), limit(max)));
+  return snap.docs.map((item) => {
+    const data = item.data() as any;
+    return {
+      id: item.id,
+      targetType: data.targetType || 'post',
+      targetId: data.targetId || '-',
+      reportedBy: data.reportedBy || '-',
+      reason: data.reason || '-',
+      status: data.status || 'open',
+      resolution: data.resolution,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+    };
+  });
+};
+
+export const resolveCommunityReport = async (reportId: string, resolution: 'resolved' | 'dismissed', note?: string) => {
+  await updateDoc(doc(firestore, 'communityReports', reportId), {
+    status: resolution,
+    resolution: note || resolution,
+    updated_at: serverTimestamp(),
+  });
+};
+
+export const setUserModerationStatus = async (userId: string, status: 'active' | 'banned' | 'shadow-banned', reason?: string) => {
+  await updateDoc(doc(firestore, 'users', userId), {
+    status,
+    moderation_reason: reason || '',
+    updated_at: serverTimestamp(),
+  });
+
+  await writeSystemLog({
+    type: 'user-moderation',
+    message: `Set user ${userId} status to ${status}`,
+    meta: { reason: reason || '' },
+  });
+};
+
+export const getBlockedUsers = async () => {
+  const snap = await getDocs(query(collection(firestore, 'users'), where('status', 'in', ['banned', 'shadow-banned']), limit(120)));
+  return snap.docs.map((item) => {
+    const data = item.data() as any;
+    return {
+      id: item.id,
+      email: data.email || '-',
+      display_name: data.display_name || '-',
+      status: data.status || 'banned',
+      reason: data.moderation_reason || '-',
+      updated_at: data.updated_at,
+    };
+  });
 };
 
 export type AdminContentItem = {
@@ -628,8 +813,14 @@ export const getAdminUsersAndRoles = async () => {
 };
 
 export const createAdminUser = async (payload: { email: string; role: 'super-admin' | 'manager' | 'moderator' | 'support' }) => {
+  const normalizedEmail = payload.email.trim().toLowerCase();
+  if (!normalizedEmail) throw new Error('Admin email is required.');
+
+  const existing = await getDocs(query(collection(firestore, 'adminUsers'), where('email', '==', normalizedEmail), limit(1)));
+  if (!existing.empty) throw new Error('Admin user already exists.');
+
   await addDoc(collection(firestore, 'adminUsers'), {
-    email: payload.email,
+    email: normalizedEmail,
     role: payload.role,
     active: true,
     created_at: serverTimestamp(),

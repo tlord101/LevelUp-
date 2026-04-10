@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { getAdminResetHint, isAdminLoggedIn, loginAdmin } from '../adminAuth';
+import { isAdminLoggedIn, loginAdmin, requestAdminPasswordReset } from '../adminAuth';
 
 export const AdminLoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -12,11 +12,12 @@ export const AdminLoginPage: React.FC = () => {
     return <Navigate to="/admin/dashboard" replace />;
   }
 
-  const submit = (event: React.FormEvent) => {
+  const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    const ok = loginAdmin(email, password);
-    if (!ok) {
-      setError('Invalid admin credentials');
+    setError('');
+    const result = await loginAdmin(email, password);
+    if (!result.ok) {
+      setError(result.error || 'Invalid admin credentials');
       return;
     }
     navigate('/admin/dashboard', { replace: true });
@@ -45,20 +46,35 @@ export const AdminLoginPage: React.FC = () => {
 };
 
 export const AdminForgotPasswordPage: React.FC = () => {
-  const hint = getAdminResetHint();
+  const [email, setEmail] = useState('');
+  const [status, setStatus] = useState('');
+
+  const onSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setStatus('');
+    try {
+      await requestAdminPasswordReset(email);
+      setStatus('Password reset email sent. Check your inbox.');
+    } catch (error: any) {
+      setStatus(error?.message || 'Failed to send reset email.');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#020a0a] text-white flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-[#031012] border border-emerald-300/15 rounded-3xl p-6 space-y-4 shadow-2xl">
+      <form onSubmit={onSubmit} className="w-full max-w-md bg-[#031012] border border-emerald-300/15 rounded-3xl p-6 space-y-4 shadow-2xl">
         <h1 className="text-2xl font-bold">Admin Forgot Password</h1>
-        <p className="text-sm text-slate-400">Use the configured admin login details below.</p>
+        <p className="text-sm text-slate-400">Enter your admin email to receive a secure password reset link.</p>
 
-        <div className="rounded-xl bg-[#041417] p-4 text-sm space-y-2 border border-emerald-300/10">
-          <p><span className="text-slate-400">Email:</span> {hint.email}</p>
-          <p><span className="text-slate-400">Password:</span> {hint.password}</p>
-        </div>
+        <label className="block text-sm">Admin Email
+          <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required className="mt-1 w-full rounded-lg border border-emerald-300/20 bg-[#041417] px-3 py-2" />
+        </label>
 
-        <Link to="/admin/login" className="block w-full text-center rounded-lg bg-emerald-500 py-2 font-semibold text-emerald-950 hover:bg-emerald-400">Back to Admin Login</Link>
-      </div>
+        {status ? <p className="text-sm text-emerald-300">{status}</p> : null}
+
+        <button type="submit" className="w-full text-center rounded-lg bg-emerald-500 py-2 font-semibold text-emerald-950 hover:bg-emerald-400">Send Reset Email</button>
+        <Link to="/admin/login" className="block w-full text-center rounded-lg border border-emerald-300/20 py-2 font-semibold text-emerald-300 hover:bg-emerald-500/10">Back to Admin Login</Link>
+      </form>
     </div>
   );
 };

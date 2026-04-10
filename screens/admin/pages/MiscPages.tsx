@@ -1,5 +1,26 @@
 import React, { useEffect, useState } from 'react';
-import { createAdminNotification, createAdminUser, getAdminNotifications, getAdminSettings, getAdminUsersAndRoles, getContentItems, getSystemLogs, saveAdminSettings, sendAdminTestEmail, upsertContentItem, writeSystemLog, AdminNotificationRecord } from '../../../services/adminService';
+import {
+  createAdminNotification,
+  createAdminRefundRequest,
+  createAdminUser,
+  getAdminNotifications,
+  getAdminPaymentPlans,
+  getAdminPaymentTransactions,
+  getAdminRefundRequests,
+  getAdminSettings,
+  getAdminStripeStatus,
+  getAdminUsersAndRoles,
+  getContentItems,
+  getSubscriptionsOverview,
+  getSystemLogs,
+  saveAdminPaymentPlans,
+  saveAdminSettings,
+  sendAdminTestEmail,
+  upsertContentItem,
+  writeSystemLog,
+  AdminNotificationRecord,
+  AdminPaymentPlan,
+} from '../../../services/adminService';
 import { PageScaffold, Table, Toast, shellClass, useAdminTheme } from '../components/AdminWidgets';
 
 export const AdminGamificationXpPage: React.FC = () => {
@@ -28,36 +49,227 @@ export const AdminGamificationXpPage: React.FC = () => {
 
 export const AdminGamificationLevelsPage: React.FC = () => {
   const theme = useAdminTheme();
-  return <PageScaffold title="Levels" description="Rank thresholds" theme={theme}><Table theme={theme} headers={['Range', 'Title']} rows={[['1-10', 'Rookie'], ['11-25', 'Athlete'], ['26-40', 'Elite']]} /></PageScaffold>;
+  const [rows, setRows] = useState<Array<{ range: string; title: string }>>([]);
+  const [range, setRange] = useState('');
+  const [title, setTitle] = useState('');
+
+  useEffect(() => {
+    getAdminSettings('gamification').then((config: any) => {
+      setRows(Array.isArray(config?.levels) ? config.levels : []);
+    });
+  }, []);
+
+  const save = async () => {
+    await saveAdminSettings('gamification', { levels: rows });
+  };
+
+  return (
+    <PageScaffold title="Levels" description="Rank thresholds" theme={theme}>
+      <div className={`${shellClass[theme].card} rounded-3xl p-5`}>
+        <div className="grid gap-2 md:grid-cols-[140px_1fr_auto]">
+          <input value={range} onChange={(e) => setRange(e.target.value)} placeholder="1-10" className={`${shellClass[theme].input} rounded-lg px-3 py-2`} />
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Rookie" className={`${shellClass[theme].input} rounded-lg px-3 py-2`} />
+          <button className="rounded-lg bg-emerald-500 px-4 py-2 text-emerald-950" onClick={() => {
+            if (!range.trim() || !title.trim()) return;
+            setRows((prev) => [...prev, { range: range.trim(), title: title.trim() }]);
+            setRange('');
+            setTitle('');
+          }}>Add</button>
+        </div>
+        <button className="mt-3 rounded-lg bg-emerald-500 px-4 py-2 text-sm text-emerald-950" onClick={save}>Save Levels</button>
+      </div>
+      <Table theme={theme} headers={['Range', 'Title']} rows={rows.length ? rows.map((item) => [item.range, item.title]) : [['No level rows set', '-']]} />
+    </PageScaffold>
+  );
 };
 export const AdminGamificationStreaksPage: React.FC = () => {
   const theme = useAdminTheme();
-  return <PageScaffold title="Streaks & Rewards" description="Streak bonuses" theme={theme}><div className={`${shellClass[theme].card} rounded-3xl p-5`}>Streak logic can be attached to daily activity logs.</div></PageScaffold>;
+  const [dailyBonus, setDailyBonus] = useState(5);
+  const [weeklyBonus, setWeeklyBonus] = useState(40);
+
+  useEffect(() => {
+    getAdminSettings('gamification').then((config: any) => {
+      if (!config) return;
+      setDailyBonus(Number(config.dailyStreakBonus || 5));
+      setWeeklyBonus(Number(config.weeklyStreakBonus || 40));
+    });
+  }, []);
+
+  return (
+    <PageScaffold title="Streaks & Rewards" description="Persisted streak bonus settings" theme={theme}>
+      <div className={`${shellClass[theme].card} rounded-3xl p-5 space-y-3`}>
+        <label className="text-sm">Daily streak XP bonus<input value={dailyBonus} onChange={(e) => setDailyBonus(Number(e.target.value))} className={`${shellClass[theme].input} mt-1 w-full rounded-lg px-3 py-2`} /></label>
+        <label className="text-sm">7-day streak XP bonus<input value={weeklyBonus} onChange={(e) => setWeeklyBonus(Number(e.target.value))} className={`${shellClass[theme].input} mt-1 w-full rounded-lg px-3 py-2`} /></label>
+        <button className="rounded-lg bg-emerald-500 px-4 py-2 text-sm text-emerald-950" onClick={() => saveAdminSettings('gamification', { dailyStreakBonus: dailyBonus, weeklyStreakBonus: weeklyBonus })}>Save Streak Rules</button>
+      </div>
+    </PageScaffold>
+  );
 };
 export const AdminGamificationBadgesPage: React.FC = () => {
   const theme = useAdminTheme();
-  return <PageScaffold title="Badges" description="Badge setup" theme={theme}><Table theme={theme} headers={['Badge', 'Condition']} rows={[['Nutrition Ninja', '50 food scans'], ['Glow Master', '20 face scans']]} /></PageScaffold>;
+  const [badges, setBadges] = useState<Array<{ name: string; condition: string }>>([]);
+  const [name, setName] = useState('');
+  const [condition, setCondition] = useState('');
+
+  useEffect(() => {
+    getAdminSettings('gamification').then((config: any) => {
+      setBadges(Array.isArray(config?.badges) ? config.badges : []);
+    });
+  }, []);
+
+  return (
+    <PageScaffold title="Badges" description="Badge setup" theme={theme}>
+      <div className={`${shellClass[theme].card} rounded-3xl p-5`}>
+        <div className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Badge name" className={`${shellClass[theme].input} rounded-lg px-3 py-2`} />
+          <input value={condition} onChange={(e) => setCondition(e.target.value)} placeholder="Condition" className={`${shellClass[theme].input} rounded-lg px-3 py-2`} />
+          <button className="rounded-lg bg-emerald-500 px-4 py-2 text-emerald-950" onClick={() => {
+            if (!name.trim() || !condition.trim()) return;
+            setBadges((prev) => [...prev, { name: name.trim(), condition: condition.trim() }]);
+            setName('');
+            setCondition('');
+          }}>Add</button>
+        </div>
+        <button className="mt-3 rounded-lg bg-emerald-500 px-4 py-2 text-sm text-emerald-950" onClick={() => saveAdminSettings('gamification', { badges })}>Save Badges</button>
+      </div>
+      <Table theme={theme} headers={['Badge', 'Condition']} rows={badges.length ? badges.map((item) => [item.name, item.condition]) : [['No badges configured', '-']]} />
+    </PageScaffold>
+  );
 };
 
 export const AdminPaymentsPlansPage: React.FC = () => {
   const theme = useAdminTheme();
-  return <PageScaffold title="Plans" description="Stripe-ready plan cards" theme={theme}><div className="grid gap-4 md:grid-cols-3"><div className={`${shellClass[theme].card} rounded-3xl p-5`}>Basic</div><div className={`${shellClass[theme].card} rounded-3xl p-5`}>Pro</div><div className={`${shellClass[theme].card} rounded-3xl p-5`}>Elite</div></div></PageScaffold>;
+  const [plans, setPlans] = useState<AdminPaymentPlan[]>([]);
+
+  useEffect(() => {
+    getAdminPaymentPlans().then(setPlans);
+  }, []);
+
+  const updatePlan = (id: AdminPaymentPlan['id'], patch: Partial<AdminPaymentPlan>) => {
+    setPlans((prev) => prev.map((plan) => (plan.id === id ? { ...plan, ...patch } : plan)));
+  };
+
+  return (
+    <PageScaffold title="Plans" description="Persisted billing plans" theme={theme}>
+      <div className="grid gap-4 md:grid-cols-3">
+        {plans.map((plan) => (
+          <div key={plan.id} className={`${shellClass[theme].card} rounded-3xl p-5 space-y-2`}>
+            <p className="font-bold">{plan.name}</p>
+            <label className="text-xs">Monthly Price
+              <input type="number" value={plan.priceMonthly} onChange={(e) => updatePlan(plan.id, { priceMonthly: Number(e.target.value) || 0 })} className={`${shellClass[theme].input} mt-1 w-full rounded-lg px-3 py-2`} />
+            </label>
+            <label className="flex items-center justify-between text-xs">Active<input type="checkbox" checked={plan.active} onChange={(e) => updatePlan(plan.id, { active: e.target.checked })} /></label>
+          </div>
+        ))}
+      </div>
+      <button className="rounded-lg bg-emerald-500 px-4 py-2 text-emerald-950" onClick={() => saveAdminPaymentPlans(plans)}>Save Plans</button>
+    </PageScaffold>
+  );
 };
 export const AdminPaymentsTransactionsPage: React.FC = () => {
   const theme = useAdminTheme();
-  return <PageScaffold title="Transactions" description="Mock logs until Stripe connection" theme={theme}><Table theme={theme} headers={['ID', 'User', 'Amount']} rows={[['tx_01', 'Demo', '$29']]} /></PageScaffold>;
+  const [rows, setRows] = useState<any[]>([]);
+
+  useEffect(() => {
+    getAdminPaymentTransactions(100).then(setRows).catch((err) => console.error('transactions error', err));
+  }, []);
+
+  return (
+    <PageScaffold title="Transactions" description="Payment transactions from database" theme={theme}>
+      <Table
+        theme={theme}
+        headers={['ID', 'User', 'Amount', 'Status', 'Provider', 'Date']}
+        rows={rows.length
+          ? rows.map((item) => [item.id, item.userEmail || item.userId || '-', `$${Number(item.amount || 0).toFixed(2)} ${item.currency || 'USD'}`, item.status || '-', item.provider || '-', item.created_at?.seconds ? new Date(item.created_at.seconds * 1000).toLocaleString() : '-'])
+          : [['No transactions found', '-', '-', '-', '-', '-']]}
+      />
+    </PageScaffold>
+  );
 };
 export const AdminPaymentsSubscriptionsPage: React.FC = () => {
   const theme = useAdminTheme();
-  return <PageScaffold title="Subscriptions" description="Plan status" theme={theme}><Table theme={theme} headers={['User', 'Plan', 'Status']} rows={[['Demo', 'Pro', 'Active']]} /></PageScaffold>;
+  const [overview, setOverview] = useState<any>(null);
+
+  useEffect(() => {
+    getSubscriptionsOverview().then(setOverview).catch((err) => console.error('subscription error', err));
+  }, []);
+
+  return (
+    <PageScaffold title="Subscriptions" description="User subscription overview" theme={theme}>
+      <Table
+        theme={theme}
+        headers={['User', 'Email', 'Plan', 'Status', 'Expiry']}
+        rows={(overview?.rows || []).length
+          ? overview.rows.map((item: any) => [item.name, item.email, String(item.plan || 'basic').toUpperCase(), item.status || '-', item.expiresAt || '-'])
+          : [['No subscriptions found', '-', '-', '-', '-']]}
+      />
+    </PageScaffold>
+  );
 };
 export const AdminPaymentsRefundsPage: React.FC = () => {
   const theme = useAdminTheme();
-  return <PageScaffold title="Refunds" description="Disabled until Stripe approval" theme={theme}><button disabled className="cursor-not-allowed rounded-lg bg-slate-500/30 px-4 py-2 text-sm text-slate-400">Refunds disabled</button></PageScaffold>;
+  const [refunds, setRefunds] = useState<any[]>([]);
+  const [transactionId, setTransactionId] = useState('');
+  const [userId, setUserId] = useState('');
+  const [amount, setAmount] = useState(0);
+  const [reason, setReason] = useState('');
+
+  const load = () => getAdminRefundRequests().then(setRefunds).catch((err) => console.error('refunds error', err));
+  useEffect(() => { load(); }, []);
+
+  return (
+    <PageScaffold title="Refunds" description="Refund request queue" theme={theme}>
+      <div className={`${shellClass[theme].card} rounded-3xl p-5`}>
+        <div className="grid gap-2 md:grid-cols-4">
+          <input value={transactionId} onChange={(e) => setTransactionId(e.target.value)} className={`${shellClass[theme].input} rounded-lg px-3 py-2`} placeholder="Transaction ID" />
+          <input value={userId} onChange={(e) => setUserId(e.target.value)} className={`${shellClass[theme].input} rounded-lg px-3 py-2`} placeholder="User ID" />
+          <input type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value) || 0)} className={`${shellClass[theme].input} rounded-lg px-3 py-2`} placeholder="Amount" />
+          <input value={reason} onChange={(e) => setReason(e.target.value)} className={`${shellClass[theme].input} rounded-lg px-3 py-2`} placeholder="Reason" />
+        </div>
+        <button
+          className="mt-3 rounded-lg bg-emerald-500 px-4 py-2 text-sm text-emerald-950"
+          onClick={async () => {
+            if (!transactionId.trim() || !userId.trim() || amount <= 0 || !reason.trim()) return;
+            await createAdminRefundRequest({ transactionId: transactionId.trim(), userId: userId.trim(), amount, reason: reason.trim(), createdBy: 'admin-ui' });
+            setTransactionId('');
+            setUserId('');
+            setAmount(0);
+            setReason('');
+            await load();
+          }}
+        >
+          Create Refund Request
+        </button>
+      </div>
+      <Table
+        theme={theme}
+        headers={['Transaction', 'User', 'Amount', 'Reason', 'Status', 'Date']}
+        rows={refunds.length
+          ? refunds.map((item) => [item.transactionId, item.userId, `$${Number(item.amount || 0).toFixed(2)}`, item.reason || '-', item.status || '-', item.created_at?.seconds ? new Date(item.created_at.seconds * 1000).toLocaleString() : '-'])
+          : [['No refund requests', '-', '-', '-', '-', '-']]}
+      />
+    </PageScaffold>
+  );
 };
 export const AdminPaymentsStripePage: React.FC = () => {
   const theme = useAdminTheme();
-  return <PageScaffold title="Stripe Status" description="Integration status" theme={theme}><div className={`${shellClass[theme].card} rounded-3xl p-5`}>Not Connected</div></PageScaffold>;
+  const [status, setStatus] = useState<any>({ connected: false, accountId: '-', mode: 'test', webhookHealthy: false, lastSyncAt: null });
+
+  useEffect(() => {
+    getAdminStripeStatus().then(setStatus).catch((err) => console.error('stripe status error', err));
+  }, []);
+
+  return (
+    <PageScaffold title="Stripe Status" description="Integration status" theme={theme}>
+      <div className={`${shellClass[theme].card} rounded-3xl p-5 space-y-2`}>
+        <p><span className={`text-sm ${shellClass[theme].subtle}`}>Connected:</span> {status.connected ? 'Yes' : 'No'}</p>
+        <p><span className={`text-sm ${shellClass[theme].subtle}`}>Account:</span> {status.accountId || '-'}</p>
+        <p><span className={`text-sm ${shellClass[theme].subtle}`}>Mode:</span> {status.mode || 'test'}</p>
+        <p><span className={`text-sm ${shellClass[theme].subtle}`}>Webhook healthy:</span> {status.webhookHealthy ? 'Yes' : 'No'}</p>
+        <p><span className={`text-sm ${shellClass[theme].subtle}`}>Last sync:</span> {status.lastSyncAt || '-'}</p>
+      </div>
+    </PageScaffold>
+  );
 };
 
 const ContentPage: React.FC<{ type: 'workout' | 'diet' | 'skincare' | 'prompt'; title: string }> = ({ type, title }) => {

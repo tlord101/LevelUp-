@@ -95,6 +95,10 @@ const BodyScanResults: React.FC<BodyScanResultsProps> = ({ scan, onClose }) => {
         core: 65,
         lowerBody: 75
     };
+    const confidence = Math.round(scan.results.confidence || 76);
+    const focusAreas = scan.results.focusAreas || [];
+    const riskFlags = scan.results.riskFlags || [];
+    const scanContext = scan.results;
 
     // Determine workout plan based on body fat %
     const getWorkoutPlan = () => {
@@ -169,9 +173,51 @@ const BodyScanResults: React.FC<BodyScanResultsProps> = ({ scan, onClose }) => {
                 <div className="overflow-y-auto h-full pb-32 px-4">
                     {/* Top Section - Header */}
                     <div className="text-center py-6">
-                        <h2 className="text-2xl font-bold text-gray-900 mb-2">Analysis Complete</h2>
+                        <h2 className="text-2xl font-bold text-gray-900 mb-2">{scan.results.summaryTitle || 'Analysis Complete'}</h2>
                         <p className="text-sm text-gray-500">Your body composition results</p>
                     </div>
+
+                    <div className="bg-gradient-to-r from-slate-900 to-slate-700 rounded-2xl p-4 text-white mb-6">
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <p className="text-xs uppercase tracking-wider text-slate-300">Scan Intelligence</p>
+                                <p className="text-sm font-semibold mt-1">{scan.results.comparisonSummary || 'No prior comparison available for this scan.'}</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-xs text-slate-300">Confidence</p>
+                                <p className="text-2xl font-extrabold">{confidence}%</p>
+                            </div>
+                        </div>
+                        {scan.results.uniqueInsights && (
+                            <p className="text-xs text-slate-200 mt-3 border-t border-white/20 pt-3">{scan.results.uniqueInsights}</p>
+                        )}
+                    </div>
+
+                    {(focusAreas.length > 0 || riskFlags.length > 0) && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+                            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Focus Areas</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {focusAreas.length > 0 ? focusAreas.map((area, index) => (
+                                        <span key={index} className="px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-medium border border-indigo-100">
+                                            {area}
+                                        </span>
+                                    )) : <span className="text-sm text-gray-500">No specific focus areas yet.</span>}
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Risk Flags</p>
+                                <div className="space-y-2">
+                                    {riskFlags.length > 0 ? riskFlags.map((flag, index) => (
+                                        <div key={index} className="text-xs bg-amber-50 text-amber-700 border border-amber-100 rounded-lg px-2.5 py-1.5">
+                                            {flag}
+                                        </div>
+                                    )) : <span className="text-sm text-gray-500">No notable risk flags.</span>}
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Score Cards */}
                     <div className="grid grid-cols-2 gap-4 mb-6">
@@ -454,7 +500,12 @@ const BodyScanResults: React.FC<BodyScanResultsProps> = ({ scan, onClose }) => {
                         <button 
                             onClick={() => {
                                 hapticTap();
-                                navigate('/workout-plan/recommended');
+                                navigate('/workout-plan-details', {
+                                    state: {
+                                        workoutPlan: workoutPlan.title,
+                                        scanContext,
+                                    },
+                                });
                             }}
                             className="w-full bg-white text-purple-600 font-semibold py-3 rounded-xl hover:bg-purple-50 transition-colors"
                         >
@@ -675,7 +726,12 @@ const BodyScanResults: React.FC<BodyScanResultsProps> = ({ scan, onClose }) => {
                                 <button
                                     onClick={() => {
                                         hapticTap();
-                                        navigate('/workout-plan-details', { state: { workoutPlan: workoutPlan.title } });
+                                        navigate('/workout-plan-details', {
+                                            state: {
+                                                workoutPlan: workoutPlan.title,
+                                                scanContext,
+                                            },
+                                        });
                                     }}
                                     className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition"
                                 >

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { dailyMissions, Mission } from '../services/missions';
-import { Settings, Trophy, Dumbbell, Sparkles, ChevronRight, UtensilsCrossed, Zap, Brain, Bell, Check, X, Clock, Calendar, Target } from 'lucide-react';
+import { Settings, Trophy, Dumbbell, Sparkles, ChevronRight, UtensilsCrossed, Zap, Brain, Bell, Check, X, Clock, Calendar, Target, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { hapticTap, hapticSuccess } from '../utils/haptics';
 import { getTodaysNutritionLogs } from '../services/firebaseService';
@@ -349,6 +349,44 @@ const DashboardScreen: React.FC = () => {
             </div>
 
             <LiveStatsGraph stats={userProfile.stats} />
+
+            {userProfile.personalized_workout_plan && (
+                <section className="bg-gradient-to-r from-indigo-600 to-cyan-600 rounded-2xl p-5 text-white shadow-lg">
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <p className="text-xs uppercase tracking-wider text-indigo-100">Saved Personalized Plan</p>
+                            <h3 className="text-lg font-bold mt-1">{userProfile.personalized_workout_plan.title}</h3>
+                            <p className="text-sm text-indigo-100 mt-1 line-clamp-2">{userProfile.personalized_workout_plan.weeklyFocus}</p>
+                        </div>
+                        <Dumbbell className="w-6 h-6 text-cyan-100" />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 mt-4">
+                        <button
+                            onClick={() => {
+                                hapticTap();
+                                navigate('/workout-plan-details', { state: { workoutPlan: userProfile.personalized_workout_plan?.source_plan } });
+                            }}
+                            className="bg-white text-indigo-700 font-bold py-2.5 rounded-xl hover:bg-indigo-50 transition"
+                        >
+                            Resume Plan
+                        </button>
+                        <button
+                            onClick={() => {
+                                hapticTap();
+                                navigate('/ai-coach', {
+                                    state: {
+                                        initialMessage: `Help me follow my saved workout plan: ${userProfile.personalized_workout_plan?.title}. Objective: ${userProfile.personalized_workout_plan?.objective}. Weekly focus: ${userProfile.personalized_workout_plan?.weeklyFocus}. Give me today’s exact workout and progression cues.`
+                                    }
+                                });
+                            }}
+                            className="bg-white/20 text-white font-bold py-2.5 rounded-xl hover:bg-white/30 transition flex items-center justify-center gap-2"
+                        >
+                            <MessageSquare size={16} /> Ask AI
+                        </button>
+                    </div>
+                </section>
+            )}
 
             <div>
                 <h2 className="text-xl font-bold text-gray-800 mb-3">Daily Missions</h2>

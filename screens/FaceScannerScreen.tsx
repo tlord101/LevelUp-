@@ -5,13 +5,38 @@ import { useAuth } from '../context/AuthContext';
 import { uploadImage, saveFaceScan, getFaceScans } from '../services/firebaseService';
 import { FaceScanResult, FaceScan } from '../types';
 import { useNavigate } from 'react-router-dom';
-import { GoogleGenAI, Type } from '@google/genai';
+import { Type } from '@google/genai';
 import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
 import { blobToBase64 } from '../utils/imageUtils';
 import { formatRelativeTime } from '../utils/formatDate';
 import { isScannerEnabled } from '../services/adminService';
+import { createGeminiClient, GEMINI_TEXT_MODEL } from '../utils/gemini';
 
 type CaptureStage = 'front' | 'left' | 'right' | 'complete';
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const getFaceAnalysisStyle = () => {
+    const styles = [
+        {
+            label: 'barrier_and_balance',
+            focus: 'hydration barrier, irritation signals, and tone balance',
+            tone: 'derma-coach',
+        },
+        {
+            label: 'clarity_and_texture',
+            focus: 'texture detail, congestion zones, and clarity distribution',
+            tone: 'diagnostic and practical',
+        },
+        {
+            label: 'age_and_radiance',
+            focus: 'radiance consistency, fine-line visibility, and resilience clues',
+            tone: 'preventive and longevity-focused',
+        },
+    ];
+
+    return styles[Math.floor(Math.random() * styles.length)];
+};
 
 const FaceScannerScreen: React.FC = () => {
     const [isScanning, setIsScanning] = useState(false);
@@ -297,14 +322,36 @@ const FaceScannerScreen: React.FC = () => {
 
         try {
             const compositeBlob = await createCompositeImage(images);
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+            const ai = createGeminiClient();
             const base64Image = await blobToBase64(compositeBlob);
             const imagePart = { inlineData: { mimeType: 'image/jpeg', data: base64Image } };
 
-            const prompt = "Analyze the person in this image, which contains three views of their face (left profile, front view, and right profile), to provide a comprehensive skin health assessment. Provide a rating of their skin from 1 to 10. Also provide a concise analysis of their skin's hydration, clarity, and radiance. Finally, provide 3 specific, actionable skincare product recommendations. For each recommendation, include the product type (e.g., cleanser, serum, moisturizer), a well-known example brand/product name (e.g., 'CeraVe Hydrating Cleanser', 'The Ordinary Niacinamide 10% + Zinc 1%'), and a brief reason for the recommendation. If the image does not contain a face suitable for analysis, indicate that.";
+            const style = getFaceAnalysisStyle();
+            const promptSeed = Date.now().toString().slice(-6);
+
+            // Get scan history for context
+            const previous = scans[0]?.results;
+            const previousRecs = previous?.recommendations?.slice(0, 3).map((r) => r.productName).join(' | ') || 'None';
+            const historyPointer = previous
+                ? `Previous scan: rating=${previous.skinRating}/10, hydration=${previous.skinAnalysis.hydration}, clarity=${previous.skinAnalysis.clarity}, radiance=${previous.skinAnalysis.radiance}.`
+                : 'No previous scan available; establish a baseline report.';
+
+            const prompt = `You are an advanced skin analysis engine. Seed=${promptSeed}. Style=${style.label}. Tone=${style.tone}.
+
+${historyPointer}
+
+ANALYSIS REQUIREMENTS:
+1) Primary emphasis this scan: ${style.focus}.
+2) Use the three views to identify asymmetry between left and right sides where possible.
+3) If previous scan exists, include a comparisonSummary with change direction (improved/stable/regressed).
+4) Recommendations must avoid repeating previous products when reasonable. Avoid repeating these product names: ${previousRecs}.
+5) Include visibleConcerns and a short dailyPlan list with concrete steps.
+6) Keep descriptions concise and image-specific. No generic skincare boilerplate.
+
+Rate skin from 1-10 using only visible evidence in these images.`;
 
             const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
+                model: GEMINI_TEXT_MODEL,
                 contents: { parts: [ imagePart, { text: prompt } ] },
                 config: {
                     responseMimeType: "application/json",
@@ -313,15 +360,31 @@ const FaceScannerScreen: React.FC = () => {
                         properties: {
                             isFace: { type: Type.BOOLEAN, description: 'Is a face clearly visible for analysis?' },
                             skinRating: { type: Type.NUMBER, description: 'A rating of the user\'s overall skin health on a scale of 1 to 10.' },
+                            summaryTitle: { type: Type.STRING, description: 'Short summary title for this scan' },
+                            skinCondition: { type: Type.STRING, description: 'Overall skin condition description' },
                             skinAnalysis: {
                                 type: Type.OBJECT,
                                 properties: {
-                                    hydration: { type: Type.STRING, description: 'Rate the skin hydration as "Good", "Fair", or "Poor".' },
-                                    clarity: { type: Type.STRING, description: 'Rate the skin clarity as "Clear", "Minor Blemishes", or "Congested".' },
-                                    radiance: { type: Type.STRING, description: 'Rate the skin radiance as "Radiant" or "Dull".' }
+                                    hydration: { type: Type.STRING, description: 'Detailed hydration assessment' },
+                                    clarity: { type: Type.STRING, description: 'Detailed clarity assessment' },
+                                    radiance: { type: Type.STRING, description: 'Detailed radiance assessment' },
+                                    texture: { type: Type.STRING, description: 'Skin texture observation' },
+                                    tone: { type: Type.STRING, description: 'Skin tone evenness observation' }
                                 },
                                 required: ['hydration', 'clarity', 'radiance']
                             },
+                            visibleConcerns: {
+                                type: Type.ARRAY,
+                                items: { type: Type.STRING },
+                                description: 'Specific visible skin concerns identified in THIS scan'
+                            },
+                            dailyPlan: {
+                                type: Type.ARRAY,
+                                items: { type: Type.STRING },
+                                description: 'Concise daily routine steps based on this scan'
+                            },
+                            comparisonSummary: { type: Type.STRING, description: 'How this scan compares to prior scan(s)' },
+                            confidence: { type: Type.NUMBER, description: 'Model confidence score from 0-100' },
                             recommendations: {
                                 type: Type.ARRAY,
                                 items: {
@@ -329,7 +392,8 @@ const FaceScannerScreen: React.FC = () => {
                                     properties: {
                                         productType: { type: Type.STRING },
                                         productName: { type: Type.STRING },
-                                        reason: { type: Type.STRING }
+                                        reason: { type: Type.STRING },
+                                        priority: { type: Type.STRING, enum: ['Essential', 'Important', 'Optional'] }
                                     },
                                     required: ['productType', 'productName', 'reason']
                                 }
@@ -348,9 +412,23 @@ const FaceScannerScreen: React.FC = () => {
             }
 
             const parsedResult: FaceScanResult = {
-                skinRating: analysisData.skinRating,
-                skinAnalysis: analysisData.skinAnalysis,
-                recommendations: analysisData.recommendations,
+                skinRating: clamp(Number(analysisData.skinRating ?? 7), 1, 10),
+                skinAnalysis: {
+                    hydration: analysisData.skinAnalysis?.hydration || 'Moderate hydration',
+                    clarity: analysisData.skinAnalysis?.clarity || 'Balanced clarity',
+                    radiance: analysisData.skinAnalysis?.radiance || 'Natural glow',
+                    texture: analysisData.skinAnalysis?.texture,
+                    tone: analysisData.skinAnalysis?.tone,
+                },
+                recommendations: Array.isArray(analysisData.recommendations)
+                    ? analysisData.recommendations.slice(0, 5)
+                    : [],
+                skinCondition: analysisData.skinCondition || 'Generally healthy with targeted improvement areas.',
+                visibleConcerns: Array.isArray(analysisData.visibleConcerns) ? analysisData.visibleConcerns.slice(0, 5) : [],
+                dailyPlan: Array.isArray(analysisData.dailyPlan) ? analysisData.dailyPlan.slice(0, 5) : [],
+                comparisonSummary: analysisData.comparisonSummary || (previous ? 'Overall profile is stable compared to your previous scan.' : 'This is your baseline scan for future comparison.'),
+                confidence: clamp(Number(analysisData.confidence ?? 80), 40, 100),
+                summaryTitle: analysisData.summaryTitle || 'Skin Health Snapshot',
             };
 
             const imageUrl = await uploadImage(compositeBlob, user.uid, 'scans');
@@ -610,6 +688,25 @@ const FaceScannerScreen: React.FC = () => {
                                 </div>
                             </div>
                         </div>
+
+                        <div className="bg-white/80 rounded-xl p-3 border border-purple-100 mb-3">
+                            <p className="text-xs uppercase tracking-wide text-purple-500 font-semibold mb-1">Summary</p>
+                            <p className="text-sm font-semibold text-gray-800">{scans[0].results.summaryTitle || 'Skin Health Snapshot'}</p>
+                            <p className="text-xs text-gray-600 mt-1">{scans[0].results.comparisonSummary || 'No previous comparison available yet.'}</p>
+                        </div>
+
+                        {scans[0].results.visibleConcerns && scans[0].results.visibleConcerns.length > 0 && (
+                            <div className="mb-1">
+                                <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-2">Top Concerns</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {scans[0].results.visibleConcerns.slice(0, 3).map((concern, idx) => (
+                                        <span key={idx} className="px-2.5 py-1 bg-white text-xs text-gray-700 rounded-full border border-gray-200">
+                                            {concern}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -641,6 +738,44 @@ const FaceScannerScreen: React.FC = () => {
                             </div>
                             <p className="text-xs text-gray-500 mb-1">Radiance</p>
                             <p className="font-bold text-sm text-gray-900">{scans[0].results.skinAnalysis.radiance}</p>
+                        </div>
+                    </div>
+                )}
+
+                {scans.length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                            <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide mb-2">AI Confidence</p>
+                            <div className="flex items-end justify-between gap-3">
+                                <p className="text-3xl font-bold text-gray-900">{Math.round(scans[0].results.confidence || 75)}%</p>
+                                <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-gradient-to-r from-emerald-400 to-teal-500"
+                                        style={{ width: `${Math.round(scans[0].results.confidence || 75)}%` }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                            <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide mb-2">Condition</p>
+                            <p className="text-sm font-medium text-gray-800 line-clamp-3">{scans[0].results.skinCondition || 'No condition summary yet.'}</p>
+                        </div>
+                    </div>
+                )}
+
+                {scans.length > 0 && scans[0].results.dailyPlan && scans[0].results.dailyPlan.length > 0 && (
+                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                        <h3 className="text-base font-bold text-gray-900 mb-3">Daily Routine Plan</h3>
+                        <div className="space-y-2">
+                            {scans[0].results.dailyPlan.slice(0, 3).map((step, idx) => (
+                                <div key={idx} className="flex items-start gap-2.5 bg-gray-50 rounded-lg p-2.5">
+                                    <span className="w-5 h-5 rounded-full bg-purple-100 text-purple-700 text-xs font-bold flex items-center justify-center mt-0.5">
+                                        {idx + 1}
+                                    </span>
+                                    <p className="text-sm text-gray-700">{step}</p>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 )}

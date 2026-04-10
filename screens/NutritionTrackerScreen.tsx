@@ -6,10 +6,11 @@ import { NutritionLog, MealPlanItem, NutritionScan, NutritionScanResult } from '
 import { ArrowLeft, Plus, Settings, X, Loader2, Utensils, Flame, Droplets, Zap, ChefHat, Sparkles, Calendar, CheckCircle, Clock, Camera, Upload, Image as ImageIcon } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
-import { GoogleGenAI, Type } from '@google/genai';
+import { Type } from '@google/genai';
 import { useImageScanner } from '../hooks/useImageScanner';
 import CameraView from '../components/CameraView';
 import { blobToBase64 } from '../utils/imageUtils';
+import { createGeminiClient, GEMINI_TEXT_MODEL, GEMINI_IMAGE_MODEL } from '../utils/gemini';
 
 const CalorieProgressCircle: React.FC<{ calories: number; goal: number; score: number }> = ({ calories, goal, score }) => {
     const clampedCalories = Math.min(calories, goal);
@@ -107,6 +108,7 @@ const NutritionTrackerScreen: React.FC = () => {
     const [mealPlan, setMealPlan] = useState<MealPlanItem[]>([]);
     const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
     const [isAcceptingPlan, setIsAcceptingPlan] = useState(false);
+    const [specificFoodRequest, setSpecificFoodRequest] = useState('');
     
     // Scheduling State
     const [selectedMealForSchedule, setSelectedMealForSchedule] = useState<MealPlanItem | null>(null);
@@ -231,12 +233,12 @@ const NutritionTrackerScreen: React.FC = () => {
         hapticTap();
 
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+            const ai = createGeminiClient();
             const base64Image = await blobToBase64(blob);
             const imagePart = { inlineData: { mimeType: 'image/jpeg', data: base64Image } };
 
             const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
+                model: GEMINI_TEXT_MODEL,
                 contents: { parts: [imagePart, { text: 'Analyze the food item in this image and provide its nutritional information. Output JSON. Keys: isFood (bool), foodName (string), calories (number), macros (obj: protein, carbs, fat). If not food, isFood=false.' }] },
                 config: {
                     responseMimeType: "application/json",
@@ -260,6 +262,10 @@ const NutritionTrackerScreen: React.FC = () => {
                     }
                 }
             });
+
+            if (!response.text) {
+                throw new Error('Nutrition analysis response was empty.');
+            }
 
             const analysisData: NutritionScanResult = JSON.parse(response.text.trim());
             
@@ -314,7 +320,6 @@ const NutritionTrackerScreen: React.FC = () => {
 
     // --- MEAL PLAN GENERATION ---
     const generateMealPlan = async () => {
-        if (!process.env.API_KEY) return;
         setIsGeneratingPlan(true);
         hapticTap();
         setMealPlan([]); 
@@ -323,17 +328,25 @@ const NutritionTrackerScreen: React.FC = () => {
         const remainingProtein = Math.max(0, proteinGoal - dailyTotals.protein);
 
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+            const ai = createGeminiClient();
+            const foodDirective = specificFoodRequest.trim()
+                ? `User requested a specific food: "${specificFoodRequest.trim()}". You MUST include this exact food (or the closest practical variant) in at least one meal name and description.`
+                : 'No specific food requested.';
+
             const prompt = `
                 The user has eaten ${dailyTotals.calories.toFixed(0)}kcal (${dailyTotals.protein.toFixed(0)}g protein) today.
                 Their goal is ${newGoal}kcal (${proteinGoal}g protein).
                 Remaining needed: ${remainingCals.toFixed(0)}kcal, ${remainingProtein.toFixed(0)}g protein.
                 Dietary preferences: ${userProfile?.allergies?.join(', ') || 'None'}.
-                Generate a meal plan (1-3 items) to meet targets. JSON format.
+                ${foodDirective}
+                Generate a meal plan (1-3 items) to meet targets.
+                Keep foodName practical and specific.
+                If the request conflicts with allergies, propose a safe close alternative and explain in reason.
+                JSON format only.
             `;
 
             const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
+                model: GEMINI_TEXT_MODEL,
                 contents: prompt,
                 config: {
                     responseMimeType: "application/json",
@@ -369,6 +382,10 @@ const NutritionTrackerScreen: React.FC = () => {
                 }
             });
 
+            if (!response.text) {
+                throw new Error('Meal plan response was empty.');
+            }
+
             const data = JSON.parse(response.text.trim());
             const mealsWithLoadingState = data.meals.map((m: any) => ({ ...m, isLoadingImage: true }));
             setMealPlan(mealsWithLoadingState);
@@ -377,11 +394,15 @@ const NutritionTrackerScreen: React.FC = () => {
             mealsWithLoadingState.forEach(async (meal: MealPlanItem, index: number) => {
                 try {
                     const imageResponse = await ai.models.generateImages({
-                        model: 'imagen-4.0-generate-001',
+                        model: GEMINI_IMAGE_MODEL,
                         prompt: `A high quality, appetizing food photography shot of ${meal.name}. ${meal.description}.`,
                         config: { numberOfImages: 1, aspectRatio: '1:1', outputMimeType: 'image/jpeg' }
                     });
-                    const base64ImageBytes = imageResponse.generatedImages[0].image.imageBytes;
+                    const firstImage = imageResponse.generatedImages?.[0]?.image?.imageBytes;
+                    if (!firstImage) {
+                        throw new Error('Meal image response did not contain an image.');
+                    }
+                    const base64ImageBytes = firstImage;
                     const imageUrl = `data:image/jpeg;base64,${base64ImageBytes}`;
                     setMealPlan(prev => prev.map((m, i) => i === index ? { ...m, imageUrl, isLoadingImage: false } : m));
                 } catch (imgErr) {
@@ -436,6 +457,17 @@ const NutritionTrackerScreen: React.FC = () => {
     const handleOpenSchedule = () => {
         hapticTap();
         navigate('/meal-schedule');
+    };
+
+    const handleRemoveMealFromPlan = (indexToRemove: number) => {
+        hapticTap();
+        setMealPlan((prev) => prev.filter((_, index) => index !== indexToRemove));
+    };
+
+    const handleCancelMealPlan = () => {
+        hapticTap();
+        setMealPlan([]);
+        setSpecificFoodRequest('');
     };
 
     const handleOpenScheduleModal = (meal: MealPlanItem) => {
@@ -614,6 +646,29 @@ const NutritionTrackerScreen: React.FC = () => {
                     <div className="flex items-center justify-between mb-3 px-1">
                         <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2"><ChefHat size={20} className="text-orange-500" /> AI Meal Planner</h3>
                     </div>
+
+                    <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-3">
+                        <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Specific Food Request</label>
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                value={specificFoodRequest}
+                                onChange={(e) => setSpecificFoodRequest(e.target.value)}
+                                placeholder="Example: chicken shawarma bowl"
+                                className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            />
+                            {specificFoodRequest.trim() && (
+                                <button
+                                    onClick={() => setSpecificFoodRequest('')}
+                                    className="px-3 py-2.5 text-sm font-semibold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition flex items-center gap-1"
+                                >
+                                    <X size={14} />
+                                    Remove
+                                </button>
+                            )}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-2">Add one specific food and AI will include it (or a safe alternative if needed).</p>
+                    </div>
                     
                     {mealPlan.length === 0 ? (
                         <div className="bg-gradient-to-br from-purple-600 to-indigo-700 rounded-3xl p-6 text-white text-center shadow-lg">
@@ -651,6 +706,13 @@ const NutritionTrackerScreen: React.FC = () => {
                                         <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md text-white px-3 py-1 rounded-full text-xs font-bold">
                                             {meal.mealType}
                                         </div>
+                                        <button
+                                            onClick={() => handleRemoveMealFromPlan(idx)}
+                                            className="absolute top-3 left-3 bg-white/85 text-gray-700 p-1.5 rounded-full hover:bg-white transition"
+                                            title="Remove meal"
+                                        >
+                                            <X size={14} />
+                                        </button>
                                         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 pt-10">
                                             <h4 className="text-white font-bold text-lg leading-tight">{meal.name}</h4>
                                             <p className="text-white/80 text-xs mt-1">{meal.calories} kcal • {meal.macros.protein}g Protein</p>
@@ -683,11 +745,18 @@ const NutritionTrackerScreen: React.FC = () => {
                             
                             <button
                                 onClick={handleAcceptPlan}
-                                disabled={isAcceptingPlan}
+                                disabled={isAcceptingPlan || mealPlan.length === 0}
                                 className="w-full bg-purple-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-purple-700 transition flex items-center justify-center gap-2 disabled:opacity-70"
                             >
                                 {isAcceptingPlan ? <Loader2 className="animate-spin" /> : <CheckCircle size={20} />}
                                 {isAcceptingPlan ? 'Saving...' : 'Add All to Schedule'}
+                            </button>
+
+                            <button
+                                onClick={handleCancelMealPlan}
+                                className="w-full bg-white text-gray-700 font-semibold py-3 rounded-xl border border-gray-200 hover:bg-gray-50 transition"
+                            >
+                                Cancel Plan
                             </button>
                         </div>
                     )}

@@ -1,8 +1,11 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Dumbbell, Clock, Flame, TrendingUp, ChevronRight, Calendar, Apple, Activity, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Dumbbell, Clock, Flame, TrendingUp, ChevronRight, Calendar, Apple, Activity, CheckCircle, Sparkles, Loader2, MessageSquare } from 'lucide-react';
 import { hapticTap, hapticSuccess } from '../utils/haptics';
 import { useAuth } from '../context/AuthContext';
+import { Type } from '@google/genai';
+import { getLatestScan } from '../services/firebaseService';
+import { createGeminiClient, GEMINI_TEXT_MODEL } from '../utils/gemini';
 
 interface WorkoutPlan {
     id: string;
@@ -33,13 +36,28 @@ interface NutritionPlan {
     compatible: string[];
 }
 
+interface PersonalizedPlan {
+    title: string;
+    objective: string;
+    weeklyFocus: string;
+    intensityNote: string;
+    schedule: {
+        day: string;
+        focus: string;
+        exercises: string[];
+    }[];
+}
+
 const WorkoutPlanDetailScreen: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { user, userProfile, updateUserProfileData } = useAuth();
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const routeState = (location.state || {}) as { workoutPlan?: string; scanContext?: unknown };
     
-    const workoutPlan = location.state?.workoutPlan || 'Metabolic Accelerator (Recomp)';
+    const workoutPlan = routeState.workoutPlan || 'Metabolic Accelerator (Recomp)';
+    const scanContext = routeState.scanContext;
+    const routeScanSummary = scanContext ? JSON.stringify(scanContext, null, 2) : '';
     
     // Comprehensive workout plans
     const allWorkoutPlans: WorkoutPlan[] = [
@@ -242,6 +260,21 @@ const WorkoutPlanDetailScreen: React.FC = () => {
     const [selectedNutritionPlan, setSelectedNutritionPlan] = useState<NutritionPlan | null>(
         compatibleNutritionPlans[0] || null
     );
+    const [personalizedPlan, setPersonalizedPlan] = useState<PersonalizedPlan | null>(null);
+    const [isGeneratingPersonalizedPlan, setIsGeneratingPersonalizedPlan] = useState(false);
+
+    useEffect(() => {
+        const saved = userProfile?.personalized_workout_plan;
+        if (!saved) return;
+
+        setPersonalizedPlan({
+            title: saved.title,
+            objective: saved.objective,
+            weeklyFocus: saved.weeklyFocus,
+            intensityNote: saved.intensityNote,
+            schedule: saved.schedule || [],
+        });
+    }, [userProfile?.personalized_workout_plan]);
 
     const handleApplyNutritionPlan = async () => {
         if (!selectedNutritionPlan || !user) return;
@@ -274,6 +307,115 @@ const WorkoutPlanDetailScreen: React.FC = () => {
             });
         } catch (error) {
             console.error('Failed to apply nutrition plan:', error);
+        }
+    };
+
+    const handleGeneratePersonalizedPlan = async () => {
+        if (!user) return;
+
+        setIsGeneratingPersonalizedPlan(true);
+        hapticTap();
+
+        try {
+            const latestBodyScan = await getLatestScan(user.uid, 'body');
+            const ai = createGeminiClient();
+            const scanSummary = routeScanSummary || JSON.stringify(latestBodyScan || {}, null, 2);
+
+            const prompt = `
+Create a workout plan that is specific to this user and clearly different from generic templates.
+
+User profile:
+- age: ${userProfile?.age ?? 'unknown'}
+- gender: ${userProfile?.gender ?? 'unknown'}
+- activity_level: ${userProfile?.activity_level ?? 'unknown'}
+- fitness_goals: ${(userProfile?.fitness_goals || []).join(', ') || 'not specified'}
+- body_type: ${userProfile?.body_type || 'unknown'}
+- health_conditions: ${(userProfile?.health_conditions || []).join(', ') || 'none'}
+
+Current selected plan theme: ${currentPlan.title}
+
+Latest body scan context:
+${scanSummary}
+
+Plan generation rules:
+1) Use the profile and scan to choose a distinct training split, not the same day order for everyone.
+2) Bias the plan toward the user's weakest area, body composition, and goals.
+3) If body fat is high, include more conditioning and recovery-aware strength work.
+4) If muscle mass or symmetry is low, emphasize hypertrophy and unilateral work.
+5) If posture or risk flags are present, include mobility or corrective work.
+6) Keep the plan practical, specific, and non-generic.
+
+Requirements:
+1) Output a practical 5-day weekly schedule with named exercises.
+2) Include progression cues and one recovery-focused day.
+3) Ensure the plan is personalized by using the scan/profile context.
+4) Do NOT produce the same structure for every user.
+5) Keep each day to 3-5 exercises.
+
+Return JSON only.
+            `;
+
+            const response = await ai.models.generateContent({
+                model: GEMINI_TEXT_MODEL,
+                contents: prompt,
+                config: {
+                    responseMimeType: 'application/json',
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            title: { type: Type.STRING },
+                            objective: { type: Type.STRING },
+                            weeklyFocus: { type: Type.STRING },
+                            intensityNote: { type: Type.STRING },
+                            schedule: {
+                                type: Type.ARRAY,
+                                items: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        day: { type: Type.STRING },
+                                        focus: { type: Type.STRING },
+                                        exercises: {
+                                            type: Type.ARRAY,
+                                            items: { type: Type.STRING },
+                                        },
+                                    },
+                                    required: ['day', 'focus', 'exercises'],
+                                },
+                            },
+                        },
+                        required: ['title', 'objective', 'weeklyFocus', 'intensityNote', 'schedule'],
+                    },
+                },
+            });
+
+            const parsed = JSON.parse(response.text.trim()) as PersonalizedPlan;
+            const normalizedPlan: PersonalizedPlan = {
+                ...parsed,
+                schedule: (parsed.schedule || []).slice(0, 5).map((d) => ({
+                    ...d,
+                    exercises: (d.exercises || []).slice(0, 5),
+                })),
+            };
+
+            setPersonalizedPlan(normalizedPlan);
+
+            await updateUserProfileData({
+                personalized_workout_plan: {
+                    generated_at: new Date().toISOString(),
+                    source_plan: currentPlan.title,
+                    title: normalizedPlan.title,
+                    objective: normalizedPlan.objective,
+                    weeklyFocus: normalizedPlan.weeklyFocus,
+                    intensityNote: normalizedPlan.intensityNote,
+                    schedule: normalizedPlan.schedule,
+                },
+            });
+
+            hapticSuccess();
+        } catch (error) {
+            console.error('Failed to generate personalized workout plan:', error);
+        } finally {
+            setIsGeneratingPersonalizedPlan(false);
         }
     };
 
@@ -402,6 +544,77 @@ const WorkoutPlanDetailScreen: React.FC = () => {
                         </div>
                     </div>
                 </div>
+
+                <div className="bg-gradient-to-r from-indigo-600 to-cyan-600 rounded-2xl p-5 text-white shadow-md">
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <p className="text-xs uppercase tracking-wider text-indigo-100">Advanced Personalization</p>
+                            <h3 className="text-xl font-bold mt-1">Generate My Specific Plan</h3>
+                            <p className="text-sm text-indigo-100 mt-1">Creates a plan from your latest scan + profile so results are not the same for everyone.</p>
+                        </div>
+                        <Sparkles className="w-6 h-6 text-cyan-100" />
+                    </div>
+
+                    <button
+                        onClick={handleGeneratePersonalizedPlan}
+                        disabled={isGeneratingPersonalizedPlan}
+                        className="mt-4 w-full bg-white text-indigo-700 font-bold py-3 rounded-xl hover:bg-indigo-50 transition flex items-center justify-center gap-2 disabled:opacity-70"
+                    >
+                        {isGeneratingPersonalizedPlan ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
+                        {isGeneratingPersonalizedPlan ? 'Generating Personalized Plan...' : 'Generate Personalized Plan'}
+                    </button>
+                </div>
+
+                {personalizedPlan && (
+                    <div className="bg-white rounded-2xl p-5 shadow-md border border-indigo-100">
+                        <div className="flex items-center justify-between gap-3 mb-3">
+                            <div>
+                                <p className="text-xs uppercase tracking-wide text-indigo-500 font-semibold">Your AI-Specific Program</p>
+                                <h3 className="text-xl font-bold text-gray-900">{personalizedPlan.title}</h3>
+                                {userProfile?.personalized_workout_plan?.generated_at && (
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Saved {new Date(userProfile.personalized_workout_plan.generated_at).toLocaleString()}
+                                    </p>
+                                )}
+                            </div>
+                            <button
+                                onClick={() => {
+                                    hapticTap();
+                                    navigate('/ai-coach', {
+                                        state: {
+                                            initialMessage: `I want to follow this workout plan: ${personalizedPlan.title}. Objective: ${personalizedPlan.objective}. Weekly focus: ${personalizedPlan.weeklyFocus}. Please coach me day by day and adjust based on my latest body scan. Scan context: ${routeScanSummary || 'No route scan context provided.'}`
+                                        }
+                                    });
+                                }}
+                                className="px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700 font-semibold text-sm hover:bg-indigo-100 transition flex items-center gap-1"
+                            >
+                                <MessageSquare size={15} /> Ask AI
+                            </button>
+                        </div>
+
+                        <p className="text-sm text-gray-700 mb-2"><span className="font-semibold">Objective:</span> {personalizedPlan.objective}</p>
+                        <p className="text-sm text-gray-700 mb-2"><span className="font-semibold">Weekly Focus:</span> {personalizedPlan.weeklyFocus}</p>
+                        <p className="text-sm text-gray-700 mb-4"><span className="font-semibold">Intensity:</span> {personalizedPlan.intensityNote}</p>
+
+                        <div className="space-y-2">
+                            {personalizedPlan.schedule.map((day, idx) => (
+                                <div key={idx} className="bg-gray-50 rounded-lg p-3">
+                                    <div className="flex items-center justify-between">
+                                        <p className="font-semibold text-gray-900 text-sm">{day.day}</p>
+                                        <p className="text-xs text-indigo-600 font-medium">{day.focus}</p>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1 mt-2">
+                                        {day.exercises.map((exercise, eidx) => (
+                                            <span key={eidx} className="text-xs bg-white border border-gray-200 rounded px-2 py-1 text-gray-700">
+                                                {exercise}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {/* Alternative Workout Plans */}
                 <div>
@@ -539,7 +752,11 @@ const WorkoutPlanDetailScreen: React.FC = () => {
                 <button
                     onClick={() => {
                         hapticTap();
-                        navigate('/ai-coach', { state: { initialMessage: `Tell me more about the ${currentPlan.title} program` } });
+                        navigate('/ai-coach', {
+                            state: {
+                                initialMessage: `Tell me more about the ${currentPlan.title} program and adapt it to my latest scan and goals. Scan context: ${routeScanSummary || 'No route scan context provided.'}`
+                            }
+                        });
                     }}
                     className="w-full flex items-center justify-center gap-2 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition"
                 >
