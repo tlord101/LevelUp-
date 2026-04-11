@@ -10,7 +10,7 @@ const DashboardPage: React.FC = () => {
     active24h: 0,
     active7d: 0,
     totalScans: 0,
-    totalRevenueMock: 0,
+    totalRevenue: 0,
     subscriptionBreakdown: { basic: 0, pro: 0, elite: 0 },
     xpSeries: [0, 0, 0, 0, 0, 0, 0],
   });
@@ -26,7 +26,7 @@ const DashboardPage: React.FC = () => {
       <div className="grid gap-6 md:grid-cols-2">
         <StatCard
           title="Total Revenue"
-          value={`$${metrics.totalRevenueMock.toLocaleString()}`}
+          value={`$${Number(metrics.totalRevenue || 0).toLocaleString()}`}
           trend="+12.5%"
           subtitle="vs last month"
           icon={<DollarSign size={28} />}
