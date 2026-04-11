@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   createAdminNotification,
   createAdminRefundRequest,
@@ -19,9 +19,40 @@ import {
   upsertContentItem,
   writeSystemLog,
   AdminNotificationRecord,
+  AdminPaymentMethod,
   AdminPaymentPlan,
+  AdminBillingCycle,
 } from '../../../services/adminService';
-import { PageScaffold, Table, Toast, shellClass, useAdminTheme } from '../components/AdminWidgets';
+import { PageScaffold, Table, Toast, Toggle, shellClass, useAdminTheme } from '../components/AdminWidgets';
+
+const billingCycleLabels: Record<AdminBillingCycle, string> = {
+  monthly: 'Monthly',
+  quarterly: 'Quarterly',
+  yearly: 'Yearly',
+};
+
+const paymentMethodLabels: Record<AdminPaymentMethod, string> = {
+  card: 'Card',
+  bank_transfer: 'Bank transfer',
+  wallet: 'Wallet',
+  mobile_money: 'Mobile money',
+  cash: 'Cash',
+  paypal: 'PayPal',
+};
+
+const paymentMethodOptions: AdminPaymentMethod[] = ['card', 'bank_transfer', 'wallet', 'mobile_money', 'cash', 'paypal'];
+
+const createEmptyPlan = (): AdminPaymentPlan => ({
+  id: `plan-${Date.now()}`,
+  name: '',
+  description: '',
+  priceMonthly: 0,
+  billingCycle: 'monthly',
+  features: [],
+  paymentMethods: ['card'],
+  trialDays: 0,
+  active: true,
+});
 
 export const AdminGamificationXpPage: React.FC = () => {
   const theme = useAdminTheme();
@@ -140,48 +171,221 @@ export const AdminGamificationBadgesPage: React.FC = () => {
 export const AdminPaymentsPlansPage: React.FC = () => {
   const theme = useAdminTheme();
   const [plans, setPlans] = useState<AdminPaymentPlan[]>([]);
+  const [status, setStatus] = useState('');
 
   useEffect(() => {
-    getAdminPaymentPlans().then(setPlans);
+    getAdminPaymentPlans().then((items) => setPlans(items.length ? items : [])).catch((err) => console.error('plans error', err));
   }, []);
 
-  const updatePlan = (id: AdminPaymentPlan['id'], patch: Partial<AdminPaymentPlan>) => {
+  const updatePlan = (id: string, patch: Partial<AdminPaymentPlan>) => {
     setPlans((prev) => prev.map((plan) => (plan.id === id ? { ...plan, ...patch } : plan)));
   };
 
+  const renamePlan = (id: string, nextId: string) => {
+    const normalized = nextId.trim().toLowerCase().replace(/[^a-z0-9-_]+/g, '-');
+    if (!normalized) return;
+    setPlans((prev) => prev.map((plan) => (plan.id === id ? { ...plan, id: normalized } : plan)));
+  };
+
+  const togglePaymentMethod = (planId: string, method: AdminPaymentMethod) => {
+    setPlans((prev) =>
+      prev.map((plan) => {
+        if (plan.id !== planId) return plan;
+        const methods = plan.paymentMethods || [];
+        return {
+          ...plan,
+          paymentMethods: methods.includes(method) ? methods.filter((item) => item !== method) : [...methods, method],
+        };
+      })
+    );
+  };
+
+  const removePlan = (planId: string) => {
+    setPlans((prev) => prev.filter((plan) => plan.id !== planId));
+  };
+
+  const addPlan = () => setPlans((prev) => [...prev, createEmptyPlan()]);
+
+  const savePlans = async () => {
+    const normalized = plans
+      .map((plan) => ({
+        ...plan,
+        name: plan.name.trim(),
+        description: plan.description.trim(),
+        features: plan.features.map((feature) => feature.trim()).filter(Boolean),
+        paymentMethods: Array.from(new Set(plan.paymentMethods.filter(Boolean))),
+        billingCycle: plan.billingCycle || 'monthly',
+        trialDays: Number(plan.trialDays || 0),
+        priceMonthly: Number(plan.priceMonthly || 0),
+      }))
+      .filter((plan) => plan.name.length > 0 || plan.description.length > 0 || plan.priceMonthly > 0 || plan.features.length > 0);
+
+    await saveAdminPaymentPlans(normalized);
+    setPlans(normalized);
+    setStatus('Payment plans updated successfully.');
+  };
+
   return (
-    <PageScaffold title="Plans" description="Persisted billing plans" theme={theme}>
-      <div className="grid gap-4 md:grid-cols-3">
-        {plans.map((plan) => (
-          <div key={plan.id} className={`${shellClass[theme].card} rounded-3xl p-5 space-y-2`}>
-            <p className="font-bold">{plan.name}</p>
-            <label className="text-xs">Monthly Price
-              <input type="number" value={plan.priceMonthly} onChange={(e) => updatePlan(plan.id, { priceMonthly: Number(e.target.value) || 0 })} className={`${shellClass[theme].input} mt-1 w-full rounded-lg px-3 py-2`} />
-            </label>
-            <label className="flex items-center justify-between text-xs">Active<input type="checkbox" checked={plan.active} onChange={(e) => updatePlan(plan.id, { active: e.target.checked })} /></label>
+    <PageScaffold title="Plans" description="Configure pricing, billing cadence, trial periods, and accepted payment methods." theme={theme}>
+      <div className={`${shellClass[theme].card} rounded-3xl p-5 space-y-4`}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className={`text-sm ${shellClass[theme].subtle}`}>Add and maintain the live subscription catalog.</p>
+          <div className="flex gap-2">
+            <button type="button" className="rounded-lg border border-emerald-300/30 px-4 py-2 text-sm" onClick={addPlan}>Add plan</button>
+            <button type="button" className="rounded-lg bg-emerald-500 px-4 py-2 text-sm text-emerald-950" onClick={savePlans}>Save plans</button>
           </div>
-        ))}
+        </div>
+
+        {plans.length === 0 ? (
+          <div className={`rounded-2xl border border-dashed ${theme === 'light' ? 'border-slate-300 bg-slate-50' : 'border-emerald-400/20 bg-emerald-500/5'} p-6 text-sm ${shellClass[theme].subtle}`}>
+            No plans are configured yet. Create the first billing plan to publish pricing.
+          </div>
+        ) : null}
+
+        <div className="grid gap-4 xl:grid-cols-2">
+          {plans.map((plan) => (
+            <div key={plan.id} className={`${shellClass[theme].card} rounded-3xl p-5 space-y-4`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-2 flex-1">
+                  <label className={`block text-xs uppercase tracking-wide ${shellClass[theme].subtle}`}>
+                    Plan name
+                    <input value={plan.name} onChange={(e) => updatePlan(plan.id, { name: e.target.value })} placeholder="Pro Plan" className={`${shellClass[theme].input} mt-1 w-full rounded-lg px-3 py-2`} />
+                  </label>
+                  <label className={`block text-xs uppercase tracking-wide ${shellClass[theme].subtle}`}>
+                    Plan code
+                    <input value={plan.id} onChange={(e) => renamePlan(plan.id, e.target.value)} placeholder="pro" className={`${shellClass[theme].input} mt-1 w-full rounded-lg px-3 py-2`} />
+                  </label>
+                </div>
+                <div className="flex flex-col items-end gap-3">
+                  <Toggle checked={plan.active} onChange={(value) => updatePlan(plan.id, { active: value })} />
+                  <button type="button" className="rounded-lg border border-rose-400/30 px-3 py-1.5 text-xs text-rose-400" onClick={() => removePlan(plan.id)}>Remove</button>
+                </div>
+              </div>
+
+              <label className="block text-sm">
+                Description
+                <textarea
+                  value={plan.description}
+                  onChange={(e) => updatePlan(plan.id, { description: e.target.value })}
+                  placeholder="Describe what this plan unlocks"
+                  className={`${shellClass[theme].input} mt-1 h-24 w-full rounded-lg px-3 py-2`}
+                />
+              </label>
+
+              <div className="grid gap-3 md:grid-cols-3">
+                <label className={`block text-xs uppercase tracking-wide ${shellClass[theme].subtle}`}>
+                  Billing cycle
+                  <select value={plan.billingCycle} onChange={(e) => updatePlan(plan.id, { billingCycle: e.target.value as AdminBillingCycle })} className={`${shellClass[theme].input} mt-1 w-full rounded-lg px-3 py-2`}>
+                    {Object.entries(billingCycleLabels).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className={`block text-xs uppercase tracking-wide ${shellClass[theme].subtle}`}>
+                  Monthly price
+                  <input type="number" min="0" step="0.01" value={plan.priceMonthly} onChange={(e) => updatePlan(plan.id, { priceMonthly: Number(e.target.value) || 0 })} className={`${shellClass[theme].input} mt-1 w-full rounded-lg px-3 py-2`} />
+                </label>
+                <label className={`block text-xs uppercase tracking-wide ${shellClass[theme].subtle}`}>
+                  Trial days
+                  <input type="number" min="0" step="1" value={plan.trialDays} onChange={(e) => updatePlan(plan.id, { trialDays: Number(e.target.value) || 0 })} className={`${shellClass[theme].input} mt-1 w-full rounded-lg px-3 py-2`} />
+                </label>
+              </div>
+
+              <div className="space-y-2">
+                <p className={`text-xs uppercase tracking-wide ${shellClass[theme].subtle}`}>Accepted payment methods</p>
+                <div className="flex flex-wrap gap-2">
+                  {paymentMethodOptions.map((method) => {
+                    const active = plan.paymentMethods.includes(method);
+                    return (
+                      <button
+                        key={method}
+                        type="button"
+                        onClick={() => togglePaymentMethod(plan.id, method)}
+                        className={`rounded-full px-3 py-1.5 text-xs transition ${active ? 'bg-emerald-500 text-emerald-950' : shellClass[theme].input}`}
+                      >
+                        {paymentMethodLabels[method]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <label className="block text-sm">
+                Feature list
+                <textarea
+                  value={plan.features.join('\n')}
+                  onChange={(e) => updatePlan(plan.id, { features: e.target.value.split('\n') })}
+                  placeholder="Daily scans\nCommunity access\nPriority support"
+                  className={`${shellClass[theme].input} mt-1 h-28 w-full rounded-lg px-3 py-2`}
+                />
+              </label>
+            </div>
+          ))}
+        </div>
+        {status ? <p className={`text-sm ${shellClass[theme].subtle}`}>{status}</p> : null}
       </div>
-      <button className="rounded-lg bg-emerald-500 px-4 py-2 text-emerald-950" onClick={() => saveAdminPaymentPlans(plans)}>Save Plans</button>
     </PageScaffold>
   );
 };
 export const AdminPaymentsTransactionsPage: React.FC = () => {
   const theme = useAdminTheme();
   const [rows, setRows] = useState<any[]>([]);
+  const [query, setQuery] = useState('');
+  const [method, setMethod] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
     getAdminPaymentTransactions(100).then(setRows).catch((err) => console.error('transactions error', err));
   }, []);
 
+  const filteredRows = useMemo(() => {
+    const text = query.trim().toLowerCase();
+    return rows.filter((item) => {
+      const matchesText = !text || [item.id, item.userEmail, item.userId, item.referenceCode, item.provider, item.gateway]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(text));
+      const matchesMethod = method === 'all' || String(item.paymentMethod || '').toLowerCase() === method;
+      const matchesStatus = statusFilter === 'all' || String(item.status || '').toLowerCase() === statusFilter;
+      return matchesText && matchesMethod && matchesStatus;
+    });
+  }, [method, query, rows, statusFilter]);
+
   return (
-    <PageScaffold title="Transactions" description="Payment transactions from database" theme={theme}>
+    <PageScaffold title="Transactions" description="Live payment activity, gateway metadata, and reference codes." theme={theme}>
+      <div className={`${shellClass[theme].card} rounded-3xl p-5 space-y-4`}>
+        <div className="grid gap-3 lg:grid-cols-[1fr_180px_180px]">
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by user, payment code, or gateway" className={`${shellClass[theme].input} rounded-lg px-3 py-2 text-sm`} />
+          <select value={method} onChange={(e) => setMethod(e.target.value)} className={`${shellClass[theme].input} rounded-lg px-3 py-2 text-sm`}>
+            <option value="all">All methods</option>
+            {paymentMethodOptions.map((value) => (
+              <option key={value} value={value}>{paymentMethodLabels[value]}</option>
+            ))}
+          </select>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={`${shellClass[theme].input} rounded-lg px-3 py-2 text-sm`}>
+            <option value="all">All statuses</option>
+            <option value="succeeded">Succeeded</option>
+            <option value="pending">Pending</option>
+            <option value="failed">Failed</option>
+            <option value="refunded">Refunded</option>
+          </select>
+        </div>
+      </div>
+
       <Table
         theme={theme}
-        headers={['ID', 'User', 'Amount', 'Status', 'Provider', 'Date']}
-        rows={rows.length
-          ? rows.map((item) => [item.id, item.userEmail || item.userId || '-', `$${Number(item.amount || 0).toFixed(2)} ${item.currency || 'USD'}`, item.status || '-', item.provider || '-', item.created_at?.seconds ? new Date(item.created_at.seconds * 1000).toLocaleString() : '-'])
-          : [['No transactions found', '-', '-', '-', '-', '-']]}
+        headers={['Transaction', 'User', 'Amount', 'Method', 'Gateway', 'Status', 'Reference', 'Date']}
+        rows={filteredRows.length
+          ? filteredRows.map((item) => [
+              item.id,
+              item.userEmail || item.userId || '-',
+              `$${Number(item.amount || 0).toFixed(2)} ${item.currency || 'USD'}`,
+              paymentMethodLabels[(String(item.paymentMethod) as AdminPaymentMethod) || 'card'] || String(item.paymentMethod || '-'),
+              item.gateway || item.provider || '-',
+              item.status || '-',
+              item.referenceCode || '-',
+              item.created_at?.seconds ? new Date(item.created_at.seconds * 1000).toLocaleString() : '-',
+            ])
+          : [['No transactions found', '-', '-', '-', '-', '-', '-', '-']]}
       />
     </PageScaffold>
   );
@@ -636,10 +840,10 @@ export const AdminAdminsPage: React.FC = () => {
       </div>
       <Table
         theme={theme}
-        headers={['Admin', 'Role', 'Status']}
+        headers={['Admin', 'UID', 'Role', 'Status']}
         rows={admins.length
-          ? admins.map((item: any) => [item.email || '-', item.role || '-', item.active === false ? 'Disabled' : 'Active'])
-          : [['No admin users found', '-', '-']]}
+          ? admins.map((item: any) => [item.email || '-', item.uid || '-', item.role || '-', item.active === false ? 'Disabled' : 'Active'])
+          : [['No admin users found', '-', '-', '-']]} 
       />
     </PageScaffold>
   );

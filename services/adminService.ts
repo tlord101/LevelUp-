@@ -23,10 +23,14 @@ export type AdminDashboardMetrics = {
   active24h: number;
   active7d: number;
   totalScans: number;
-  totalRevenueMock: number;
+  totalRevenue: number;
   subscriptionBreakdown: { basic: number; pro: number; elite: number };
   xpSeries: number[];
 };
+
+export type AdminPaymentMethod = 'card' | 'bank_transfer' | 'wallet' | 'mobile_money' | 'cash' | 'paypal';
+
+export type AdminBillingCycle = 'monthly' | 'quarterly' | 'yearly';
 
 export type AdminNotificationType = 'push' | 'in-app' | 'email';
 
@@ -38,6 +42,15 @@ export type AdminNotificationRecord = {
   target: 'all' | 'basic' | 'pro' | 'elite';
   status: 'queued' | 'sent' | 'failed' | 'read';
   read: boolean;
+  created_at?: any;
+  updated_at?: any;
+};
+
+export type AdminUserRecord = {
+  email: string;
+  uid?: string;
+  role: 'super-admin' | 'manager' | 'moderator' | 'support';
+  active: boolean;
   created_at?: any;
   updated_at?: any;
 };
@@ -73,10 +86,14 @@ export type AdminEmailTemplate = {
 };
 
 export type AdminPaymentPlan = {
-  id: 'basic' | 'pro' | 'elite';
+  id: string;
   name: string;
+  description: string;
   priceMonthly: number;
+  billingCycle: AdminBillingCycle;
   features: string[];
+  paymentMethods: AdminPaymentMethod[];
+  trialDays: number;
   active: boolean;
 };
 
@@ -87,7 +104,11 @@ export type AdminPaymentTransaction = {
   amount: number;
   currency: string;
   status: string;
+  paymentMethod: AdminPaymentMethod | string;
   provider: string;
+  gateway: string;
+  referenceCode: string;
+  planId?: string;
   created_at?: any;
 };
 
@@ -127,11 +148,12 @@ const toMillis = (value: any): number => {
 };
 
 export const getDashboardMetrics = async (): Promise<AdminDashboardMetrics> => {
-  const [usersSnap, foodSnap, bodySnap, faceSnap] = await Promise.all([
+  const [usersSnap, foodSnap, bodySnap, faceSnap, paymentsSnap] = await Promise.all([
     getDocs(collection(firestore, 'users')),
     getDocs(collection(firestore, 'nutritionScans')),
     getDocs(collection(firestore, 'bodyScans')),
     getDocs(collection(firestore, 'faceScans')),
+    getDocs(collection(firestore, 'payments')),
   ]);
 
   const now = Date.now();
@@ -166,12 +188,17 @@ export const getDashboardMetrics = async (): Promise<AdminDashboardMetrics> => {
     }
   });
 
+  const totalRevenue = paymentsSnap.docs.reduce((sum, paymentDoc) => {
+    const data = paymentDoc.data() as any;
+    return sum + Number(data.amount || 0);
+  }, 0);
+
   return {
     totalUsers: usersSnap.size,
     active24h,
     active7d,
     totalScans: foodSnap.size + bodySnap.size + faceSnap.size,
-    totalRevenueMock: usersSnap.size * 12,
+    totalRevenue,
     subscriptionBreakdown: planCount,
     xpSeries,
   };
@@ -234,12 +261,21 @@ export const getSubscriptionsOverview = async () => {
 
 export const getAdminPaymentPlans = async (): Promise<AdminPaymentPlan[]> => {
   const settings = (await getAdminSettings('billingPlans')) as { plans?: AdminPaymentPlan[] } | null;
-  if (settings?.plans?.length) return settings.plans;
-  return [
-    { id: 'basic', name: 'Basic', priceMonthly: 9, features: ['Daily scans', 'Community access'], active: true },
-    { id: 'pro', name: 'Pro', priceMonthly: 19, features: ['All scanners', 'Advanced AI coaching'], active: true },
-    { id: 'elite', name: 'Elite', priceMonthly: 39, features: ['Priority support', 'Premium plans'], active: true },
-  ];
+  if (!settings?.plans?.length) return [];
+
+  return settings.plans.map((plan, index) => ({
+    id: String(plan.id || `plan-${index + 1}`),
+    name: plan.name || 'Untitled plan',
+    description: plan.description || '',
+    priceMonthly: Number(plan.priceMonthly || 0),
+    billingCycle: plan.billingCycle || 'monthly',
+    features: Array.isArray(plan.features) ? plan.features.map((feature) => String(feature).trim()).filter(Boolean) : [],
+    paymentMethods: Array.isArray(plan.paymentMethods)
+      ? plan.paymentMethods.filter((method): method is AdminPaymentMethod => ['card', 'bank_transfer', 'wallet', 'mobile_money', 'cash', 'paypal'].includes(String(method)))
+      : ['card'],
+    trialDays: Number(plan.trialDays || 0),
+    active: plan.active !== false,
+  }));
 };
 
 export const saveAdminPaymentPlans = async (plans: AdminPaymentPlan[]) => {
@@ -257,7 +293,11 @@ export const getAdminPaymentTransactions = async (max = 80): Promise<AdminPaymen
       amount: Number(data.amount || 0),
       currency: data.currency || 'USD',
       status: data.status || 'unknown',
-      provider: data.provider || 'stripe',
+      paymentMethod: data.paymentMethod || data.payment_method || data.method || 'card',
+      provider: data.provider || data.gateway || 'stripe',
+      gateway: data.gateway || data.provider || 'stripe',
+      referenceCode: data.referenceCode || data.reference_code || data.code || data.transactionCode || item.id,
+      planId: data.planId || data.plan || data.subscription_plan,
       created_at: data.created_at,
     };
   });
@@ -310,12 +350,15 @@ export const createAdminRefundRequest = async (payload: {
 
 export const getAdminStripeStatus = async () => {
   const settings = (await getAdminSettings('api')) as any;
+  const gateway = settings?.paymentGateway || {};
   return {
-    connected: settings?.stripeConnected === true,
-    accountId: settings?.stripeAccountId || '-',
-    mode: settings?.stripeMode || 'test',
-    webhookHealthy: settings?.stripeWebhookHealthy !== false,
-    lastSyncAt: settings?.stripeLastSyncAt || null,
+    connected: gateway.enabled ?? settings?.stripeConnected === true,
+    accountId: gateway.merchantCode || settings?.stripeAccountId || '-',
+    mode: gateway.mode || settings?.stripeMode || 'test',
+    webhookHealthy: gateway.webhookHealthy ?? settings?.stripeWebhookHealthy !== false,
+    lastSyncAt: gateway.lastSyncAt || settings?.stripeLastSyncAt || null,
+    provider: gateway.provider || settings?.paymentGatewayProvider || 'stripe',
+    supportedMethods: Array.isArray(gateway.supportedMethods) ? gateway.supportedMethods : settings?.supportedPaymentMethods || ['card'],
   };
 };
 
@@ -807,12 +850,39 @@ export const saveAdminSettings = async (section: string, values: Record<string, 
   await setDoc(doc(firestore, 'adminSettings', section), { ...values, updated_at: serverTimestamp() }, { merge: true });
 };
 
-export const getAdminUsersAndRoles = async () => {
+export const getAdminUsersAndRoles = async (): Promise<Array<AdminUserRecord & { id: string }>> => {
   const snap = await getDocs(query(collection(firestore, 'adminUsers'), orderBy('created_at', 'desc'), limit(50)));
   return snap.docs.map((item) => ({ id: item.id, ...(item.data() as any) }));
 };
 
-export const createAdminUser = async (payload: { email: string; role: 'super-admin' | 'manager' | 'moderator' | 'support' }) => {
+export const ensureAdminUserRecord = async (payload: { email: string; uid?: string; role: 'super-admin' | 'manager' | 'moderator' | 'support'; active?: boolean }) => {
+  const normalizedEmail = payload.email.trim().toLowerCase();
+  if (!normalizedEmail) throw new Error('Admin email is required.');
+
+  const existing = await getDocs(query(collection(firestore, 'adminUsers'), where('email', '==', normalizedEmail), limit(1)));
+  const record = {
+    email: normalizedEmail,
+    ...(payload.uid ? { uid: payload.uid } : {}),
+    role: payload.role,
+    active: payload.active !== false,
+    updated_at: serverTimestamp(),
+  };
+
+  if (!existing.empty) {
+    const ref = existing.docs[0].ref;
+    await setDoc(ref, record, { merge: true });
+    return { id: ref.id, ...record };
+  }
+
+  const ref = await addDoc(collection(firestore, 'adminUsers'), {
+    ...record,
+    created_at: serverTimestamp(),
+  });
+
+  return { id: ref.id, ...record };
+};
+
+export const createAdminUser = async (payload: { email: string; uid?: string; role: 'super-admin' | 'manager' | 'moderator' | 'support' }) => {
   const normalizedEmail = payload.email.trim().toLowerCase();
   if (!normalizedEmail) throw new Error('Admin email is required.');
 
@@ -821,6 +891,7 @@ export const createAdminUser = async (payload: { email: string; role: 'super-adm
 
   await addDoc(collection(firestore, 'adminUsers'), {
     email: normalizedEmail,
+    ...(payload.uid ? { uid: payload.uid } : {}),
     role: payload.role,
     active: true,
     created_at: serverTimestamp(),
