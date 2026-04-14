@@ -840,10 +840,10 @@ export const AdminAdminsPage: React.FC = () => {
       </div>
       <Table
         theme={theme}
-        headers={['Admin', 'UID', 'Role', 'Status']}
+        headers={['Admin', 'Role', 'Status']}
         rows={admins.length
-          ? admins.map((item: any) => [item.email || '-', item.uid || '-', item.role || '-', item.active === false ? 'Disabled' : 'Active'])
-          : [['No admin users found', '-', '-', '-']]} 
+          ? admins.map((item: any) => [item.email || '-', item.role || '-', item.active === false ? 'Disabled' : 'Active'])
+          : [['No admin users found', '-', '-']]}
       />
     </PageScaffold>
   );

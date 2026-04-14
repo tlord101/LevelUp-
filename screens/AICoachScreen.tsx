@@ -5,8 +5,18 @@ import { ArrowLeft, Send, Mic, Loader2 } from 'lucide-react';
 import { Chat, FunctionDeclaration, Type, Part } from '@google/genai';
 import { useAuth } from '../context/AuthContext';
 import { hapticTap } from '../utils/haptics';
-import { getUserStats, getLatestScan, getWeeklyNutritionSummary } from '../services/firebaseService';
-import { createGeminiClient, GEMINI_TEXT_MODEL } from '../utils/gemini';
+import {
+    getUserStats,
+    getLatestScan,
+    getWeeklyNutritionSummary,
+    getAICoachMessages,
+    saveAICoachMessage,
+} from '../services/firebaseService';
+import {
+    createGeminiClient,
+    GEMINI_TEXT_FALLBACK_MODELS,
+    isRetryableGeminiModelError,
+} from '../utils/gemini';
 
 interface Message {
     role: 'user' | 'model';
@@ -41,6 +51,41 @@ const tools: FunctionDeclaration[] = [
     }
 ];
 
+const toChatHistory = (history: Message[]) =>
+    history.map((msg) => ({
+        role: msg.role,
+        parts: [{ text: msg.text }],
+    }));
+
+const getLocalHistoryKey = (userId: string) => `aiCoachMessages:${userId}`;
+
+const loadLocalMessages = (userId: string): Message[] => {
+    try {
+        const raw = localStorage.getItem(getLocalHistoryKey(userId));
+        if (!raw) return [];
+
+        const parsed = JSON.parse(raw) as Array<{ role?: string; text?: string }>;
+        if (!Array.isArray(parsed)) return [];
+
+        return parsed
+            .filter((item) => (item.role === 'user' || item.role === 'model') && typeof item.text === 'string' && item.text.trim())
+            .map((item) => ({ role: item.role as 'user' | 'model', text: String(item.text) }));
+    } catch {
+        return [];
+    }
+};
+
+const saveLocalMessages = (userId: string, messages: Message[]) => {
+    try {
+        const sanitized = messages
+            .filter((item) => item.text.trim() && item.text !== '...')
+            .slice(-80);
+        localStorage.setItem(getLocalHistoryKey(userId), JSON.stringify(sanitized));
+    } catch {
+        // Ignore local storage write errors.
+    }
+};
+
 const AICoachScreen: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -53,27 +98,72 @@ const AICoachScreen: React.FC = () => {
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
     const hasInjectedInitialMessage = useRef(false);
 
-    // Initialize the chat model
+    // Initialize the chat model with saved conversation history
     useEffect(() => {
-        const initializeChat = () => {
+        let isCancelled = false;
+
+        const initializeChat = async () => {
             try {
+                if (!user) return;
+
+                let cloudHistory: Message[] = [];
+                try {
+                    const history = await getAICoachMessages(user.uid);
+                    cloudHistory = history.map(({ role, text }) => ({ role, text }));
+                } catch (historyError) {
+                    console.error('Failed to fetch AI coach history from cloud:', historyError);
+                }
+
+                const localHistory = loadLocalMessages(user.uid);
+                const history = cloudHistory.length > 0 ? cloudHistory : localHistory;
+
+                if (!isCancelled) {
+                    setMessages(history);
+                }
+
                 const ai = createGeminiClient();
-                const chatInstance = ai.chats.create({
-                    model: GEMINI_TEXT_MODEL,
-                    config: {
-                        systemInstruction: `You are LevelUp AI, a friendly and motivating personal coach for the LevelUp app. Your goal is to help users improve their fitness, nutrition, and appearance (a concept they might call 'looksmacking'). Be encouraging, provide actionable advice, and keep responses concise and easy to understand. The user's name is ${userProfile?.display_name || 'User'}. You have access to tools that can retrieve the user's scan history and stats. Use this data to provide holistic, interconnected advice. For example, you can use body scan results to inform nutrition recommendations.`,
-                        tools: [{functionDeclarations: tools}]
-                    },
-                });
+                let chatInstance: Chat | null = null;
+                let lastError: unknown = null;
+
+                for (const model of GEMINI_TEXT_FALLBACK_MODELS) {
+                    try {
+                        chatInstance = ai.chats.create({
+                            model,
+                            history: toChatHistory(history),
+                            config: {
+                                systemInstruction: `You are LevelUp AI, a friendly and motivating personal coach for the LevelUp app. Your goal is to help users improve their fitness, nutrition, and appearance (a concept they might call 'looksmacking'). Be encouraging, provide actionable advice, and keep responses concise and easy to understand. The user's name is ${userProfile?.display_name || 'User'}. You have access to tools that can retrieve the user's scan history and stats. Use this data to provide holistic, interconnected advice. For example, you can use body scan results to inform nutrition recommendations.`,
+                                tools: [{ functionDeclarations: tools }],
+                            },
+                        });
+                        break;
+                    } catch (err) {
+                        lastError = err;
+                        if (!isRetryableGeminiModelError(err) || model === GEMINI_TEXT_FALLBACK_MODELS[GEMINI_TEXT_FALLBACK_MODELS.length - 1]) {
+                            throw err;
+                        }
+                    }
+                }
+
+                if (!chatInstance) {
+                    throw lastError || new Error('Unable to initialize AI coach chat.');
+                }
+
+                if (isCancelled) return;
                 setChat(chatInstance);
             } catch (error) {
                 console.error("Failed to initialize AI Chat:", error);
             }
         };
-        if (userProfile) {
+
+        if (userProfile && user) {
+            hasInjectedInitialMessage.current = false;
             initializeChat();
         }
-    }, [userProfile]);
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [userProfile, user]);
     
     // Scroll to the bottom of the messages list
     useEffect(() => {
@@ -87,12 +177,20 @@ const AICoachScreen: React.FC = () => {
         }
     }, [userInput]);
 
+    useEffect(() => {
+        if (!user) return;
+        saveLocalMessages(user.uid, messages);
+    }, [messages, user]);
+
     const handleSendMessage = async () => {
         if (!userInput.trim() || isLoading || !chat || !user) return;
     
         hapticTap();
         const userMessage: Message = { role: 'user', text: userInput };
         setMessages(prev => [...prev, userMessage]);
+        saveAICoachMessage(user.uid, userMessage).catch((err) => {
+            console.error('Failed to persist user AI coach message:', err);
+        });
         const currentInput = userInput;
         setUserInput('');
         setIsLoading(true);
@@ -148,7 +246,12 @@ const AICoachScreen: React.FC = () => {
             }
     
             // Update the UI with the final text response
-            const modelResponseMessage: Message = { role: 'model', text: response.text };
+            const modelResponseMessage: Message = {
+                role: 'model',
+                text: response.text?.trim() || 'I am here and ready to help. Could you rephrase that?',
+            };
+
+            await saveAICoachMessage(user.uid, modelResponseMessage);
     
             setMessages(prev => {
                 const newMessages = [...prev];
@@ -187,6 +290,9 @@ const AICoachScreen: React.FC = () => {
         setTimeout(() => {
             setUserInput('');
             setMessages(prev => [...prev, { role: 'user', text: initialMessage }]);
+            saveAICoachMessage(user.uid, { role: 'user', text: initialMessage }).catch((err) => {
+                console.error('Failed to persist initial user AI coach message:', err);
+            });
             setIsLoading(true);
 
             (async () => {
@@ -226,7 +332,13 @@ const AICoachScreen: React.FC = () => {
                         response = await chat.sendMessage({ message: functionResponseParts });
                     }
 
-                    setMessages(prev => [...prev, { role: 'model', text: response.text }]);
+                    const modelMessage: Message = {
+                        role: 'model',
+                        text: response.text?.trim() || 'I am here and ready to help. Could you rephrase that?',
+                    };
+
+                    setMessages(prev => [...prev, modelMessage]);
+                    await saveAICoachMessage(user.uid, modelMessage);
                 } catch (error) {
                     console.error('Error sending initial message:', error);
                     setMessages(prev => [...prev, { role: 'model', text: 'Sorry, I encountered an error while loading your plan context.' }]);

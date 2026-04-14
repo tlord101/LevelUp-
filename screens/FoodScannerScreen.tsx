@@ -11,7 +11,14 @@ import { blobToBase64 } from '../utils/imageUtils';
 import { useImageScanner } from '../hooks/useImageScanner';
 import CameraView from '../components/CameraView';
 import { isScannerEnabled } from '../services/adminService';
-import { createGeminiClient, GEMINI_TEXT_MODEL } from '../utils/gemini';
+import {
+    createGeminiClient,
+    GEMINI_TEXT_FALLBACK_MODELS,
+    isRetryableGeminiModelError,
+    parseGeminiJsonResponse,
+} from '../utils/gemini';
+
+const FOOD_SCAN_MODELS = GEMINI_TEXT_FALLBACK_MODELS;
 
 const StatCard: React.FC<{ label: string; value: string; color: string; }> = ({ label, value, color }) => (
     <div className="flex-1 p-3 rounded-lg text-center" style={{ backgroundColor: `${color}1A`}}>
@@ -102,33 +109,50 @@ const FoodScannerScreen: React.FC = () => {
             const base64Image = await blobToBase64(scanner.imageFile);
             const imagePart = { inlineData: { mimeType: scanner.imageFile.type, data: base64Image } };
 
-            const response = await ai.models.generateContent({
-                model: GEMINI_TEXT_MODEL,
-                contents: { parts: [imagePart, { text: 'Analyze the food item in this image and provide its nutritional information. If there are multiple items, analyze the most prominent one or provide an aggregate. If it is not food, indicate that.' }] },
-                config: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: Type.OBJECT,
-                        properties: {
-                            isFood: { type: Type.BOOLEAN },
-                            foodName: { type: Type.STRING },
-                            calories: { type: Type.NUMBER },
-                            macros: {
+            let response: Awaited<ReturnType<typeof ai.models.generateContent>> | null = null;
+            let lastError: unknown = null;
+
+            for (const model of FOOD_SCAN_MODELS) {
+                try {
+                    response = await ai.models.generateContent({
+                        model,
+                        contents: { parts: [imagePart, { text: 'Analyze the food item in this image and provide its nutritional information. If there are multiple items, analyze the most prominent one or provide an aggregate. If it is not food, indicate that.' }] },
+                        config: {
+                            responseMimeType: "application/json",
+                            responseSchema: {
                                 type: Type.OBJECT,
                                 properties: {
-                                    protein: { type: Type.NUMBER },
-                                    carbs: { type: Type.NUMBER },
-                                    fat: { type: Type.NUMBER },
+                                    isFood: { type: Type.BOOLEAN },
+                                    foodName: { type: Type.STRING },
+                                    calories: { type: Type.NUMBER },
+                                    macros: {
+                                        type: Type.OBJECT,
+                                        properties: {
+                                            protein: { type: Type.NUMBER },
+                                            carbs: { type: Type.NUMBER },
+                                            fat: { type: Type.NUMBER },
+                                        },
+                                        required: ['protein', 'carbs', 'fat']
+                                    }
                                 },
-                                required: ['protein', 'carbs', 'fat']
+                                required: ['isFood', 'foodName', 'calories', 'macros']
                             }
-                        },
-                        required: ['isFood', 'foodName', 'calories', 'macros']
+                        }
+                    });
+                    break;
+                } catch (err) {
+                    lastError = err;
+                    if (!isRetryableGeminiModelError(err) || model === FOOD_SCAN_MODELS[FOOD_SCAN_MODELS.length - 1]) {
+                        throw err;
                     }
                 }
-            });
+            }
 
-            const analysisData: NutritionScanResult = JSON.parse(response.text.trim());
+            if (!response) {
+                throw lastError || new Error('AI analysis failed.');
+            }
+
+            const analysisData: NutritionScanResult = parseGeminiJsonResponse<NutritionScanResult>(response.text || '');
             if (!analysisData.isFood) {
                 throw new Error("The image does not appear to contain food.");
             }
@@ -163,7 +187,11 @@ const FoodScannerScreen: React.FC = () => {
 
         } catch (err: any) {
             console.error("Analysis failed:", err);
-            setError(err.message || "An unexpected error occurred. Please try again.");
+            if (isRetryableGeminiModelError(err)) {
+                setError('The AI model is temporarily busy. Please try again in a moment.');
+            } else {
+                setError(err.message || "An unexpected error occurred. Please try again.");
+            }
             hapticError();
         } finally {
             setIsLoading(false);

@@ -502,7 +502,7 @@ export const getUserGroups = async (userId: string): Promise<Group[]> => {
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => {
          const data = convertTimestampToISO(doc.data());
-        return { id: doc.id, ...data } as Group;
+        return { ...data, id: doc.id } as Group;
     }).sort((a, b) => toSortableTime(b.created_at) - toSortableTime(a.created_at));
 };
 
@@ -514,17 +514,28 @@ export const getAllGroups = async (): Promise<Group[]> => {
     const querySnapshot = await getDocs(q);
      return querySnapshot.docs.map(doc => {
          const data = convertTimestampToISO(doc.data());
-        return { id: doc.id, ...data } as Group;
+        return { ...data, id: doc.id } as Group;
     });
 };
 
 export const getGroupDetails = async (groupId: string): Promise<Group | null> => {
+    if (!groupId) return null;
+
     const groupRef = doc(firestore, 'groups', groupId);
     const docSnap = await getDoc(groupRef);
     if (docSnap.exists()) {
          const data = convertTimestampToISO(docSnap.data());
-        return { id: docSnap.id, ...data } as Group;
+        return { ...data, id: docSnap.id } as Group;
     }
+
+    // Backward compatibility: some old links may contain a legacy group "id" field value.
+    const legacySnap = await getDocs(query(collection(firestore, 'groups'), where('id', '==', groupId), limit(1)));
+    if (!legacySnap.empty) {
+        const legacyDoc = legacySnap.docs[0];
+        const data = convertTimestampToISO(legacyDoc.data());
+        return { ...data, id: legacyDoc.id } as Group;
+    }
+
     return null;
 };
 
@@ -623,4 +634,42 @@ export const getWeeklyNutritionSummary = async (userId: string) => {
         averageCarbs: summary.totalCarbs / summary.scanCount,
         averageFat: summary.totalFat / summary.scanCount,
     };
+};
+
+export type AICoachMessage = {
+    role: 'user' | 'model';
+    text: string;
+    created_at: string;
+};
+
+export const saveAICoachMessage = async (
+    userId: string,
+    message: Pick<AICoachMessage, 'role' | 'text'>
+) => {
+    if (!userId || !message.text.trim()) return;
+
+    await addDoc(collection(firestore, 'users', userId, 'aiCoachMessages'), {
+        role: message.role,
+        text: message.text.trim(),
+        created_at: serverTimestamp(),
+    });
+};
+
+export const getAICoachMessages = async (userId: string, maxMessages = 40): Promise<AICoachMessage[]> => {
+    if (!userId) return [];
+
+    const messagesRef = collection(firestore, 'users', userId, 'aiCoachMessages');
+    const q = query(messagesRef, orderBy('created_at', 'desc'), limit(maxMessages));
+    const querySnapshot = await getDocs(q);
+
+    const items = querySnapshot.docs.map((item) => {
+        const data = convertTimestampToISO(item.data());
+        return {
+            role: data.role === 'user' ? 'user' : 'model',
+            text: String(data.text || ''),
+            created_at: data.created_at || new Date().toISOString(),
+        };
+    });
+
+    return items.reverse();
 };
