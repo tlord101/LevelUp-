@@ -5,7 +5,7 @@ import { hapticTap, hapticSuccess } from '../utils/haptics';
 import { useAuth } from '../context/AuthContext';
 import { Type } from '@google/genai';
 import { getLatestScan } from '../services/firebaseService';
-import { createGeminiClient, GEMINI_TEXT_MODEL } from '../utils/gemini';
+import { createGeminiClient, GEMINI_TEXT_MODEL, getFriendlyGeminiErrorMessage } from '../utils/gemini';
 
 interface WorkoutPlan {
     id: string;
@@ -414,6 +414,7 @@ Return JSON only.
             hapticSuccess();
         } catch (error) {
             console.error('Failed to generate personalized workout plan:', error);
+            alert(getFriendlyGeminiErrorMessage(error));
         } finally {
             setIsGeneratingPersonalizedPlan(false);
         }

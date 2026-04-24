@@ -1,7 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 
 export const GEMINI_TEXT_MODEL = 'gemini-2.5-flash';
-export const GEMINI_TEXT_FALLBACK_MODELS = [GEMINI_TEXT_MODEL, 'gemini-2.5-pro'];
+export const GEMINI_TEXT_FALLBACK_MODELS = [GEMINI_TEXT_MODEL];
 export const GEMINI_LIVE_AUDIO_MODEL = 'gemini-2.5-flash-native-audio-preview-09-2025';
 export const GEMINI_IMAGE_MODEL = 'imagen-4.0-generate-001';
 
@@ -23,6 +23,27 @@ export const createGeminiClient = () => new GoogleGenAI({ apiKey: getGeminiApiKe
 export const isRetryableGeminiModelError = (error: unknown) => {
     const message = error instanceof Error ? error.message : String(error || '');
     return /503|429|UNAVAILABLE|RESOURCE_EXHAUSTED|high demand|overloaded|model.*not found|unsupported model/i.test(message);
+};
+
+export const isGeminiQuotaExceededError = (error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error || '');
+    return /quota exceeded|exceeded your current quota|billing details|free_tier|rate[-\s]?limit/i.test(message);
+};
+
+export const getFriendlyGeminiErrorMessage = (error: unknown) => {
+    if (isGeminiQuotaExceededError(error)) {
+        return 'AI quota reached for this project. Please check Gemini plan and billing, or try again later.';
+    }
+
+    if (isRetryableGeminiModelError(error)) {
+        return 'The AI model is temporarily busy. Please try again in a moment.';
+    }
+
+    if (error instanceof Error && error.message.trim()) {
+        return error.message;
+    }
+
+    return 'An unexpected error occurred with the AI request. Please try again.';
 };
 
 export const parseGeminiJsonResponse = <T>(raw: string): T => {

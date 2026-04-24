@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, Plus, Check } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, Check, Search } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { getAllGroups, joinGroup } from '../services/firebaseService';
 import { Group } from '../types';
@@ -9,6 +9,7 @@ import { hapticTap, hapticSuccess } from '../utils/haptics';
 
 const DiscoverGroupsScreen: React.FC = () => {
     const [groups, setGroups] = useState<Group[]>([]);
+    const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(true);
     const [joiningGroupId, setJoiningGroupId] = useState<string | null>(null);
     const { user } = useAuth();
@@ -56,6 +57,15 @@ const DiscoverGroupsScreen: React.FC = () => {
         navigate('/create-group');
     }
 
+    const filteredGroups = groups.filter((group) => {
+        const term = searchTerm.trim().toLowerCase();
+        if (!term) return true;
+        return (
+            group.name.toLowerCase().includes(term) ||
+            group.description.toLowerCase().includes(term)
+        );
+    });
+
     return (
         <div className="min-h-screen bg-gray-50 pb-24">
             <header className="sticky top-0 bg-white/80 backdrop-blur-sm border-b border-gray-200 p-4 flex items-center z-10">
@@ -72,19 +82,32 @@ const DiscoverGroupsScreen: React.FC = () => {
                 >
                     <Plus size={20} /> Create Your Own Group
                 </button>
+
+                <div className="relative">
+                    <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Search groups by name or description"
+                        className="w-full bg-white border border-gray-200 rounded-xl pl-10 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                </div>
             
                 {loading ? (
                     <div className="flex justify-center items-center p-10">
                         <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
                     </div>
-                ) : groups.length === 0 ? (
+                ) : filteredGroups.length === 0 ? (
                      <div className="text-center p-8 bg-white rounded-xl shadow-sm">
                         <p className="text-gray-600 font-semibold">No groups found.</p>
-                        <p className="text-sm text-gray-500 mt-1">Why not be the first to create one?</p>
+                        <p className="text-sm text-gray-500 mt-1">
+                            {searchTerm.trim() ? 'Try another search term.' : 'Why not be the first to create one?'}
+                        </p>
                     </div>
                 ) : (
                     <div className="space-y-3">
-                        {groups.map(group => {
+                        {filteredGroups.map(group => {
                             const isMember = user ? group.members.includes(user.uid) : false;
                             const isJoining = joiningGroupId === group.id;
 

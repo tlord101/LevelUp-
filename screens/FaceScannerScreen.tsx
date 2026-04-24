@@ -10,27 +10,16 @@ import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
 import { blobToBase64 } from '../utils/imageUtils';
 import { formatRelativeTime } from '../utils/formatDate';
 import { isScannerEnabled } from '../services/adminService';
-import { createGeminiClient, GEMINI_TEXT_FALLBACK_MODELS, isRetryableGeminiModelError } from '../utils/gemini';
+import {
+    createGeminiClient,
+    GEMINI_TEXT_FALLBACK_MODELS,
+    getFriendlyGeminiErrorMessage,
+    isRetryableGeminiModelError,
+} from '../utils/gemini';
 
 type CaptureStage = 'front' | 'left' | 'right' | 'complete';
 
 const FACE_SCAN_MODELS = GEMINI_TEXT_FALLBACK_MODELS;
-
-const isGeminiUnavailableError = (error: unknown) => {
-    return isRetryableGeminiModelError(error);
-};
-
-const getFriendlyAnalysisError = (error: unknown) => {
-    if (isGeminiUnavailableError(error)) {
-        return 'The face analysis model is busy right now. Please try again in a moment.';
-    }
-
-    if (error instanceof Error && error.message.trim()) {
-        return error.message;
-    }
-
-    return 'An unexpected error occurred with the AI analysis. Please try again.';
-};
 
 const FaceScannerScreen: React.FC = () => {
     const [isScanning, setIsScanning] = useState(false);
@@ -221,11 +210,13 @@ const FaceScannerScreen: React.FC = () => {
         hapticSuccess();
         setShowGreenFlash(true);
         setTimeout(() => setShowGreenFlash(false), 300);
-        
-        setCapturedImages(prev => ({
-            ...prev,
-            [captureStage]: blob
-        }));
+
+        const nextImages = {
+            ...capturedImages,
+            [captureStage]: blob,
+        };
+
+        setCapturedImages(nextImages);
 
         if (captureStage === 'front') {
             setCaptureStage('left');
@@ -239,11 +230,20 @@ const FaceScannerScreen: React.FC = () => {
             setCaptureStage('complete');
             stopCamera();
             // Auto-start analysis
-            setTimeout(() => analyzeImages({
-                front: capturedImages.front!,
-                left: capturedImages.left!,
-                right: blob
-            }), 500);
+            setTimeout(() => {
+                if (nextImages.front && nextImages.left && nextImages.right) {
+                    analyzeImages({
+                        front: nextImages.front,
+                        left: nextImages.left,
+                        right: nextImages.right,
+                    });
+                } else {
+                    setIsAnalyzing(false);
+                    setError('Capture incomplete. Please retake the three photos.');
+                    setCaptureStage('front');
+                    setCapturedImages({});
+                }
+            }, 500);
         }
     };
 
@@ -366,7 +366,7 @@ const FaceScannerScreen: React.FC = () => {
                     break;
                 } catch (err) {
                     lastError = err;
-                    if (!isGeminiUnavailableError(err) || model === FACE_SCAN_MODELS[FACE_SCAN_MODELS.length - 1]) {
+                    if (!isRetryableGeminiModelError(err) || model === FACE_SCAN_MODELS[FACE_SCAN_MODELS.length - 1]) {
                         throw err;
                     }
                 }
@@ -408,7 +408,7 @@ const FaceScannerScreen: React.FC = () => {
 
         } catch (err: any) {
             console.error("Analysis failed:", err);
-            setError(getFriendlyAnalysisError(err));
+            setError(getFriendlyGeminiErrorMessage(err));
             hapticError();
         } finally {
             setIsAnalyzing(false);

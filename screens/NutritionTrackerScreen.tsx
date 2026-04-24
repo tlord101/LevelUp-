@@ -10,7 +10,13 @@ import { Type } from '@google/genai';
 import { useImageScanner } from '../hooks/useImageScanner';
 import CameraView from '../components/CameraView';
 import { blobToBase64 } from '../utils/imageUtils';
-import { createGeminiClient, GEMINI_TEXT_MODEL, GEMINI_IMAGE_MODEL } from '../utils/gemini';
+import {
+    createGeminiClient,
+    GEMINI_TEXT_MODEL,
+    GEMINI_IMAGE_MODEL,
+    getFriendlyGeminiErrorMessage,
+    parseGeminiJsonResponse,
+} from '../utils/gemini';
 
 const CalorieProgressCircle: React.FC<{ calories: number; goal: number; score: number }> = ({ calories, goal, score }) => {
     const clampedCalories = Math.min(calories, goal);
@@ -267,7 +273,7 @@ const NutritionTrackerScreen: React.FC = () => {
                 throw new Error('Nutrition analysis response was empty.');
             }
 
-            const analysisData: NutritionScanResult = JSON.parse(response.text.trim());
+            const analysisData: NutritionScanResult = parseGeminiJsonResponse<NutritionScanResult>(response.text || '');
             
             if (!analysisData.isFood) {
                 alert("No food detected. Please try again.");
@@ -308,7 +314,7 @@ const NutritionTrackerScreen: React.FC = () => {
         } catch (err: any) {
             console.error("Analysis failed:", err);
             hapticError();
-            alert("Analysis failed. Please try again.");
+            alert(getFriendlyGeminiErrorMessage(err));
             setIsAnalyzing(false);
             scanner.reset();
         } 
@@ -386,7 +392,7 @@ const NutritionTrackerScreen: React.FC = () => {
                 throw new Error('Meal plan response was empty.');
             }
 
-            const data = JSON.parse(response.text.trim());
+            const data = parseGeminiJsonResponse<{ meals: MealPlanItem[] }>(response.text || '');
             const mealsWithLoadingState = data.meals.map((m: any) => ({ ...m, isLoadingImage: true }));
             setMealPlan(mealsWithLoadingState);
             hapticSuccess();
@@ -413,6 +419,7 @@ const NutritionTrackerScreen: React.FC = () => {
         } catch (err) {
             console.error("Meal plan generation failed", err);
             hapticError();
+            alert(getFriendlyGeminiErrorMessage(err));
         } finally {
             setIsGeneratingPlan(false);
         }

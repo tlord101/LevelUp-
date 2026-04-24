@@ -14,6 +14,7 @@ import { isScannerEnabled } from '../services/adminService';
 import {
     createGeminiClient,
     GEMINI_TEXT_FALLBACK_MODELS,
+    getFriendlyGeminiErrorMessage,
     isRetryableGeminiModelError,
     parseGeminiJsonResponse,
 } from '../utils/gemini';
@@ -359,11 +360,7 @@ const BodyScannerScreen: React.FC = () => {
 
         } catch (err: any) {
             console.error("Analysis failed:", err);
-            if (isRetryableGeminiModelError(err)) {
-                setError('The AI model is temporarily busy. Please try again in a moment.');
-            } else {
-                setError(err.message || "An unexpected error occurred with Gemini. Please try again.");
-            }
+            setError(getFriendlyGeminiErrorMessage(err));
             hapticError();
         } finally {
             setIsLoading(false);

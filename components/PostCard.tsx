@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Heart, MessageCircle, MoreHorizontal } from 'lucide-react';
 import { hapticTap } from '../utils/haptics';
 import { Post } from '../types';
@@ -16,6 +16,12 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
     const [likeCount, setLikeCount] = useState(post.likes.length);
     const [commentCount, setCommentCount] = useState(post.comment_count);
     const [commentsVisible, setCommentsVisible] = useState(false);
+
+    useEffect(() => {
+        setIsLiked(user ? post.likes.includes(user.uid) : false);
+        setLikeCount(post.likes.length);
+        setCommentCount(post.comment_count);
+    }, [post.likes, post.comment_count, user, post.id]);
 
 
     const handleLikeToggle = async () => {

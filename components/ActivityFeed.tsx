@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import PostCard from './PostCard';
-import { getPosts } from '../services/firebaseService';
+import { subscribeToPosts } from '../services/firebaseService';
 import { Post } from '../types';
 import { Loader2 } from 'lucide-react';
 
@@ -11,19 +11,19 @@ const ActivityFeed: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        const fetchPosts = async () => {
-            try {
-                const fetchedPosts = await getPosts();
-                setPosts(fetchedPosts);
-            } catch (err) {
+        const unsubscribe = subscribeToPosts(
+            (nextPosts) => {
+                setPosts(nextPosts);
+                setLoading(false);
+            },
+            (err) => {
                 console.error(err);
                 setError("Failed to load feed. Please try again later.");
-            } finally {
                 setLoading(false);
             }
-        };
+        );
 
-        fetchPosts();
+        return () => unsubscribe();
     }, []);
 
     if (loading) {

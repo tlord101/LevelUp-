@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Loader2, UserPlus, LogOut, Plus } from 'lucide-react';
+import { ArrowLeft, Loader2, UserPlus, LogOut, Plus, Trash2 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { hapticTap, hapticSuccess } from '../utils/haptics';
-import { getGroupDetails, joinGroup, leaveGroup, getPostsForGroup } from '../services/firebaseService';
+import { deleteGroup, getGroupDetails, joinGroup, leaveGroup, subscribeToPostsForGroup } from '../services/firebaseService';
 import { Group, Post } from '../types';
 import { useAuth } from '../context/AuthContext';
 import PostCard from '../components/PostCard';
@@ -22,29 +22,57 @@ const GroupDetailScreen: React.FC = () => {
     const [isUpdatingMembership, setIsUpdatingMembership] = useState(false);
 
     useEffect(() => {
-        const fetchGroupAndPosts = async () => {
+        let isMounted = true;
+        let unsubscribePosts: (() => void) | null = null;
+
+        const fetchGroupAndSubscribePosts = async () => {
             if (!groupId) return;
             setLoading(true);
             setPostsLoading(true);
             try {
-                const groupDataPromise = getGroupDetails(groupId);
-                const postsPromise = getPostsForGroup(groupId);
-                const [groupData, groupPosts] = await Promise.all([groupDataPromise, postsPromise]);
+                const groupData = await getGroupDetails(groupId);
 
-                setGroup(groupData);
-                setPosts(groupPosts);
-                if (groupData && user) {
+                if (isMounted) {
+                    setGroup(groupData);
+                }
+
+                if (groupData && user && isMounted) {
                     setIsMember(groupData.members.includes(user.uid));
                 }
+
+                unsubscribePosts = subscribeToPostsForGroup(
+                    groupId,
+                    (groupPosts) => {
+                        if (!isMounted) return;
+                        setPosts(groupPosts);
+                        setPostsLoading(false);
+                    },
+                    (error) => {
+                        console.error('Failed to subscribe to group posts:', error);
+                        if (!isMounted) return;
+                        setPostsLoading(false);
+                    }
+                );
             } catch (error) {
                 console.error("Failed to fetch group details:", error);
+                if (isMounted) {
+                    setPostsLoading(false);
+                }
             } finally {
-                setLoading(false);
-                setPostsLoading(false);
+                if (isMounted) {
+                    setLoading(false);
+                }
             }
         };
 
-        fetchGroupAndPosts();
+        fetchGroupAndSubscribePosts();
+
+        return () => {
+            isMounted = false;
+            if (unsubscribePosts) {
+                unsubscribePosts();
+            }
+        };
     }, [groupId, user]);
 
     const handleMembershipChange = async () => {
@@ -79,6 +107,28 @@ const GroupDetailScreen: React.FC = () => {
     const handleCreatePost = () => {
         hapticTap();
         navigate('/create-post', { state: { groupId } });
+    };
+
+    const handleDeleteGroup = async () => {
+        if (!groupId || !group || !user) return;
+        if (group.owner_id !== user.uid) return;
+
+        const confirmed = window.confirm('Delete this group permanently? This also deletes all group posts and comments.');
+        if (!confirmed) return;
+
+        setIsUpdatingMembership(true);
+        hapticTap();
+
+        try {
+            await deleteGroup(groupId);
+            hapticSuccess();
+            navigate('/community');
+        } catch (error: any) {
+            console.error('Failed to delete group:', error);
+            alert(error?.message || 'Failed to delete group. Please try again.');
+        } finally {
+            setIsUpdatingMembership(false);
+        }
     };
 
     if (loading) {
@@ -146,6 +196,16 @@ const GroupDetailScreen: React.FC = () => {
                         className="w-full bg-purple-600 text-white font-bold py-3 px-4 rounded-xl hover:bg-purple-700 transition duration-300 flex items-center justify-center gap-2 shadow-md"
                     >
                         <Plus size={20} /> Create Post in this Group
+                    </button>
+                )}
+
+                {user && group.owner_id === user.uid && (
+                    <button
+                        onClick={handleDeleteGroup}
+                        disabled={isUpdatingMembership}
+                        className="w-full bg-red-600 text-white font-bold py-3 px-4 rounded-xl hover:bg-red-700 transition duration-300 flex items-center justify-center gap-2 shadow-md disabled:opacity-50"
+                    >
+                        {isUpdatingMembership ? <Loader2 className="animate-spin" /> : <><Trash2 size={18} /> Delete Group</>}
                     </button>
                 )}
 

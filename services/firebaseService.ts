@@ -27,8 +27,11 @@ import {
   updateDoc, 
   arrayUnion, 
   arrayRemove,
-  limit,
-  deleteDoc
+    limit,
+    deleteDoc,
+    increment,
+    onSnapshot,
+    writeBatch
 } from 'firebase/firestore';
 import { auth, firestore, messaging } from '../config/firebase';
 import { UserGoal, UserProfile, NutritionScan, BodyScan, FaceScan, Post, Group, Comment, NutritionLog, NutritionScanResult, BodyScanResult, FaceScanResult } from '../types';
@@ -200,9 +203,14 @@ export const updateUserMetadata = async (metadata: { avatar_url?: string }) => {
 export const uploadImage = async (file: Blob | File, userId?: string, bucket?: string, folder?: string): Promise<string> => {
     const formData = new FormData();
     formData.append('image', file);
-    
-    // ImgBB API Key provided in prompt
-    const API_KEY = '6505fea8f075d916e86cfd1bcbabc126';
+
+    const API_KEY =
+        (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_IMGBB_API_KEY) ||
+        (typeof process !== 'undefined' ? process.env.IMGBB_API_KEY : undefined);
+
+    if (!API_KEY) {
+        throw new Error('Missing ImgBB API key. Set VITE_IMGBB_API_KEY before uploading images.');
+    }
     
     try {
         const response = await fetch(`https://api.imgbb.com/1/upload?key=${API_KEY}`, {
@@ -451,13 +459,12 @@ export const createComment = async (postId: string, userId: string, authorDispla
         content,
         created_at: serverTimestamp()
     });
-    
-    // Increment comment count on post
-    // Note: Real transaction would be safer but simplified here
+
+    // Keep persisted comment counts in sync with comment creation.
     const postRef = doc(firestore, 'posts', postId);
-    // We can't easily atomic increment without current value or a transaction reading it first, 
-    // but for this simple app we will just fire and forget the update or assume client optimistically updates.
-    // Ideally: use increment(1). For now, just rely on fetching.
+    await updateDoc(postRef, {
+        comment_count: increment(1)
+    });
     
     // Return constructed comment
     return {
@@ -557,6 +564,122 @@ export const leaveGroup = async (groupId: string): Promise<void> => {
             members: arrayRemove(currentUser.uid)
         });
     }
+};
+
+export const deleteGroup = async (groupId: string): Promise<void> => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+        throw new Error('You must be logged in to delete a group.');
+    }
+
+    const groupRef = doc(firestore, 'groups', groupId);
+    const groupSnap = await getDoc(groupRef);
+    if (!groupSnap.exists()) {
+        throw new Error('Group not found.');
+    }
+
+    const groupData = groupSnap.data() as Group;
+    if (groupData.owner_id !== currentUser.uid) {
+        throw new Error('Only the group owner can delete this group.');
+    }
+
+    const postsSnap = await getDocs(query(collection(firestore, 'posts'), where('group_id', '==', groupId)));
+    const postIds = postsSnap.docs.map((postDoc) => postDoc.id);
+
+    const commitDeletesInChunks = async (refs: Array<{ ref: any }>) => {
+        const chunkSize = 450;
+        for (let i = 0; i < refs.length; i += chunkSize) {
+            const chunk = refs.slice(i, i + chunkSize);
+            const batch = writeBatch(firestore);
+            chunk.forEach((docItem) => batch.delete(docItem.ref));
+            await batch.commit();
+        }
+    };
+
+    // Firestore supports up to 10 values for an in query. Chunk to delete comments for all group posts.
+    for (let i = 0; i < postIds.length; i += 10) {
+        const chunk = postIds.slice(i, i + 10);
+        const commentsSnap = await getDocs(query(collection(firestore, 'comments'), where('post_id', 'in', chunk)));
+        await commitDeletesInChunks(commentsSnap.docs);
+    }
+
+    // Delete posts in batches.
+    await commitDeletesInChunks(postsSnap.docs);
+
+    await deleteDoc(groupRef);
+};
+
+export const subscribeToPosts = (
+    callback: (posts: Post[]) => void,
+    onError?: (error: Error) => void
+) => {
+    const q = query(collection(firestore, 'posts'), where('group_id', '==', null));
+    return onSnapshot(
+        q,
+        (snapshot) => {
+            const posts = snapshot.docs
+                .map((postDoc) => {
+                    const data = convertTimestampToISO(postDoc.data());
+                    return { id: postDoc.id, user_id: data.userId ?? data.user_id, ...data } as Post;
+                })
+                .sort((a, b) => toSortableTime(b.created_at) - toSortableTime(a.created_at));
+            callback(posts);
+        },
+        (error) => {
+            onError?.(error as Error);
+        }
+    );
+};
+
+export const subscribeToPostsForGroup = (
+    groupId: string,
+    callback: (posts: Post[]) => void,
+    onError?: (error: Error) => void
+) => {
+    const q = query(
+        collection(firestore, 'posts'),
+        where('group_id', '==', groupId),
+        orderBy('created_at', 'desc')
+    );
+    return onSnapshot(
+        q,
+        (snapshot) => {
+            const posts = snapshot.docs.map((postDoc) => {
+                const data = convertTimestampToISO(postDoc.data());
+                return { id: postDoc.id, user_id: data.userId ?? data.user_id, ...data } as Post;
+            });
+            callback(posts);
+        },
+        (error) => {
+            onError?.(error as Error);
+        }
+    );
+};
+
+export const subscribeToCommentsForPost = (
+    postId: string,
+    callback: (comments: Comment[]) => void,
+    onError?: (error: Error) => void
+) => {
+    const q = query(
+        collection(firestore, 'comments'),
+        where('post_id', '==', postId),
+        orderBy('created_at', 'asc')
+    );
+
+    return onSnapshot(
+        q,
+        (snapshot) => {
+            const comments = snapshot.docs.map((commentDoc) => {
+                const data = convertTimestampToISO(commentDoc.data());
+                return { id: commentDoc.id, ...data } as Comment;
+            });
+            callback(comments);
+        },
+        (error) => {
+            onError?.(error as Error);
+        }
+    );
 };
 
 // --- DATABASE: AI COACH FUNCTIONS ---

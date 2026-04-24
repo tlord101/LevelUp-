@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { createComment, getCommentsForPost } from '../services/firebaseService';
+import { createComment, subscribeToCommentsForPost } from '../services/firebaseService';
 import { Comment } from '../types';
 import { Loader2, Send } from 'lucide-react';
 import { hapticTap, hapticError, hapticSuccess } from '../utils/haptics';
@@ -20,18 +20,19 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, onCommentPosted
     const { user, userProfile } = useAuth();
 
     useEffect(() => {
-        const fetchComments = async () => {
-            try {
-                const fetchedComments = await getCommentsForPost(postId);
-                setComments(fetchedComments);
-            } catch (error) {
+        const unsubscribe = subscribeToCommentsForPost(
+            postId,
+            (nextComments) => {
+                setComments(nextComments);
+                setLoading(false);
+            },
+            (error) => {
                 console.error("Failed to fetch comments:", error);
-            } finally {
                 setLoading(false);
             }
-        };
+        );
 
-        fetchComments();
+        return () => unsubscribe();
     }, [postId]);
 
     const handlePostComment = async (e: React.FormEvent) => {

@@ -15,6 +15,7 @@ import {
 import {
     createGeminiClient,
     GEMINI_TEXT_FALLBACK_MODELS,
+    getFriendlyGeminiErrorMessage,
     isRetryableGeminiModelError,
 } from '../utils/gemini';
 
@@ -152,6 +153,9 @@ const AICoachScreen: React.FC = () => {
                 setChat(chatInstance);
             } catch (error) {
                 console.error("Failed to initialize AI Chat:", error);
+                if (!isCancelled) {
+                    setMessages([{ role: 'model', text: getFriendlyGeminiErrorMessage(error) }]);
+                }
             }
         };
 
@@ -266,7 +270,7 @@ const AICoachScreen: React.FC = () => {
     
         } catch (error) {
             console.error('Error sending message:', error);
-            setMessages(prev => [...prev, { role: 'model', text: "Sorry, I encountered an error. Please try again." }]);
+            setMessages(prev => [...prev, { role: 'model', text: getFriendlyGeminiErrorMessage(error) }]);
         } finally {
             setIsLoading(false);
         }
@@ -341,7 +345,7 @@ const AICoachScreen: React.FC = () => {
                     await saveAICoachMessage(user.uid, modelMessage);
                 } catch (error) {
                     console.error('Error sending initial message:', error);
-                    setMessages(prev => [...prev, { role: 'model', text: 'Sorry, I encountered an error while loading your plan context.' }]);
+                    setMessages(prev => [...prev, { role: 'model', text: getFriendlyGeminiErrorMessage(error) }]);
                 } finally {
                     setIsLoading(false);
                     navigate(location.pathname, { replace: true, state: {} });
