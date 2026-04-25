@@ -79,7 +79,7 @@ const LiveStatsGraph: React.FC<{ stats: { strength: number; glow: number; energy
                             <div className="relative w-12 sm:w-14 h-32 flex items-end justify-center">
                                 {/* Main Bar */}
                                 <div 
-                                    className={`w-full rounded-2xl bg-gradient-to-b ${item.gradient} shadow-lg transition-all duration-1000 cubic-bezier(0.34, 1.56, 0.64, 1) relative z-10`}
+                                    className={`w-full rounded-2xl bg-linear-to-b ${item.gradient} shadow-lg transition-all duration-1000 cubic-bezier(0.34, 1.56, 0.64, 1) relative z-10`}
                                     style={{ 
                                         height: animate ? `${heightPercentage}%` : '0%',
                                         transitionDelay: item.delay,
@@ -87,13 +87,13 @@ const LiveStatsGraph: React.FC<{ stats: { strength: number; glow: number; energy
                                     }}
                                 >
                                     {/* Inner Glow/Shine */}
-                                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-white/10 to-transparent opacity-50 pointer-events-none"></div>
+                                    <div className="absolute inset-0 rounded-2xl bg-linear-to-tr from-white/10 to-transparent opacity-50 pointer-events-none"></div>
                                     <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-1 bg-white/30 rounded-full mt-1"></div>
                                 </div>
 
                                 {/* Reflection */}
                                 <div 
-                                    className={`absolute top-full w-full rounded-2xl bg-gradient-to-b ${item.gradient} opacity-30 transition-all duration-1000`}
+                                    className={`absolute top-full w-full rounded-2xl bg-linear-to-b ${item.gradient} opacity-30 transition-all duration-1000`}
                                     style={{ 
                                         height: animate ? `${heightPercentage * 0.4}%` : '0%',
                                         transitionDelay: item.delay,
@@ -248,7 +248,7 @@ const DashboardScreen: React.FC = () => {
                                 ) : (
                                     notifications.map(notif => (
                                         <div key={notif.id} className={`p-4 border-b border-gray-50 hover:bg-purple-50/50 transition-colors flex gap-3 ${notif.read ? 'opacity-60' : 'opacity-100'}`}>
-                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
                                                 notif.type === 'success' ? 'bg-green-100 text-green-600' :
                                                 notif.type === 'achievement' ? 'bg-yellow-100 text-yellow-600' :
                                                 'bg-blue-100 text-blue-600'
@@ -277,7 +277,7 @@ const DashboardScreen: React.FC = () => {
                 </div>
             </header>
             
-            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-5 rounded-2xl shadow-lg">
+            <div className="bg-linear-to-r from-purple-600 to-indigo-600 text-white p-5 rounded-2xl shadow-lg">
                 <div className="flex justify-between items-center">
                     <div className="flex items-center gap-3">
                         <div className="bg-white/20 p-2 rounded-lg">
@@ -300,7 +300,7 @@ const DashboardScreen: React.FC = () => {
             <div onClick={() => { hapticTap(); navigate('/nutrition-tracker'); }} className="cursor-pointer">
                 <h2 className="text-xl font-bold text-gray-800 mb-3">Today's Status</h2>
                 <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex items-center gap-6">
-                    <div className="relative w-32 h-32 flex-shrink-0">
+                    <div className="relative w-32 h-32 shrink-0">
                         <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                             <circle cx="50" cy="50" r="40" fill="transparent" stroke="#f3f4f6" strokeWidth="8" />
                             <circle cx="50" cy="50" r="40" fill="transparent" stroke="#f97316" strokeWidth="8"
@@ -351,7 +351,7 @@ const DashboardScreen: React.FC = () => {
             <LiveStatsGraph stats={userProfile.stats} />
 
             {userProfile.personalized_workout_plan && (
-                <section className="bg-gradient-to-r from-indigo-600 to-cyan-600 rounded-2xl p-5 text-white shadow-lg">
+                <section className="bg-linear-to-r from-indigo-600 to-cyan-600 rounded-2xl p-5 text-white shadow-lg">
                     <div className="flex items-start justify-between gap-3">
                         <div>
                             <p className="text-xs uppercase tracking-wider text-indigo-100">Saved Personalized Plan</p>

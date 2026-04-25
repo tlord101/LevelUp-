@@ -163,7 +163,7 @@ const OnboardingScreen: React.FC = () => {
     const progress = Math.round(((step -1) / (totalSteps-1)) * 100);
 
     return (
-        <div className="min-h-screen w-full bg-gradient-to-br from-purple-600 via-indigo-600 to-indigo-800 flex flex-col items-center justify-between p-4 sm:p-6 text-white font-sans">
+        <div className="min-h-screen w-full bg-linear-to-br from-purple-600 via-indigo-600 to-indigo-800 flex flex-col items-center justify-between p-4 sm:p-6 text-white font-sans">
             <header className="w-full max-w-lg">
                  <h1 className="text-center text-4xl font-bold mb-4">Leveling-Up</h1>
                 <div className="flex items-center justify-between text-sm mb-2">
@@ -214,7 +214,7 @@ const OnboardingScreen: React.FC = () => {
                                 const isSelected = (formData[currentStepData.key as keyof typeof formData] as string | string[]).includes(optionValue);
                                 return (
                                 <button key={optionValue} onClick={() => handleOptionSelect(optionValue, currentStepData.key as keyof typeof formData, currentStepData.type)} className={`w-full text-left p-4 border rounded-xl transition-all duration-200 flex items-center ${isSelected ? 'bg-purple-100 border-purple-500' : 'bg-white border-gray-300 hover:border-purple-400'}`}>
-                                    <div className={`w-5 h-5 rounded-full border-2 mr-4 flex-shrink-0 ${isSelected ? 'bg-purple-500 border-purple-500' : 'border-gray-300'}`}></div>
+                                    <div className={`w-5 h-5 rounded-full border-2 mr-4 shrink-0 ${isSelected ? 'bg-purple-500 border-purple-500' : 'border-gray-300'}`}></div>
                                     <div>
                                         <span className={`font-semibold ${isSelected ? 'text-purple-800' : 'text-gray-800'}`}>{optionValue}</span>
                                         {typeof opt !== 'string' && opt.description && <p className="text-sm text-gray-500">{opt.description}</p>}

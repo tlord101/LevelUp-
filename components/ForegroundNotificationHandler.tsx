@@ -24,9 +24,9 @@ const Toast: React.FC<{ notification: NotificationPayload, onClose: () => void }
     };
 
     return (
-        <div className="fixed top-5 right-5 w-full max-w-sm bg-white p-4 rounded-xl shadow-lg z-[100] animate-fade-in-down border border-gray-200">
+        <div className="fixed top-5 right-5 w-full max-w-sm bg-white p-4 rounded-xl shadow-lg z-100 animate-fade-in-down border border-gray-200">
             <div className="flex items-start gap-3">
-                <div className="bg-purple-100 text-purple-600 p-2 rounded-full flex-shrink-0">
+                <div className="bg-purple-100 text-purple-600 p-2 rounded-full shrink-0">
                     <Bell size={20} />
                 </div>
                 <div className="flex-1">

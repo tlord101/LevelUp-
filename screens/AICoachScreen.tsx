@@ -422,7 +422,7 @@ const AICoachScreen: React.FC = () => {
                             <button 
                                 onClick={handleSendMessage} 
                                 disabled={!userInput.trim() || isLoading} 
-                                className={`p-2.5 rounded-full flex-shrink-0 transition-all duration-200 ${
+                                className={`p-2.5 rounded-full shrink-0 transition-all duration-200 ${
                                     isLoading ? 'bg-transparent' : 'bg-gray-900 text-white hover:bg-black shadow-sm'
                                 }`}
                             >

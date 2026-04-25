@@ -49,7 +49,7 @@ const FoodHistoryScreen: React.FC = () => {
       onClick={() => handleScanClick(scan)}
       className="w-full bg-white rounded-xl shadow-md overflow-hidden flex items-center p-4 space-x-4 text-left transition-transform duration-200 hover:scale-[1.02]"
     >
-      <img src={scan.image_url} alt={scan.results.foodName} className="w-20 h-20 object-cover rounded-lg flex-shrink-0" />
+      <img src={scan.image_url} alt={scan.results.foodName} className="w-20 h-20 object-cover rounded-lg shrink-0" />
       <div className="flex-grow">
         <h3 className="font-bold text-lg text-gray-800 capitalize">{scan.results.foodName}</h3>
         <div className="flex items-center text-sm text-gray-500 mt-1">

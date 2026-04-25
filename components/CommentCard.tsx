@@ -9,7 +9,7 @@ interface CommentCardProps {
 const CommentCard: React.FC<CommentCardProps> = ({ comment }) => {
     return (
         <div className="flex items-start gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-gray-400 to-gray-600 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+            <div className="w-8 h-8 bg-linear-to-br from-gray-400 to-gray-600 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0">
                 {comment.author_display_name?.charAt(0).toUpperCase()}
             </div>
             <div className="flex-grow bg-gray-100 rounded-lg px-3 py-2">

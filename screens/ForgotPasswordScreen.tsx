@@ -31,7 +31,7 @@ const ForgotPasswordScreen: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-purple-500 to-pink-500">
+        <div className="min-h-screen flex items-center justify-center p-4 bg-linear-to-br from-purple-500 to-pink-500">
             <div className="w-full max-w-sm bg-white p-8 rounded-3xl shadow-2xl space-y-6">
                 <Link to="/login" className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900">
                     <ArrowLeft size={16} />
@@ -66,7 +66,7 @@ const ForgotPasswordScreen: React.FC = () => {
                         <button 
                             type="submit" 
                             disabled={loading} 
-                            className="w-full mt-2 flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-lg font-semibold text-white bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
+                            className="w-full mt-2 flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-lg font-semibold text-white bg-linear-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
                         >
                             {loading ? 'Sending...' : 'Send Reset Link'}
                         </button>

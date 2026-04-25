@@ -104,7 +104,7 @@ const FaceScanDetailScreen: React.FC = () => {
                     <p className={`text-6xl font-extrabold ${ratingColor}`}>{scan.results.skinRating.toFixed(1)}<span className="text-3xl">/10</span></p>
                 </div>
 
-                <div className="bg-gradient-to-r from-slate-900 to-slate-700 rounded-xl p-4 text-white">
+                <div className="bg-linear-to-r from-slate-900 to-slate-700 rounded-xl p-4 text-white">
                     <div className="flex items-start justify-between gap-3">
                         <div>
                             <p className="text-xs uppercase tracking-wider text-slate-300">AI Summary</p>

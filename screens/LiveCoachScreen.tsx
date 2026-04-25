@@ -273,7 +273,7 @@ const LiveCoachScreen: React.FC = () => {
                     <div className={`absolute inset-0 border-2 border-purple-500/30 rounded-full transition-all duration-100 ${isConnected && status.includes('Coach') ? 'scale-125 opacity-100' : 'scale-100 opacity-0'}`}></div>
                     <div className={`absolute inset-0 border-2 border-purple-500/20 rounded-full transition-all duration-300 ${isConnected && status.includes('Coach') ? 'scale-150 opacity-100' : 'scale-100 opacity-0'}`}></div>
 
-                    <div className="w-32 h-32 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center shadow-2xl shadow-purple-500/40 relative z-10">
+                    <div className="w-32 h-32 bg-linear-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center shadow-2xl shadow-purple-500/40 relative z-10">
                         <Mic size={48} className="text-white" />
                     </div>
                 </div>

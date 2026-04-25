@@ -75,7 +75,7 @@ const LoginScreen: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-purple-500 to-pink-500">
+        <div className="min-h-screen flex items-center justify-center p-4 bg-linear-to-br from-purple-500 to-pink-500">
             <div className="w-full max-w-sm bg-white p-8 rounded-3xl shadow-2xl space-y-6">
                 <div className="text-center">
                     <h2 className="text-3xl font-bold text-gray-900">Welcome Back</h2>
@@ -99,7 +99,7 @@ const LoginScreen: React.FC = () => {
                     </div>
                     
                     <div className="text-right -mt-2">
-                        <Link to="/forgot-password" className="text-sm font-medium text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-purple-600 hover:underline">
+                        <Link to="/forgot-password" className="text-sm font-medium text-transparent bg-clip-text bg-linear-to-r from-blue-500 to-purple-600 hover:underline">
                             Forgot Password?
                         </Link>
                     </div>
@@ -107,7 +107,7 @@ const LoginScreen: React.FC = () => {
                     {error && <p className="text-center text-red-500 text-sm">{error}</p>}
 
                     <div>
-                        <button type="submit" disabled={loading} className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-lg font-semibold text-white bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50">
+                        <button type="submit" disabled={loading} className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-lg font-semibold text-white bg-linear-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50">
                             {loading ? 'Logging In...' : 'Login'}
                         </button>
                     </div>
@@ -133,7 +133,7 @@ const LoginScreen: React.FC = () => {
 
                 <p className="text-center text-sm text-gray-600">
                     Don't have an account?{' '}
-                    <Link to="/signup" className="font-medium text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-purple-600 hover:underline">
+                    <Link to="/signup" className="font-medium text-transparent bg-clip-text bg-linear-to-r from-blue-500 to-purple-600 hover:underline">
                         Sign Up here
                     </Link>
                 </p>

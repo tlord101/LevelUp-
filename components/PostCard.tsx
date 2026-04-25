@@ -68,7 +68,7 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
         <div className="bg-white rounded-xl shadow-sm">
             {/* Header */}
             <div className="flex items-center p-4 gap-3">
-                 <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white text-lg font-bold flex-shrink-0">
+                 <div className="w-10 h-10 bg-linear-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white text-lg font-bold shrink-0">
                     {post.author_display_name?.charAt(0).toUpperCase()}
                 </div>
                 <div>

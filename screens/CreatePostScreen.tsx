@@ -129,7 +129,7 @@ const CreatePostScreen: React.FC = () => {
             <main className="flex-grow p-4 space-y-4">
                 <div className="flex items-start gap-3">
                     {userProfile?.display_name && (
-                         <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white text-xl font-bold flex-shrink-0">
+                         <div className="w-12 h-12 bg-linear-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white text-xl font-bold shrink-0">
                             {userProfile.display_name.charAt(0).toUpperCase()}
                         </div>
                     )}

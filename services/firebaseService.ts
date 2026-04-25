@@ -1,3 +1,5 @@
+import { uploadToCloudinary } from './cloudinaryService';
+
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -198,38 +200,10 @@ export const updateUserMetadata = async (metadata: { avatar_url?: string }) => {
     }
 };
 
-// --- IMGBB STORAGE ---
+// --- CLOUDINARY STORAGE (REPLACED IMGBB) ---
 
 export const uploadImage = async (file: Blob | File, userId?: string, bucket?: string, folder?: string): Promise<string> => {
-    const formData = new FormData();
-    formData.append('image', file);
-
-    const API_KEY =
-        (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_IMGBB_API_KEY) ||
-        (typeof process !== 'undefined' ? process.env.IMGBB_API_KEY : undefined);
-
-    if (!API_KEY) {
-        throw new Error('Missing ImgBB API key. Set VITE_IMGBB_API_KEY before uploading images.');
-    }
-    
-    try {
-        const response = await fetch(`https://api.imgbb.com/1/upload?key=${API_KEY}`, {
-            method: 'POST',
-            body: formData
-        });
-
-        const data = await response.json();
-        
-        if (data.success) {
-            return data.data.url;
-        } else {
-            console.error("ImgBB Upload Error:", data);
-            throw new Error(data.error?.message || 'Failed to upload image to ImgBB');
-        }
-    } catch (error: any) {
-        console.error("ImgBB Network Error:", error);
-        throw new Error(error.message || 'Network error uploading image');
-    }
+    return await uploadToCloudinary(file, folder || bucket || 'general');
 };
 
 // --- PUSH NOTIFICATIONS ---

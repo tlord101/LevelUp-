@@ -32,7 +32,7 @@ const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 
     }, [onClose]);
 
     return (
-        <div className={`fixed top-20 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-full shadow-xl flex items-center gap-3 z-[100] animate-fade-in-down ${type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>
+        <div className={`fixed top-20 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-full shadow-xl flex items-center gap-3 z-100 animate-fade-in-down ${type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>
             {type === 'success' ? <CheckCircle size={20} /> : <XCircle size={20} />}
             <span className="font-medium whitespace-nowrap">{message}</span>
         </div>

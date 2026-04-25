@@ -372,7 +372,7 @@ const BodyScannerScreen: React.FC = () => {
     return (
         <div className="min-h-screen bg-gray-50 p-4 pb-24">
             {isLoading && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in-up">
+                <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in-up">
                     <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center gap-4 animate-slide-up">
                         <Loader2 className="w-10 h-10 text-purple-600 animate-spin" />
                         <p className="text-lg font-semibold text-gray-800">Analyzing your scan...</p>
@@ -397,7 +397,7 @@ const BodyScannerScreen: React.FC = () => {
             
             {/* Prescan Preparation Modal */}
             {showPrescanModal && (
-                <div className="fixed inset-0 bg-black/60 z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
+                <div className="fixed inset-0 bg-black/60 z-70 flex items-center justify-center p-4 backdrop-blur-sm">
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 animate-fade-in-up">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-bold text-gray-800">Preparing for Body Scan</h2>
@@ -408,7 +408,7 @@ const BodyScannerScreen: React.FC = () => {
                         
                         <div className="grid grid-cols-2 gap-6 mb-6">
                             {/* Left side - Body diagram */}
-                            <div className="flex flex-col items-center justify-center bg-gradient-to-br from-purple-50 to-blue-50 rounded-2xl p-4">
+                            <div className="flex flex-col items-center justify-center bg-linear-to-br from-purple-50 to-blue-50 rounded-2xl p-4">
                                 <div className="relative w-24 h-32 mb-2">
                                     {/* Simple stick figure SVG */}
                                     <svg viewBox="0 0 100 140" className="w-full h-full text-purple-600">
@@ -432,15 +432,15 @@ const BodyScannerScreen: React.FC = () => {
                             {/* Right side - Checklist */}
                             <div className="flex flex-col justify-center space-y-3">
                                 <div className="flex items-start gap-2">
-                                    <CheckCircle2 size={20} className="text-green-500 flex-shrink-0 mt-0.5" />
+                                    <CheckCircle2 size={20} className="text-green-500 shrink-0 mt-0.5" />
                                     <p className="text-sm text-gray-700 leading-tight">Standing in well-lit area</p>
                                 </div>
                                 <div className="flex items-start gap-2">
-                                    <CheckCircle2 size={20} className="text-green-500 flex-shrink-0 mt-0.5" />
+                                    <CheckCircle2 size={20} className="text-green-500 shrink-0 mt-0.5" />
                                     <p className="text-sm text-gray-700 leading-tight">Wearing minimal clothing</p>
                                 </div>
                                 <div className="flex items-start gap-2">
-                                    <CheckCircle2 size={20} className="text-green-500 flex-shrink-0 mt-0.5" />
+                                    <CheckCircle2 size={20} className="text-green-500 shrink-0 mt-0.5" />
                                     <p className="text-sm text-gray-700 leading-tight">Device stable</p>
                                 </div>
                             </div>
@@ -459,7 +459,7 @@ const BodyScannerScreen: React.FC = () => {
                                     scanner.openCamera(); 
                                 }}
                                 disabled={!scannerEnabled}
-                                className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition"
+                                className="w-full flex items-center justify-center gap-2 py-3.5 bg-linear-to-r from-purple-600 to-blue-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition"
                             >
                                 <Camera size={20} />
                                 Scan with Camera
@@ -555,7 +555,7 @@ const BodyScannerScreen: React.FC = () => {
             </>
             ) : (
                 <div className="bg-white rounded-2xl p-6 text-center mb-6">
-                    <div className="w-20 h-20 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <div className="w-20 h-20 bg-linear-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
                         <Camera className="w-10 h-10 text-purple-600" />
                     </div>
                     <h3 className="font-bold text-gray-900 mb-2">Start Your Journey</h3>
@@ -627,13 +627,13 @@ const BodyScannerScreen: React.FC = () => {
                     setShowPrescanModal(true); 
                 }}
                 disabled={!scannerEnabled}
-                className="fixed bottom-24 left-1/2 transform -translate-x-1/2 w-[calc(100%-2rem)] max-w-md bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-4 rounded-full shadow-2xl hover:shadow-3xl transition-all duration-300 flex items-center justify-center gap-3 z-10"
+                className="fixed bottom-24 left-1/2 transform -translate-x-1/2 w-[calc(100%-2rem)] max-w-md bg-linear-to-r from-purple-600 to-pink-600 text-white font-bold py-4 rounded-full shadow-2xl hover:shadow-3xl transition-all duration-300 flex items-center justify-center gap-3 z-10"
             >
                 <Camera size={24} />
                 Start Body Scan
             </button>
             {!scannerEnabled && (
-                <p className="fixed bottom-[6.25rem] left-1/2 -translate-x-1/2 text-xs text-amber-600 bg-white/90 px-3 py-1 rounded-full shadow">
+                <p className="fixed bottom-25 left-1/2 -translate-x-1/2 text-xs text-amber-600 bg-white/90 px-3 py-1 rounded-full shadow">
                     Body scanner disabled by admin settings.
                 </p>
             )}

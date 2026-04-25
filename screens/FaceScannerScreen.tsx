@@ -102,14 +102,14 @@ const FaceScannerScreen: React.FC = () => {
     useEffect(() => {
         // Auto-start countdown when scanning starts or stage changes
         if (isScanning && !countdown && captureStage !== 'complete') {
-            // Initial delay before first countdown
+            const delay = captureStage === 'front' ? 2000 : 1500;
             const timeout = setTimeout(() => {
                 startCountdown();
-            }, 1000);
+            }, delay);
             
             return () => clearTimeout(timeout);
         }
-    }, [isScanning, captureStage]);
+    }, [isScanning, captureStage, countdown]);
 
     const startCamera = async () => {
         if (!scannerEnabled) {
@@ -211,40 +211,36 @@ const FaceScannerScreen: React.FC = () => {
         setShowGreenFlash(true);
         setTimeout(() => setShowGreenFlash(false), 300);
 
-        const nextImages = {
-            ...capturedImages,
-            [captureStage]: blob,
-        };
+        setCapturedImages(prev => {
+            const nextImages = {
+                ...prev,
+                [captureStage]: blob,
+            };
 
-        setCapturedImages(nextImages);
-
-        if (captureStage === 'front') {
-            setCaptureStage('left');
-            // Start countdown for next capture after short delay
-            setTimeout(() => startCountdown(), 1500);
-        } else if (captureStage === 'left') {
-            setCaptureStage('right');
-            // Start countdown for next capture after short delay
-            setTimeout(() => startCountdown(), 1500);
-        } else if (captureStage === 'right') {
-            setCaptureStage('complete');
-            stopCamera();
-            // Auto-start analysis
-            setTimeout(() => {
-                if (nextImages.front && nextImages.left && nextImages.right) {
-                    analyzeImages({
-                        front: nextImages.front,
-                        left: nextImages.left,
-                        right: nextImages.right,
-                    });
-                } else {
-                    setIsAnalyzing(false);
-                    setError('Capture incomplete. Please retake the three photos.');
-                    setCaptureStage('front');
-                    setCapturedImages({});
-                }
-            }, 500);
-        }
+            if (captureStage === 'front') {
+                setCaptureStage('left');
+            } else if (captureStage === 'left') {
+                setCaptureStage('right');
+            } else if (captureStage === 'right') {
+                setCaptureStage('complete');
+                stopCamera();
+                // Auto-start analysis
+                setTimeout(() => {
+                    if (nextImages.front && nextImages.left && nextImages.right) {
+                        analyzeImages({
+                            front: nextImages.front,
+                            left: nextImages.left,
+                            right: nextImages.right,
+                        });
+                    } else {
+                        setIsAnalyzing(false);
+                        setError('Capture incomplete. Please retake the three photos.');
+                        setCaptureStage('front');
+                    }
+                }, 500);
+            }
+            return nextImages;
+        });
     };
 
     const getPromptText = () => {
@@ -433,7 +429,7 @@ const FaceScannerScreen: React.FC = () => {
                     
                     {/* Scanning line effect */}
                     <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-full h-1 bg-gradient-to-r from-transparent via-pink-500 to-transparent animate-pulse"></div>
+                        <div className="w-full h-1 bg-linear-to-r from-transparent via-pink-500 to-transparent animate-pulse"></div>
                     </div>
                 </div>
             </div>
@@ -582,7 +578,7 @@ const FaceScannerScreen: React.FC = () => {
 
                 {/* Latest Scan Card */}
                 {scans.length > 0 && (
-                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-5 shadow-lg">
+                    <div className="bg-linear-to-br from-purple-50 to-pink-50 rounded-2xl p-5 shadow-lg">
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-lg font-bold text-gray-800">Latest Scan</h2>
                             <button 
@@ -682,7 +678,7 @@ const FaceScannerScreen: React.FC = () => {
                 )}
 
                 {/* Scan Button */}
-                <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl p-6 shadow-xl">
+                <div className="bg-linear-to-r from-purple-500 to-pink-500 rounded-2xl p-6 shadow-xl">
                     <div className="text-center mb-4">
                         <h3 className="text-white font-bold text-lg mb-1">Ready for a New Scan?</h3>
                         <p className="text-purple-100 text-sm">Track your skin health progress</p>

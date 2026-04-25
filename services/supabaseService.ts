@@ -1,4 +1,5 @@
 
+import { uploadToCloudinary } from './cloudinaryService';
 import { supabase } from '../config/supabase';
 import { NutritionScanResult, BodyScanResult, FaceScanResult, NutritionScan, BodyScan, FaceScan, Post, Group, Comment, NutritionLog } from '../types';
 import { Provider } from '@supabase/supabase-js';
@@ -52,19 +53,10 @@ export const updateUserMetadata = async (metadata: any) => {
 };
 
 
-// --- STORAGE ---
+// --- CLOUDINARY STORAGE (REPLACED SUPABASE) ---
 
 export const uploadImage = async (file: Blob | File, userId: string, bucket: 'scans' | 'posts', folder?: string): Promise<string> => {
-    const timestamp = new Date().getTime();
-    const filePath = folder 
-        ? `${folder}/${userId}/${timestamp}.jpeg` 
-        : `${userId}/${timestamp}.jpeg`;
-
-    const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file);
-    if (uploadError) throw uploadError;
-
-    const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
-    return data.publicUrl;
+    return await uploadToCloudinary(file, folder || bucket || 'general');
 };
 
 // --- DATABASE: SCANS ---

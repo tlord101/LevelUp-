@@ -253,7 +253,7 @@ const CameraView: React.FC<CameraViewProps> = ({
                         </p>
                         <button 
                             onClick={handleCapture} 
-                            className="w-24 h-24 mx-auto bg-gradient-to-br from-purple-500 to-pink-500 rounded-full border-4 border-white/50 ring-4 ring-black/30 hover:scale-105 transition-transform active:scale-95 flex items-center justify-center shadow-2xl"
+                            className="w-24 h-24 mx-auto bg-linear-to-br from-purple-500 to-pink-500 rounded-full border-4 border-white/50 ring-4 ring-black/30 hover:scale-105 transition-transform active:scale-95 flex items-center justify-center shadow-2xl"
                         >
                             <div className="w-16 h-16 bg-white rounded-full"></div>
                         </button>

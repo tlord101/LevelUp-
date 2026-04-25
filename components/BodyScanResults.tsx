@@ -126,7 +126,7 @@ const BodyScanResults: React.FC<BodyScanResultsProps> = ({ scan, onClose }) => {
     const transform = `translateY(${dragY}px)`;
 
         return (
-            <div className="fixed inset-0 z-[60] flex items-end justify-center animate-slide-up">
+            <div className="fixed inset-0 z-60 flex items-end justify-center animate-slide-up">
             {/* Backdrop */}
             <div 
                 className={`absolute inset-0 bg-black transition-opacity duration-300 ${isExpanded ? 'bg-opacity-60' : 'bg-opacity-40'}`}
@@ -177,7 +177,7 @@ const BodyScanResults: React.FC<BodyScanResultsProps> = ({ scan, onClose }) => {
                         <p className="text-sm text-gray-500">Your body composition results</p>
                     </div>
 
-                    <div className="bg-gradient-to-r from-slate-900 to-slate-700 rounded-2xl p-4 text-white mb-6">
+                    <div className="bg-linear-to-r from-slate-900 to-slate-700 rounded-2xl p-4 text-white mb-6">
                         <div className="flex items-center justify-between gap-3">
                             <div>
                                 <p className="text-xs uppercase tracking-wider text-slate-300">Scan Intelligence</p>
@@ -222,14 +222,14 @@ const BodyScanResults: React.FC<BodyScanResultsProps> = ({ scan, onClose }) => {
                     {/* Score Cards */}
                     <div className="grid grid-cols-2 gap-4 mb-6">
                         {/* Body Score */}
-                        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-3xl p-6 text-white shadow-lg">
+                        <div className="bg-linear-to-br from-purple-500 to-purple-600 rounded-3xl p-6 text-white shadow-lg">
                             <p className="text-sm font-medium mb-2 opacity-90">Body Score</p>
                             <p className="text-5xl font-extrabold mb-1">{physiqueScore}</p>
                             <p className="text-xs opacity-75">Excellent</p>
                         </div>
                         
                         {/* Potential Score */}
-                        <div className="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-3xl p-6 text-white shadow-lg">
+                        <div className="bg-linear-to-br from-blue-500 to-cyan-500 rounded-3xl p-6 text-white shadow-lg">
                             <p className="text-sm font-medium mb-2 opacity-90">Potential Score</p>
                             <p className="text-5xl font-extrabold mb-1">{potentialScore}</p>
                             <p className="text-xs opacity-75">+7 Possible</p>
@@ -248,7 +248,7 @@ const BodyScanResults: React.FC<BodyScanResultsProps> = ({ scan, onClose }) => {
                             </div>
                             <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
                                 <div 
-                                    className="h-full bg-gradient-to-r from-red-400 to-red-500 rounded-full transition-all duration-500"
+                                    className="h-full bg-linear-to-r from-red-400 to-red-500 rounded-full transition-all duration-500"
                                     style={{ width: `${(scan.results.bodyFatPercentage / 50) * 100}%` }}
                                 />
                             </div>
@@ -262,7 +262,7 @@ const BodyScanResults: React.FC<BodyScanResultsProps> = ({ scan, onClose }) => {
                             </div>
                             <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
                                 <div 
-                                    className="h-full bg-gradient-to-r from-green-400 to-green-500 rounded-full transition-all duration-500"
+                                    className="h-full bg-linear-to-r from-green-400 to-green-500 rounded-full transition-all duration-500"
                                     style={{ width: `${muscleMass}%` }}
                                 />
                             </div>
@@ -276,7 +276,7 @@ const BodyScanResults: React.FC<BodyScanResultsProps> = ({ scan, onClose }) => {
                             </div>
                             <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
                                 <div 
-                                    className="h-full bg-gradient-to-r from-blue-400 to-blue-500 rounded-full transition-all duration-500"
+                                    className="h-full bg-linear-to-r from-blue-400 to-blue-500 rounded-full transition-all duration-500"
                                     style={{ width: `${(parseFloat(boneMass) / 25) * 100}%` }}
                                 />
                             </div>
@@ -290,7 +290,7 @@ const BodyScanResults: React.FC<BodyScanResultsProps> = ({ scan, onClose }) => {
                             </div>
                             <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
                                 <div 
-                                    className="h-full bg-gradient-to-r from-cyan-400 to-cyan-500 rounded-full transition-all duration-500"
+                                    className="h-full bg-linear-to-r from-cyan-400 to-cyan-500 rounded-full transition-all duration-500"
                                     style={{ width: `${waterPercentage}%` }}
                                 />
                             </div>
@@ -299,22 +299,22 @@ const BodyScanResults: React.FC<BodyScanResultsProps> = ({ scan, onClose }) => {
 
                     {/* Additional Metrics Grid */}
                     <div className="grid grid-cols-2 gap-3 mb-6">
-                        <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4">
+                        <div className="bg-linear-to-br from-purple-50 to-purple-100 rounded-xl p-4">
                             <p className="text-xs text-gray-600 mb-1">BMI</p>
                             <p className="text-2xl font-bold text-purple-700">{bmi}</p>
                             <p className="text-xs text-gray-500 mt-1">Normal Range</p>
                         </div>
-                        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4">
+                        <div className="bg-linear-to-br from-blue-50 to-blue-100 rounded-xl p-4">
                             <p className="text-xs text-gray-600 mb-1">Metabolic Age</p>
                             <p className="text-2xl font-bold text-blue-700">{metabolicAge}</p>
                             <p className="text-xs text-gray-500 mt-1">Years</p>
                         </div>
-                        <div className="bg-gradient-to-br from-pink-50 to-pink-100 rounded-xl p-4">
+                        <div className="bg-linear-to-br from-pink-50 to-pink-100 rounded-xl p-4">
                             <p className="text-xs text-gray-600 mb-1">Body Type</p>
                             <p className="text-lg font-bold text-pink-700">{bodyType}</p>
                             <p className="text-xs text-gray-500 mt-1">Classification</p>
                         </div>
-                        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4">
+                        <div className="bg-linear-to-br from-green-50 to-green-100 rounded-xl p-4">
                             <p className="text-xs text-gray-600 mb-1">Symmetry</p>
                             <p className="text-2xl font-bold text-green-700">{bodySymmetry}</p>
                             <p className="text-xs text-gray-500 mt-1">Score</p>
@@ -332,7 +332,7 @@ const BodyScanResults: React.FC<BodyScanResultsProps> = ({ scan, onClose }) => {
                                 </div>
                                 <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
                                     <div 
-                                        className="h-full bg-gradient-to-r from-orange-400 to-orange-500 rounded-full"
+                                        className="h-full bg-linear-to-r from-orange-400 to-orange-500 rounded-full"
                                         style={{ width: `${(parseFloat(visceralFat) / 20) * 100}%` }}
                                     />
                                 </div>
@@ -344,7 +344,7 @@ const BodyScanResults: React.FC<BodyScanResultsProps> = ({ scan, onClose }) => {
                                 </div>
                                 <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
                                     <div 
-                                        className="h-full bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-full"
+                                        className="h-full bg-linear-to-r from-yellow-400 to-yellow-500 rounded-full"
                                         style={{ width: `${(parseFloat(subcutaneousFat) / 35) * 100}%` }}
                                     />
                                 </div>
@@ -363,7 +363,7 @@ const BodyScanResults: React.FC<BodyScanResultsProps> = ({ scan, onClose }) => {
                                 </div>
                                 <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
                                     <div 
-                                        className="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full"
+                                        className="h-full bg-linear-to-r from-blue-400 to-blue-600 rounded-full"
                                         style={{ width: `${muscleDistribution.upperBody}%` }}
                                     />
                                 </div>
@@ -375,7 +375,7 @@ const BodyScanResults: React.FC<BodyScanResultsProps> = ({ scan, onClose }) => {
                                 </div>
                                 <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
                                     <div 
-                                        className="h-full bg-gradient-to-r from-purple-400 to-purple-600 rounded-full"
+                                        className="h-full bg-linear-to-r from-purple-400 to-purple-600 rounded-full"
                                         style={{ width: `${muscleDistribution.core}%` }}
                                     />
                                 </div>
@@ -387,7 +387,7 @@ const BodyScanResults: React.FC<BodyScanResultsProps> = ({ scan, onClose }) => {
                                 </div>
                                 <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
                                     <div 
-                                        className="h-full bg-gradient-to-r from-green-400 to-green-600 rounded-full"
+                                        className="h-full bg-linear-to-r from-green-400 to-green-600 rounded-full"
                                         style={{ width: `${muscleDistribution.lowerBody}%` }}
                                     />
                                 </div>
@@ -427,7 +427,7 @@ const BodyScanResults: React.FC<BodyScanResultsProps> = ({ scan, onClose }) => {
                     </div>
 
                     {/* AI Workout Suggestions */}
-                    <div className="bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl p-6 mb-6 text-white">
+                    <div className="bg-linear-to-br from-purple-600 to-pink-600 rounded-2xl p-6 mb-6 text-white">
                         <div className="flex items-start justify-between mb-4">
                             <div>
                                 <h3 className="font-bold text-lg mb-1">Recommended Workout Plan</h3>
@@ -516,7 +516,7 @@ const BodyScanResults: React.FC<BodyScanResultsProps> = ({ scan, onClose }) => {
                     {/* Personalized Suggestions Card */}
                     <div className="bg-white rounded-2xl p-5 shadow-sm mb-6">
                         <div className="flex items-center gap-2 mb-4">
-                            <div className="bg-gradient-to-br from-blue-500 to-purple-500 p-2 rounded-lg">
+                            <div className="bg-linear-to-br from-blue-500 to-purple-500 p-2 rounded-lg">
                                 <Sparkles className="w-5 h-5 text-white" />
                             </div>
                             <h3 className="font-bold text-gray-900">AI Suggestions</h3>
@@ -596,7 +596,7 @@ const BodyScanResults: React.FC<BodyScanResultsProps> = ({ scan, onClose }) => {
                             hapticTap();
                             navigate('/dashboard');
                         }}
-                        className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+                        className="w-full bg-linear-to-r from-purple-600 to-pink-600 text-white font-bold py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
                     >
                         Back to Dashboard
                     </button>
@@ -608,7 +608,7 @@ const BodyScanResults: React.FC<BodyScanResultsProps> = ({ scan, onClose }) => {
                             <div className="bg-white rounded-2xl p-5 shadow-sm">
                                 <div className="text-center mb-4">
                                     <p className="text-gray-600 text-sm font-medium mb-2">Overall Physique Score</p>
-                                    <p className="text-5xl font-extrabold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                                    <p className="text-5xl font-extrabold bg-linear-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                                         {physiqueScore}<span className="text-2xl">/100</span>
                                     </p>
                                 </div>
@@ -714,7 +714,7 @@ const BodyScanResults: React.FC<BodyScanResultsProps> = ({ scan, onClose }) => {
                             </div>
 
                             {/* Workout Plan Section */}
-                            <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-2xl p-5">
+                            <div className="bg-linear-to-br from-purple-50 to-blue-50 rounded-2xl p-5">
                                 <div className="flex items-center gap-2 mb-3">
                                     <Dumbbell className="text-purple-600" size={20} />
                                     <h3 className="font-bold text-gray-800 text-sm">Suggested Workout Plan</h3>
@@ -733,7 +733,7 @@ const BodyScanResults: React.FC<BodyScanResultsProps> = ({ scan, onClose }) => {
                                             },
                                         });
                                     }}
-                                    className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition"
+                                    className="w-full flex items-center justify-center gap-2 py-3 bg-linear-to-r from-purple-600 to-blue-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition"
                                 >
                                     <TrendingUp size={18} />
                                     View Plan Details
@@ -746,7 +746,7 @@ const BodyScanResults: React.FC<BodyScanResultsProps> = ({ scan, onClose }) => {
                                 <ul className="space-y-3">
                                     {scan.results.recommendations.map((rec, index) => (
                                         <li key={index} className="flex items-start gap-3">
-                                            <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                            <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center shrink-0 mt-0.5">
                                                 <span className="text-green-600 text-xs font-bold">{index + 1}</span>
                                             </div>
                                             <span className="text-gray-700 text-sm leading-relaxed">{rec}</span>

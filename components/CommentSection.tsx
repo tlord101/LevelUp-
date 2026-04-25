@@ -78,7 +78,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, onCommentPosted
             {/* Comment Input Form */}
             {user && (
                  <form onSubmit={handlePostComment} className="flex items-start gap-3">
-                     <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-indigo-400 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 mt-1">
+                     <div className="w-8 h-8 bg-linear-to-br from-blue-400 to-indigo-400 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0 mt-1">
                         {userProfile?.display_name?.charAt(0).toUpperCase()}
                     </div>
                     <div className="relative flex-grow">

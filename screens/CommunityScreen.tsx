@@ -70,7 +70,7 @@ const CommunityScreen: React.FC = () => {
             {/* Floating Action Button for Creating a Post */}
             <button
                 onClick={handleCreatePost}
-                className="fixed bottom-24 right-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 rounded-full shadow-lg hover:scale-105 transition-transform duration-200"
+                className="fixed bottom-24 right-4 bg-linear-to-r from-blue-500 to-purple-600 text-white p-4 rounded-full shadow-lg hover:scale-105 transition-transform duration-200"
                 aria-label="Create Post"
             >
                 <Plus size={24} />

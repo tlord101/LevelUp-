@@ -514,7 +514,7 @@ const NutritionTrackerScreen: React.FC = () => {
             
             {/* Plan Applied Toast */}
             {showPlanAppliedToast && (
-                <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-[70] animate-fade-in-down">
+                <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-70 animate-fade-in-down">
                     <div className="bg-green-600 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-2">
                         <CheckCircle size={20} />
                         <span className="font-semibold">Nutrition Plan Applied!</span>
@@ -524,7 +524,7 @@ const NutritionTrackerScreen: React.FC = () => {
             
             {/* Loading Overlay */}
             {isAnalyzing && (
-                <div className="fixed inset-0 bg-black/70 z-[60] flex flex-col items-center justify-center backdrop-blur-sm">
+                <div className="fixed inset-0 bg-black/70 z-60 flex flex-col items-center justify-center backdrop-blur-sm">
                     <Loader2 className="w-16 h-16 text-white animate-spin mb-4" />
                     <p className="text-white font-bold text-lg">Analyzing your meal...</p>
                     <p className="text-white/70 text-sm">Identifying food & calculating macros</p>
@@ -553,7 +553,7 @@ const NutritionTrackerScreen: React.FC = () => {
                 
                 {/* Applied Nutrition Plan Banner */}
                 {userProfile?.nutrition_plan && (
-                    <section className="bg-gradient-to-r from-green-500 to-blue-500 rounded-2xl shadow-lg p-4">
+                    <section className="bg-linear-to-r from-green-500 to-blue-500 rounded-2xl shadow-lg p-4">
                         <div className="flex items-center justify-between text-white">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
@@ -678,7 +678,7 @@ const NutritionTrackerScreen: React.FC = () => {
                     </div>
                     
                     {mealPlan.length === 0 ? (
-                        <div className="bg-gradient-to-br from-purple-600 to-indigo-700 rounded-3xl p-6 text-white text-center shadow-lg">
+                        <div className="bg-linear-to-br from-purple-600 to-indigo-700 rounded-3xl p-6 text-white text-center shadow-lg">
                             <Sparkles size={32} className="mx-auto mb-3 text-yellow-300" />
                             <h4 className="font-bold text-xl mb-2">Need Ideas?</h4>
                             <p className="text-purple-100 text-sm mb-6">You have {Math.max(0, newGoal - dailyTotals.calories).toFixed(0)} calories remaining. Let AI generate a visual meal plan for you.</p>
@@ -720,7 +720,7 @@ const NutritionTrackerScreen: React.FC = () => {
                                         >
                                             <X size={14} />
                                         </button>
-                                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 pt-10">
+                                        <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/70 to-transparent p-4 pt-10">
                                             <h4 className="text-white font-bold text-lg leading-tight">{meal.name}</h4>
                                             <p className="text-white/80 text-xs mt-1">{meal.calories} kcal • {meal.macros.protein}g Protein</p>
                                         </div>
@@ -798,7 +798,7 @@ const NutritionTrackerScreen: React.FC = () => {
 
             {/* Goal Modal */}
             {isGoalModalOpen && (
-                <div className="fixed inset-0 bg-black/60 z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
+                <div className="fixed inset-0 bg-black/60 z-70 flex items-center justify-center p-4 backdrop-blur-sm">
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-fade-in-up">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-bold text-gray-800">Daily Calorie Goal</h2>
@@ -830,7 +830,7 @@ const NutritionTrackerScreen: React.FC = () => {
 
             {/* Schedule Modal */}
             {isScheduleModalOpen && selectedMealForSchedule && (
-                <div className="fixed inset-0 bg-black/60 z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
+                <div className="fixed inset-0 bg-black/60 z-70 flex items-center justify-center p-4 backdrop-blur-sm">
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-fade-in-up">
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-xl font-bold text-gray-800">Schedule Meal</h2>

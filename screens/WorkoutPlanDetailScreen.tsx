@@ -461,7 +461,7 @@ Return JSON only.
                             alt={currentPlan.title}
                             className="w-full h-full object-cover"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                        <div className="absolute inset-0 bg-linear-to-t from-black/70 to-transparent" />
                         <div className="absolute bottom-4 left-4 right-4">
                             <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold mb-2 ${getDifficultyColor(currentPlan.difficulty)}`}>
                                 {currentPlan.difficulty}
@@ -509,7 +509,7 @@ Return JSON only.
                             <div className="grid grid-cols-1 gap-2">
                                 {currentPlan.benefits.map((benefit, idx) => (
                                     <div key={idx} className="flex items-center gap-2">
-                                        <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                                        <CheckCircle className="w-5 h-5 text-green-500 shrink-0" />
                                         <span className="text-sm text-gray-700">{benefit}</span>
                                     </div>
                                 ))}
@@ -546,7 +546,7 @@ Return JSON only.
                     </div>
                 </div>
 
-                <div className="bg-gradient-to-r from-indigo-600 to-cyan-600 rounded-2xl p-5 text-white shadow-md">
+                <div className="bg-linear-to-r from-indigo-600 to-cyan-600 rounded-2xl p-5 text-white shadow-md">
                     <div className="flex items-start justify-between gap-3">
                         <div>
                             <p className="text-xs uppercase tracking-wider text-indigo-100">Advanced Personalization</p>
@@ -642,7 +642,7 @@ Return JSON only.
                                         alt={plan.title}
                                         className="w-full h-full object-cover"
                                     />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                                    <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent" />
                                     <div className="absolute bottom-2 left-2 right-2">
                                         <h4 className="font-bold text-white text-sm mb-0.5">{plan.title}</h4>
                                         <p className="text-xs text-white/90">{plan.subtitle}</p>
@@ -664,7 +664,7 @@ Return JSON only.
                 </div>
 
                 {/* Nutrition Plans Section */}
-                <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-2xl p-5">
+                <div className="bg-linear-to-br from-green-50 to-blue-50 rounded-2xl p-5">
                     <div className="flex items-center gap-2 mb-4">
                         <Apple className="text-green-600" size={24} />
                         <div>
@@ -737,7 +737,7 @@ Return JSON only.
                     {selectedNutritionPlan && (
                         <button
                             onClick={handleApplyNutritionPlan}
-                            className="w-full flex items-center justify-center gap-2 py-4 bg-gradient-to-r from-green-600 to-blue-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition"
+                            className="w-full flex items-center justify-center gap-2 py-4 bg-linear-to-r from-green-600 to-blue-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition"
                         >
                             <CheckCircle size={20} />
                             Apply {selectedNutritionPlan.title} to Nutrition Tracker
@@ -759,7 +759,7 @@ Return JSON only.
                             }
                         });
                     }}
-                    className="w-full flex items-center justify-center gap-2 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition"
+                    className="w-full flex items-center justify-center gap-2 py-4 bg-linear-to-r from-purple-600 to-blue-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition"
                 >
                     <TrendingUp size={20} />
                     Get Personalized Coaching

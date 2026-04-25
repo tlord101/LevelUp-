@@ -94,7 +94,7 @@ const BodyScanDetailScreen: React.FC = () => {
                      <ul className="space-y-2">
                         {scan.results.recommendations.map((rec, index) => (
                             <li key={index} className="flex items-start gap-3">
-                                <ShieldCheck className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                                <ShieldCheck className="w-5 h-5 text-green-500 mt-0.5 shrink-0" />
                                 <span className="text-gray-700">{rec}</span>
                             </li>
                         ))}

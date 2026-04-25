@@ -74,7 +74,7 @@ const BottomNavBar: React.FC = () => {
               )}
               <button
                 onClick={toggleMenu}
-                className="p-4 bg-gradient-to-br from-purple-500 to-indigo-600 text-white rounded-full shadow-lg transform hover:scale-105 transition-transform duration-200"
+                className="p-4 bg-linear-to-br from-purple-500 to-indigo-600 text-white rounded-full shadow-lg transform hover:scale-105 transition-transform duration-200"
               >
                 <Plus size={28} className={`transition-transform duration-300 ${isMenuOpen ? 'rotate-45' : 'rotate-0'}`} />
               </button>
