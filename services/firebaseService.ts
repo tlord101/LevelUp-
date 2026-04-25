@@ -259,12 +259,13 @@ export const getNutritionScans = async (userId: string): Promise<NutritionScan[]
 
 export const saveBodyScan = async (userId: string, imageUrl: string, results: BodyScanResult) => {
     if (!userId) throw new Error("User ID required");
-    await addDoc(collection(firestore, 'bodyScans'), {
+    const docRef = await addDoc(collection(firestore, 'bodyScans'), {
         userId,
         image_url: imageUrl,
         results,
         created_at: serverTimestamp(),
     });
+    return { id: docRef.id };
 };
 
 export const getBodyScans = async (userId: string): Promise<BodyScan[]> => {

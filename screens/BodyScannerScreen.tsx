@@ -346,17 +346,26 @@ const BodyScannerScreen: React.FC = () => {
 
         // Upload image and save scan
         const imageUrl = await uploadImage(scanner.imageFile, user.uid, 'scans');
-        await saveBodyScan(user.uid, imageUrl, parsedResult);
+        const newScanEntry = await saveBodyScan(user.uid, imageUrl, parsedResult);
         await rewardUser(20, { strength: 1 });
         hapticSuccess();
 
-        // Fetch latest scans and show the most recent one in the modal
-        await fetchScans();
-        const userScans = await getBodyScans(user.uid);
-        if (userScans.length > 0) {
-            setLatestScan(userScans[0]);
-            setShowResults(true);
-        }
+        // Prepare the new scan for immediate display
+        const newScan: BodyScan = {
+            id: newScanEntry?.id || Date.now().toString(),
+            user_id: user.uid,
+            image_url: imageUrl,
+            results: parsedResult,
+            created_at: new Date().toISOString()
+        };
+
+        // Update local state and show results immediately
+        setScans(prev => [newScan, ...prev]);
+        setLatestScan(newScan);
+        setShowResults(true);
+
+        // Fetch official updates in the background
+        fetchScans();
 
         } catch (err: any) {
             console.error("Analysis failed:", err);
