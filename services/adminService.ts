@@ -877,18 +877,6 @@ export const queueWelcomeEmail = async (payload: { email: string; displayName?: 
     }
   }
 };
-    await postToWebhook(settings.deliveryWebhookUrl, settings.deliveryWebhookApiKey, {
-      action: 'send-welcome-email',
-      to: payload.email,
-      displayName: payload.displayName || '',
-      senderName: settings.senderName || 'LevelUp Team',
-      smtpHost: settings.smtpHost,
-      port: settings.port,
-      gmail: settings.gmail,
-      appPassword: settings.appPassword,
-    });
-  }
-};
 
 export const getAdminSettings = async (section: string) => {
   const snap = await getDoc(doc(firestore, 'adminSettings', section));

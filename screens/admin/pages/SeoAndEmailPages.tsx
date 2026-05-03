@@ -609,15 +609,8 @@ export const AdminEmailConfigurePage: React.FC = () => {
                 <input type="password" value={form.appPassword || ''} onChange={(e) => update('appPassword', e.target.value)} className={`${shellClass[theme].input} mt-2 w-full rounded-xl px-3 py-2.5`} />
               </label>
             </div>
-              <label className="text-sm font-medium">Password
-                <input type="password" value={form.appPassword || ''} onChange={(e) => update('appPassword', e.target.value)} className={`${shellClass[theme].input} mt-2 w-full rounded-xl px-3 py-2.5`} />
-              </label>
-            </div>
 
             <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <label className="text-sm font-medium">Sender name
-                <input value={form.senderName || ''} onChange={(e) => update('senderName', e.target.value)} className={`${shellClass[theme].input} mt-2 w-full rounded-xl px-3 py-2.5`} />
-              </label>
               <label className="text-sm font-medium">Test recipient
                 <input value={testRecipient} onChange={(e) => setTestRecipient(e.target.value)} className={`${shellClass[theme].input} mt-2 w-full rounded-xl px-3 py-2.5`} />
               </label>
