@@ -710,12 +710,20 @@ export const AdminSettingsApiPage: React.FC = () => {
   }, []);
 
   return (
-    <PageScaffold title="API & Integrations" description="AI Models (Gemini, OpenAI), Cloudinary, and Webhooks" theme={theme}>
+    <PageScaffold title="API & Integrations" description="Gemini AI, Cloudinary, and Webhooks" theme={theme}>
       <div className={`${shellClass[theme].card} rounded-3xl p-5 space-y-4`}>
         <div className="space-y-2">
-          <label className="text-sm font-bold opacity-70">AI Models</label>
-          <input value={geminiApiKey} onChange={(e) => setGeminiApiKey(e.target.value)} className={`${shellClass[theme].input} w-full rounded-lg px-3 py-2`} placeholder="Gemini API key" type="password" />
-          <input value={openAiKey} onChange={(e) => setOpenAiKey(e.target.value)} className={`${shellClass[theme].input} w-full rounded-lg px-3 py-2`} placeholder="OpenAI API key" type="password" />
+          <label className="text-sm font-bold opacity-70">AI Configuration</label>
+          <div className="space-y-1">
+            <p className="text-[10px] text-emerald-500 font-bold uppercase tracking-wider">Required for Face & Food scans</p>
+            <input 
+              value={geminiApiKey} 
+              onChange={(e) => setGeminiApiKey(e.target.value)} 
+              className={`${shellClass[theme].input} w-full rounded-lg px-3 py-2 border-emerald-500/30 focus:border-emerald-500`} 
+              placeholder="Google Gemini API Key" 
+              type="password" 
+            />
+          </div>
         </div>
 
         <div className="space-y-2 border-t border-white/5 pt-4">
