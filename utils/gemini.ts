@@ -1,24 +1,39 @@
 import { GoogleGenAI } from '@google/genai';
+import { getAdminSettings } from '../services/adminService';
 
 export const GEMINI_TEXT_MODEL = 'gemini-2.5-flash';
 export const GEMINI_TEXT_FALLBACK_MODELS = [GEMINI_TEXT_MODEL];
 export const GEMINI_LIVE_AUDIO_MODEL = 'gemini-2.5-flash-native-audio-preview-09-2025';
 export const GEMINI_IMAGE_MODEL = 'imagen-4.0-generate-001';
 
-export const getGeminiApiKey = () => {
+export const getGeminiApiKey = async () => {
+    // 1. Try Firestore admin settings
+    try {
+        const config = await getAdminSettings('api');
+        if (config?.geminiApiKey) {
+            return config.geminiApiKey;
+        }
+    } catch (err) {
+        console.error('Failed to fetch Gemini key from Firestore:', err);
+    }
+
+    // 2. Fallback to Environment Variables
     const key =
         (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY) ||
         (typeof process !== 'undefined' ? process.env.API_KEY : undefined) ||
         (typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : undefined);
 
     if (!key) {
-        throw new Error('Missing Gemini API key. Set VITE_GEMINI_API_KEY or GEMINI_API_KEY before starting the app.');
+        throw new Error('Missing Gemini API key. Set it in Admin Panel or VITE_GEMINI_API_KEY environment variable.');
     }
 
     return key;
 };
 
-export const createGeminiClient = () => new GoogleGenAI({ apiKey: getGeminiApiKey() });
+export const createGeminiClient = async () => {
+    const apiKey = await getGeminiApiKey();
+    return new GoogleGenAI({ apiKey });
+};
 
 export const isRetryableGeminiModelError = (error: unknown) => {
     const message = error instanceof Error ? error.message : String(error || '');

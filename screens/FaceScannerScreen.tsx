@@ -10,6 +10,7 @@ import { hapticTap, hapticSuccess, hapticError } from '../utils/haptics';
 import { blobToBase64 } from '../utils/imageUtils';
 import { formatRelativeTime } from '../utils/formatDate';
 import { isScannerEnabled } from '../services/adminService';
+import FaceScanResultDrawer from '../components/FaceScanResultDrawer';
 import {
     createGeminiClient,
     GEMINI_TEXT_FALLBACK_MODELS,
@@ -35,6 +36,8 @@ const FaceScannerScreen: React.FC = () => {
     const [showGreenFlash, setShowGreenFlash] = useState(false);
     const [countdown, setCountdown] = useState<number | null>(null);
     const [scannerEnabled, setScannerEnabled] = useState(true);
+    const [showResultDrawer, setShowResultDrawer] = useState(false);
+    const [latestScan, setLatestScan] = useState<FaceScan | null>(null);
     
     const { user, rewardUser } = useAuth();
     const navigate = useNavigate();
@@ -315,24 +318,41 @@ const FaceScannerScreen: React.FC = () => {
             const base64Image = await blobToBase64(compositeBlob);
             const imagePart = { inlineData: { mimeType: 'image/jpeg', data: base64Image } };
 
-            const prompt = "Analyze the person in this image, which contains three views of their face (left profile, front view, and right profile), to provide a comprehensive skin health assessment. Provide a rating of their skin from 1 to 10. Also provide a concise analysis of their skin's hydration, clarity, and radiance. Finally, provide 3 specific, actionable skincare product recommendations. For each recommendation, include the product type (e.g., cleanser, serum, moisturizer), a well-known example brand/product name (e.g., 'CeraVe Hydrating Cleanser', 'The Ordinary Niacinamide 10% + Zinc 1%'), and a brief reason for the recommendation. If the image does not contain a face suitable for analysis, indicate that.";
+            const prompt = `Analyze the person in this image, which contains three views of their face (left profile, front view, and right profile), to provide a comprehensive skin health assessment. 
 
-            const ai = createGeminiClient();
-            let response: Awaited<ReturnType<typeof ai.models.generateContent>> | null = null;
+            Your response should include:
+            1. An overall skin rating from 1 to 10.
+            2. Analysis of hydration, clarity, and radiance.
+            3. A short narrative description (summaryTitle and comparisonSummary) about the overall result.
+            4. Primary skin condition (e.g. Oily, Dry, Combination, Sensitive) and any visible concerns.
+            5. A segmented daily skincare routine (dailyPlan) with "morning" and "evening" arrays. Each item in these arrays must be an object with a "step" (the action/product) and a "description" (a brief explanation of why or how to use it).
+            6. Three specific, actionable skincare product recommendations with productType, productName, and a reason for recommending it.
+
+            If the image does not contain a face suitable for analysis, indicate that.`;
+
+            const ai = await createGeminiClient();
+            let response: any = null;
             let lastError: unknown = null;
 
             for (const model of FACE_SCAN_MODELS) {
                 try {
-                    response = await ai.models.generateContent({
+                    const modelInstance = ai.getGenerativeModel({
                         model,
-                        contents: { parts: [imagePart, { text: prompt }] },
-                        config: {
+                        generationConfig: {
                             responseMimeType: 'application/json',
                             responseSchema: {
                                 type: Type.OBJECT,
                                 properties: {
                                     isFace: { type: Type.BOOLEAN, description: 'Is a face clearly visible for analysis?' },
+                                    summaryTitle: { type: Type.STRING, description: 'A catchy title for the analysis' },
+                                    comparisonSummary: { type: Type.STRING, description: 'A short descriptive narrative about the overall results' },
                                     skinRating: { type: Type.NUMBER, description: 'A rating of the user\'s overall skin health on a scale of 1 to 10.' },
+                                    skinCondition: { type: Type.STRING, description: 'Identified skin type or primary condition' },
+                                    visibleConcerns: { 
+                                        type: Type.ARRAY, 
+                                        items: { type: Type.STRING },
+                                        description: 'List of visible concerns like acne, redness, etc.'
+                                    },
                                     skinAnalysis: {
                                         type: Type.OBJECT,
                                         properties: {
@@ -341,6 +361,34 @@ const FaceScannerScreen: React.FC = () => {
                                             radiance: { type: Type.STRING, description: 'Rate the skin radiance as "Radiant" or "Dull".' }
                                         },
                                         required: ['hydration', 'clarity', 'radiance']
+                                    },
+                                    dailyPlan: {
+                                        type: Type.OBJECT,
+                                        properties: {
+                                            morning: {
+                                                type: Type.ARRAY,
+                                                items: {
+                                                    type: Type.OBJECT,
+                                                    properties: {
+                                                        step: { type: Type.STRING, description: 'The name of the action or product' },
+                                                        description: { type: Type.STRING, description: 'A brief description of why or how to use it' }
+                                                    },
+                                                    required: ['step', 'description']
+                                                }
+                                            },
+                                            evening: {
+                                                type: Type.ARRAY,
+                                                items: {
+                                                    type: Type.OBJECT,
+                                                    properties: {
+                                                        step: { type: Type.STRING, description: 'The name of the action or product' },
+                                                        description: { type: Type.STRING, description: 'A brief description of why or how to use it' }
+                                                    },
+                                                    required: ['step', 'description']
+                                                }
+                                            }
+                                        },
+                                        required: ['morning', 'evening']
                                     },
                                     recommendations: {
                                         type: Type.ARRAY,
@@ -355,10 +403,15 @@ const FaceScannerScreen: React.FC = () => {
                                         }
                                     }
                                 },
-                                required: ['isFace', 'skinRating', 'skinAnalysis', 'recommendations']
+                                required: ['isFace', 'skinRating', 'skinAnalysis', 'recommendations', 'summaryTitle', 'comparisonSummary', 'dailyPlan']
                             }
                         }
                     });
+
+                    const result = await modelInstance.generateContent({
+                        contents: [{ role: 'user', parts: [imagePart, { text: prompt }] }]
+                    });
+                    response = result.response;
                     break;
                 } catch (err) {
                     lastError = err;
@@ -372,7 +425,7 @@ const FaceScannerScreen: React.FC = () => {
                 throw lastError || new Error('AI analysis failed.');
             }
 
-            const jsonStr = response.text.trim();
+            const jsonStr = response.text();
             const analysisData = JSON.parse(jsonStr);
 
             if (!analysisData.isFace) {
@@ -383,6 +436,11 @@ const FaceScannerScreen: React.FC = () => {
                 skinRating: analysisData.skinRating,
                 skinAnalysis: analysisData.skinAnalysis,
                 recommendations: analysisData.recommendations,
+                summaryTitle: analysisData.summaryTitle,
+                comparisonSummary: analysisData.comparisonSummary,
+                skinCondition: analysisData.skinCondition,
+                visibleConcerns: analysisData.visibleConcerns,
+                dailyPlan: analysisData.dailyPlan
             };
 
             const imageUrl = await uploadImage(compositeBlob, user.uid, 'scans');
@@ -393,14 +451,17 @@ const FaceScannerScreen: React.FC = () => {
             
             hapticSuccess();
             
-            const newScanForNav: FaceScan = {
+            const newScanResult: FaceScan = {
                 id: `new-${Date.now()}`,
                 user_id: user.uid,
                 image_url: imageUrl,
                 results: parsedResult,
                 created_at: new Date().toISOString(),
             };
-            navigate('/history/face/detail', { state: { scan: newScanForNav } });
+            
+            setLatestScan(newScanResult);
+            setShowResultDrawer(true);
+            fetchScans();
 
         } catch (err: any) {
             console.error("Analysis failed:", err);
@@ -720,7 +781,58 @@ const FaceScannerScreen: React.FC = () => {
                         </p>
                     </div>
                 )}
+
+                {/* Scan History */}
+                {scans.length > 0 && (
+                    <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                            <h3 className="font-bold text-gray-900">Recent Scans</h3>
+                            <Clock size={18} className="text-gray-400" />
+                        </div>
+                        <div className="space-y-3">
+                            {scans.map((scan) => (
+                                <div 
+                                    key={scan.id} 
+                                    onClick={() => {
+                                        setLatestScan(scan);
+                                        setShowResultDrawer(true);
+                                    }}
+                                    className="bg-white p-4 rounded-xl shadow-xs flex items-center gap-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                                >
+                                    <div className="w-12 h-12 rounded-lg bg-purple-50 flex items-center justify-center">
+                                        <div className="w-10 h-10 rounded-lg overflow-hidden border border-purple-100">
+                                            <img src={scan.image_url} alt="Scan" className="w-full h-full object-cover" />
+                                        </div>
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="font-bold text-gray-800 text-sm line-clamp-1">
+                                            {scan.results.summaryTitle || "Face Scan"}
+                                        </p>
+                                        <p className="text-xs text-gray-400">
+                                            {formatRelativeTime(scan.created_at)}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs font-black text-pink-500 bg-pink-50 px-2 py-1 rounded-md border border-pink-100">
+                                            {scan.results.skinRating}/10
+                                        </span>
+                                        <ChevronRight size={18} className="text-gray-300" />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
+
+            {/* Result Drawer */}
+            {latestScan && (
+                <FaceScanResultDrawer 
+                    isOpen={showResultDrawer} 
+                    onClose={() => setShowResultDrawer(false)} 
+                    scan={latestScan} 
+                />
+            )}
         </div>
     );
 };

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { getAdminUserDetails, getAdminUsers, getSubscriptionsOverview, getUserLevelInsights, updateUserAdminFields, updateUserSubscription } from '../../../services/adminService';
-import { PageScaffold, Table, shellClass, useAdminTheme } from '../components/AdminWidgets';
+import { getAdminUserDetails, getAdminUsers, getSubscriptionsOverview, getUserLevelInsights, sendDirectEmail, sendDirectPush, updateUserAdminFields, updateUserSubscription } from '../../../services/adminService';
+import { PageScaffold, Table, Toast, shellClass, useAdminTheme } from '../components/AdminWidgets';
 
 export const AdminUsersAllPage: React.FC = () => {
   const theme = useAdminTheme();
@@ -9,6 +9,11 @@ export const AdminUsersAllPage: React.FC = () => {
   const [query, setQuery] = useState('');
   const [plan, setPlan] = useState('all');
   const [status, setStatus] = useState('all');
+
+  const [selectedUser, setSelectedUser] = useState<any | null>(null);
+  const [modalType, setModalType] = useState<'email' | 'push' | null>(null);
+  const [messageForm, setMessageForm] = useState({ title: '', body: '' });
+  const [toast, setToast] = useState('');
 
   const loadUsers = () => getAdminUsers().then(setUsers).catch((err) => console.error('users error', err));
   useEffect(() => { loadUsers(); }, []);
@@ -23,6 +28,34 @@ export const AdminUsersAllPage: React.FC = () => {
   const setBan = async (userId: string, banned: boolean) => {
     await updateUserAdminFields(userId, { status: banned ? 'banned' : 'active', updated_at: new Date().toISOString() });
     await loadUsers();
+  };
+
+  const handleSendMessage = async () => {
+    if (!selectedUser || !messageForm.body) return;
+    
+    try {
+      if (modalType === 'email') {
+        await sendDirectEmail({
+          to: selectedUser.email,
+          subject: messageForm.title || 'Message from LevelUp AI',
+          message: messageForm.body
+        });
+        setToast('Email sent to queue');
+      } else {
+        await sendDirectPush({
+          userId: selectedUser.id,
+          title: messageForm.title || 'LevelUp Notification',
+          message: messageForm.body
+        });
+        setToast('Push notification queued');
+      }
+      
+      setModalType(null);
+      setMessageForm({ title: '', body: '' });
+      setTimeout(() => setToast(''), 2000);
+    } catch (err: any) {
+      alert(err.message || 'Failed to send');
+    }
   };
 
   return (
@@ -49,13 +82,60 @@ export const AdminUsersAllPage: React.FC = () => {
           String(user.plan || 'basic').toUpperCase(),
           <span className={`rounded-full px-2 py-1 text-xs ${String(user.status || 'active') === 'active' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-rose-500/20 text-rose-500'}`}>{user.status || 'active'}</span>,
           user.last_active ? new Date(user.last_active).toLocaleString() : '-',
-          <div className="flex gap-2 text-xs">
+          <div className="flex flex-wrap gap-2 text-xs">
             <Link to={`/admin/users/${user.id}`} className={`rounded-md px-2 py-1 ${theme === 'light' ? 'bg-emerald-100 text-emerald-700' : 'bg-emerald-500/20 text-emerald-300'}`}>View</Link>
-            <button className="rounded-md bg-slate-500/20 px-2 py-1" onClick={() => updateUserAdminFields(user.id, { plan: user.plan === 'elite' ? 'pro' : 'elite' }).then(loadUsers)}>Change Plan</button>
-            <button className="rounded-md bg-rose-500/20 px-2 py-1" onClick={() => setBan(user.id, String(user.status) !== 'banned')}>{String(user.status) === 'banned' ? 'Unban' : 'Ban'}</button>
+            <button 
+              onClick={() => { setSelectedUser(user); setModalType('email'); }}
+              className="rounded-md bg-indigo-500/20 px-2 py-1 text-indigo-400"
+            >
+              Email
+            </button>
+            <button 
+              onClick={() => { setSelectedUser(user); setModalType('push'); }}
+              className="rounded-md bg-sky-500/20 px-2 py-1 text-sky-400"
+            >
+              Push
+            </button>
+            <button className="rounded-md bg-slate-500/20 px-2 py-1" onClick={() => updateUserAdminFields(user.id, { plan: user.plan === 'elite' ? 'pro' : 'elite' }).then(loadUsers)}>Plan</button>
+            <button className="rounded-md bg-rose-500/20 px-2 py-1" onClick={() => setBan(user.id, String(user.status) !== 'banned')}>{String(user.status) === 'banned' ? 'Un' : ''}Ban</button>
           </div>,
         ])}
       />
+
+      {modalType && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className={`${shellClass[theme].card} w-full max-w-md rounded-3xl p-6 border border-white/10 shadow-2xl`}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold">Send {modalType === 'email' ? 'Email' : 'Push'}</h3>
+              <button onClick={() => setModalType(null)} className="text-white/40 hover:text-white text-xl">&times;</button>
+            </div>
+            <p className={`text-sm mb-4 ${shellClass[theme].subtle}`}>To: <span className="text-white">{selectedUser?.display_name}</span></p>
+            
+            <div className="space-y-4">
+              <input 
+                value={messageForm.title} 
+                onChange={e => setMessageForm(f => ({ ...f, title: e.target.value }))}
+                placeholder={modalType === 'email' ? 'Subject' : 'Title'}
+                className={`${shellClass[theme].input} w-full rounded-xl px-4 py-2 text-sm`}
+              />
+              <textarea 
+                value={messageForm.body} 
+                onChange={e => setMessageForm(f => ({ ...f, body: e.target.value }))}
+                placeholder="Message..."
+                className={`${shellClass[theme].input} w-full rounded-xl px-4 py-3 text-sm h-32 resize-none`}
+              />
+              <button 
+                onClick={handleSendMessage}
+                className="w-full bg-emerald-500 text-emerald-950 font-bold py-3 rounded-xl hover:bg-emerald-400"
+              >
+                Send
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && <Toast message={toast} theme={theme} />}
     </PageScaffold>
   );
 };

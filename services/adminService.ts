@@ -63,6 +63,7 @@ export type AdminEmailSettings = {
   gmail?: string;
   appPassword?: string;
   senderName?: string;
+  senderEmail?: string;
   deliveryWebhookUrl?: string;
   deliveryWebhookApiKey?: string;
   welcomeEmailEnabled?: boolean;
@@ -664,6 +665,29 @@ export const createAdminNotification = async (payload: {
     created_at: serverTimestamp(),
   });
 
+  // 3. Optional Direct Webhook / Back-end Logic
+  const settings = (await getAdminSettings('email')) as AdminEmailSettings | null;
+  if (settings?.deliveryWebhookUrl) {
+    try {
+      await postToWebhook(settings.deliveryWebhookUrl, settings.deliveryWebhookApiKey, {
+        action: 'send-mass-broadcast',
+        notificationId: ref.id,
+        type: payload.type,
+        title,
+        message: payload.message,
+        target,
+        senderName: settings.senderName,
+        senderEmail: settings.senderEmail || settings.gmail,
+        smtpHost: settings.smtpHost,
+        port: settings.port,
+        gmail: settings.gmail,
+        appPassword: settings.appPassword,
+      });
+    } catch (e) {
+      console.error('Broadcast notification webhook failed', e);
+    }
+  }
+
   if (payload.type === 'in-app') {
     await addDoc(collection(firestore, 'inAppBroadcasts'), {
       title,
@@ -737,10 +761,87 @@ export const sendAdminTestEmail = async (recipient: string) => {
     subject: 'LevelUp Admin SMTP Test',
     text: 'Your SMTP webhook integration is working.',
     senderName: settings.senderName || 'LevelUp Team',
+    senderEmail: settings.senderEmail || settings.gmail,
+    username: settings.gmail,
     smtpHost: settings.smtpHost,
     port: settings.port,
     gmail: settings.gmail,
     appPassword: settings.appPassword,
+  });
+};
+
+export const sendDirectEmail = async (payload: { to: string; subject: string; message: string }) => {
+  const settings = (await getAdminSettings('email')) as AdminEmailSettings | null;
+  
+  // 1. Log the campaign record
+  await addDoc(collection(firestore, 'adminNotifications'), {
+    type: 'email',
+    title: payload.subject,
+    message: payload.message,
+    target: 'individual',
+    status: 'sent',
+    read: false,
+    created_at: serverTimestamp(),
+  });
+
+  // 2. Queue for delivery (Message Job)
+  const job = {
+    type: 'email',
+    to: payload.to,
+    subject: payload.subject,
+    text: payload.message,
+    status: 'queued',
+    created_at: serverTimestamp(),
+  };
+  
+  await addDoc(collection(firestore, 'messageJobs'), job);
+
+  // 3. Optional direct webhook trigger
+  if (settings?.deliveryWebhookUrl) {
+    try {
+      await postToWebhook(settings.deliveryWebhookUrl, settings.deliveryWebhookApiKey, {
+        ...job,
+        senderName: settings.senderName,
+        senderEmail: settings.senderEmail || settings.gmail,
+        smtpHost: settings.smtpHost,
+        port: settings.port,
+        gmail: settings.gmail,
+        appPassword: settings.appPassword,
+      });
+    } catch (e) {
+      console.error('Direct email webhook failed', e);
+    }
+  }
+};
+
+export const sendDirectPush = async (payload: { userId: string; title: string; message: string }) => {
+  // 1. Get user token
+  const userRef = doc(firestore, 'users', payload.userId);
+  const userSnap = await getDoc(userRef);
+  const userData = userSnap.data();
+  const token = userData?.notificationToken;
+
+  // 2. Log in notifications
+  await addDoc(collection(firestore, 'adminNotifications'), {
+    type: 'push',
+    title: payload.title,
+    message: payload.message,
+    target: 'individual',
+    status: token ? 'queued' : 'failed-no-token',
+    read: false,
+    created_at: serverTimestamp(),
+  });
+
+  if (!token) throw new Error('User has no push notification token.');
+
+  // 3. Queue Message Job for backend FCM worker
+  await addDoc(collection(firestore, 'messageJobs'), {
+    type: 'push',
+    token,
+    title: payload.title,
+    message: payload.message,
+    status: 'queued',
+    created_at: serverTimestamp(),
   });
 };
 
@@ -758,6 +859,24 @@ export const queueWelcomeEmail = async (payload: { email: string; displayName?: 
   });
 
   if (settings.deliveryWebhookUrl) {
+    try {
+      await postToWebhook(settings.deliveryWebhookUrl, settings.deliveryWebhookApiKey, {
+        action: 'send-welcome-email',
+        to: payload.email,
+        displayName: payload.displayName,
+        subject: 'Welcome to LevelUp AI',
+        senderName: settings.senderName,
+        senderEmail: settings.senderEmail || settings.gmail,
+        smtpHost: settings.smtpHost,
+        port: settings.port,
+        gmail: settings.gmail,
+        appPassword: settings.appPassword,
+      });
+    } catch (e) {
+      console.error('Welcome email webhook failed', e);
+    }
+  }
+};
     await postToWebhook(settings.deliveryWebhookUrl, settings.deliveryWebhookApiKey, {
       action: 'send-welcome-email',
       to: payload.email,

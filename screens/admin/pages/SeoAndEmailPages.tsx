@@ -516,6 +516,7 @@ export const AdminEmailConfigurePage: React.FC = () => {
     gmail: '',
     appPassword: '',
     senderName: 'LevelUp Team',
+    senderEmail: 'support@yourdomain.com',
     deliveryWebhookUrl: '',
     deliveryWebhookApiKey: '',
     welcomeEmailEnabled: true,
@@ -595,9 +596,19 @@ export const AdminEmailConfigurePage: React.FC = () => {
             </div>
 
             <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <label className="text-sm font-medium">Username
-                <input value={form.gmail || ''} onChange={(e) => update('gmail', e.target.value)} className={`${shellClass[theme].input} mt-2 w-full rounded-xl px-3 py-2.5`} />
+              <label className="text-sm font-medium">Sender Name
+                <input value={form.senderName || ''} onChange={(e) => update('senderName', e.target.value)} placeholder="LevelUp AI" className={`${shellClass[theme].input} mt-2 w-full rounded-xl px-3 py-2.5`} />
               </label>
+              <label className="text-sm font-medium">Sender Email
+                <input value={form.senderEmail || ''} onChange={(e) => update('senderEmail', e.target.value)} placeholder="support@yourdomain.com" className={`${shellClass[theme].input} mt-2 w-full rounded-xl px-3 py-2.5`} />
+              </label>
+              <label className="text-sm font-medium">Username (or Gmail)
+                <input value={form.gmail || ''} onChange={(e) => update('gmail', e.target.value)} placeholder="user@example.com" className={`${shellClass[theme].input} mt-2 w-full rounded-xl px-3 py-2.5`} />
+              </label>
+              <label className="text-sm font-medium">App Password / Secret
+                <input type="password" value={form.appPassword || ''} onChange={(e) => update('appPassword', e.target.value)} className={`${shellClass[theme].input} mt-2 w-full rounded-xl px-3 py-2.5`} />
+              </label>
+            </div>
               <label className="text-sm font-medium">Password
                 <input type="password" value={form.appPassword || ''} onChange={(e) => update('appPassword', e.target.value)} className={`${shellClass[theme].input} mt-2 w-full rounded-xl px-3 py-2.5`} />
               </label>

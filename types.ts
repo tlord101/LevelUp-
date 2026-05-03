@@ -142,7 +142,10 @@ export interface FaceScanResult {
   recommendations: ProductRecommendation[];
   skinCondition?: string;
   visibleConcerns?: string[];
-  dailyPlan?: string[];
+  dailyPlan?: {
+    morning: { step: string; description: string }[];
+    evening: { step: string; description: string }[];
+  };
   comparisonSummary?: string;
   confidence?: number; // 0-100 score
   summaryTitle?: string;

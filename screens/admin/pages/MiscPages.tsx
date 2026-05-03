@@ -691,22 +691,59 @@ export const AdminSettingsEmailPage: React.FC = () => {
 export const AdminSettingsApiPage: React.FC = () => {
   const theme = useAdminTheme();
   const [openAiKey, setOpenAiKey] = useState('');
+  const [geminiApiKey, setGeminiApiKey] = useState('');
+  const [cloudinaryCloudName, setCloudinaryCloudName] = useState('');
+  const [cloudinaryApiKey, setCloudinaryApiKey] = useState('');
+  const [cloudinaryApiSecret, setCloudinaryApiSecret] = useState('');
   const [webhook, setWebhook] = useState('');
 
   useEffect(() => {
     getAdminSettings('api').then((d: any) => {
       if (!d) return;
       setOpenAiKey(d.openAiKey || '');
+      setGeminiApiKey(d.geminiApiKey || '');
+      setCloudinaryCloudName(d.cloudinaryCloudName || '');
+      setCloudinaryApiKey(d.cloudinaryApiKey || '');
+      setCloudinaryApiSecret(d.cloudinaryApiSecret || '');
       setWebhook(d.webhook || '');
     });
   }, []);
 
   return (
-    <PageScaffold title="API & Integrations" description="OpenAI, Stripe (locked), webhooks" theme={theme}>
-      <div className={`${shellClass[theme].card} rounded-3xl p-5 space-y-3`}>
-        <input value={openAiKey} onChange={(e) => setOpenAiKey(e.target.value)} className={`${shellClass[theme].input} w-full rounded-lg px-3 py-2`} placeholder="OpenAI API key" type="password" />
-        <input value={webhook} onChange={(e) => setWebhook(e.target.value)} className={`${shellClass[theme].input} w-full rounded-lg px-3 py-2`} placeholder="Webhook endpoint" />
-        <button className="rounded-lg bg-emerald-500 px-4 py-2 text-emerald-950" onClick={() => saveAdminSettings('api', { openAiKey, webhook, stripeStatus: 'locked' })}>Save Integrations</button>
+    <PageScaffold title="API & Integrations" description="AI Models (Gemini, OpenAI), Cloudinary, and Webhooks" theme={theme}>
+      <div className={`${shellClass[theme].card} rounded-3xl p-5 space-y-4`}>
+        <div className="space-y-2">
+          <label className="text-sm font-bold opacity-70">AI Models</label>
+          <input value={geminiApiKey} onChange={(e) => setGeminiApiKey(e.target.value)} className={`${shellClass[theme].input} w-full rounded-lg px-3 py-2`} placeholder="Gemini API key" type="password" />
+          <input value={openAiKey} onChange={(e) => setOpenAiKey(e.target.value)} className={`${shellClass[theme].input} w-full rounded-lg px-3 py-2`} placeholder="OpenAI API key" type="password" />
+        </div>
+
+        <div className="space-y-2 border-t border-white/5 pt-4">
+          <label className="text-sm font-bold opacity-70">Cloudinary (Image Storage)</label>
+          <input value={cloudinaryCloudName} onChange={(e) => setCloudinaryCloudName(e.target.value)} className={`${shellClass[theme].input} w-full rounded-lg px-3 py-2`} placeholder="Cloud Name" />
+          <input value={cloudinaryApiKey} onChange={(e) => setCloudinaryApiKey(e.target.value)} className={`${shellClass[theme].input} w-full rounded-lg px-3 py-2`} placeholder="API Key" />
+          <input value={cloudinaryApiSecret} onChange={(e) => setCloudinaryApiSecret(e.target.value)} className={`${shellClass[theme].input} w-full rounded-lg px-3 py-2`} placeholder="API Secret" type="password" />
+        </div>
+
+        <div className="space-y-2 border-t border-white/5 pt-4">
+          <label className="text-sm font-bold opacity-70">Other</label>
+          <input value={webhook} onChange={(e) => setWebhook(e.target.value)} className={`${shellClass[theme].input} w-full rounded-lg px-3 py-2`} placeholder="Webhook endpoint" />
+        </div>
+
+        <button 
+          className="w-full rounded-lg bg-emerald-500 px-4 py-3 font-bold text-emerald-950 hover:bg-emerald-400 transition-colors" 
+          onClick={() => saveAdminSettings('api', { 
+            openAiKey, 
+            geminiApiKey,
+            cloudinaryCloudName,
+            cloudinaryApiKey,
+            cloudinaryApiSecret,
+            webhook, 
+            stripeStatus: 'locked' 
+          })}
+        >
+          Save All Integrations
+        </button>
       </div>
     </PageScaffold>
   );
