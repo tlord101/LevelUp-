@@ -334,7 +334,7 @@ const NutritionTrackerScreen: React.FC = () => {
         const remainingProtein = Math.max(0, proteinGoal - dailyTotals.protein);
 
         try {
-            const ai = createGeminiClient();
+            const ai = await createGeminiClient();
             const foodDirective = specificFoodRequest.trim()
                 ? `User requested a specific food: "${specificFoodRequest.trim()}". You MUST include this exact food (or the closest practical variant) in at least one meal name and description.`
                 : 'No specific food requested.';
@@ -351,10 +351,9 @@ const NutritionTrackerScreen: React.FC = () => {
                 JSON format only.
             `;
 
-            const response = await ai.models.generateContent({
+            const modelInstance = (ai as any).getGenerativeModel({
                 model: GEMINI_TEXT_MODEL,
-                contents: prompt,
-                config: {
+                generationConfig: {
                     responseMimeType: "application/json",
                     responseSchema: {
                         type: Type.OBJECT,
@@ -388,11 +387,17 @@ const NutritionTrackerScreen: React.FC = () => {
                 }
             });
 
-            if (!response.text) {
+            const result = await modelInstance.generateContent({
+                contents: [{ role: 'user', parts: [{ text: prompt }] }]
+            });
+            const response = result.response;
+
+            if (!response.text()) {
                 throw new Error('Meal plan response was empty.');
             }
 
-            const data = parseGeminiJsonResponse<{ meals: MealPlanItem[] }>(response.text || '');
+            const jsonString = response.text();
+            const data = JSON.parse(jsonString);
             const mealsWithLoadingState = data.meals.map((m: any) => ({ ...m, isLoadingImage: true }));
             setMealPlan(mealsWithLoadingState);
             hapticSuccess();

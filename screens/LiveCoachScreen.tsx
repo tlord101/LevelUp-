@@ -93,9 +93,9 @@ const LiveCoachScreen: React.FC = () => {
                 
                 // Init GenAI
                 setStatus('Connecting to Gemini...');
-                const ai = createGeminiClient();
+                const ai = await createGeminiClient();
 
-                const sessionPromise = ai.live.connect({
+                const sessionPromise = (ai as any).live.connect({
                     model: GEMINI_LIVE_AUDIO_MODEL,
                     config: {
                         responseModalities: [Modality.AUDIO],

@@ -336,7 +336,7 @@ const FaceScannerScreen: React.FC = () => {
 
             for (const model of FACE_SCAN_MODELS) {
                 try {
-                    const modelInstance = ai.getGenerativeModel({
+                    const modelInstance = (ai as any).getGenerativeModel({
                         model,
                         generationConfig: {
                             responseMimeType: 'application/json',

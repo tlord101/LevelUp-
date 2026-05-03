@@ -122,13 +122,13 @@ const AICoachScreen: React.FC = () => {
                     setMessages(history);
                 }
 
-                const ai = createGeminiClient();
+                const ai = await createGeminiClient();
                 let chatInstance: Chat | null = null;
                 let lastError: unknown = null;
 
                 for (const model of GEMINI_TEXT_FALLBACK_MODELS) {
                     try {
-                        chatInstance = ai.chats.create({
+                        chatInstance = (ai as any).chats.create({
                             model,
                             history: toChatHistory(history),
                             config: {
