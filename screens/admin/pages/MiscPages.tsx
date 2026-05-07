@@ -619,6 +619,8 @@ export const AdminSettingsEmailPage: React.FC = () => {
   const [gmail, setGmail] = useState('');
   const [appPassword, setAppPassword] = useState('');
   const [senderName, setSenderName] = useState('LevelUp Team');
+  const [senderEmail, setSenderEmail] = useState('');
+  const [resendApiKey, setResendApiKey] = useState('');
   const [deliveryWebhookUrl, setDeliveryWebhookUrl] = useState('');
   const [deliveryWebhookApiKey, setDeliveryWebhookApiKey] = useState('');
   const [welcomeEmailEnabled, setWelcomeEmailEnabled] = useState(true);
@@ -633,6 +635,8 @@ export const AdminSettingsEmailPage: React.FC = () => {
       setGmail(d.gmail || '');
       setAppPassword(d.appPassword || '');
       setSenderName(d.senderName || 'LevelUp Team');
+      setSenderEmail(d.senderEmail || '');
+      setResendApiKey(d.resendApiKey || '');
       setDeliveryWebhookUrl(d.deliveryWebhookUrl || '');
       setDeliveryWebhookApiKey(d.deliveryWebhookApiKey || '');
       setWelcomeEmailEnabled(d.welcomeEmailEnabled !== false);
@@ -646,6 +650,8 @@ export const AdminSettingsEmailPage: React.FC = () => {
       gmail,
       appPassword,
       senderName,
+      senderEmail,
+      resendApiKey,
       deliveryWebhookUrl,
       deliveryWebhookApiKey,
       welcomeEmailEnabled,
@@ -667,22 +673,40 @@ export const AdminSettingsEmailPage: React.FC = () => {
   };
 
   return (
-    <PageScaffold title="Email (Gmail / SMTP)" description="Signup and lifecycle email settings" theme={theme}>
-      <div className={`${shellClass[theme].card} grid gap-3 rounded-3xl p-5 md:grid-cols-2`}>
-        <input value={smtpHost} onChange={(e) => setSmtpHost(e.target.value)} className={`${shellClass[theme].input} rounded-lg px-3 py-2`} placeholder="SMTP host" />
-        <input value={port} onChange={(e) => setPort(e.target.value)} className={`${shellClass[theme].input} rounded-lg px-3 py-2`} placeholder="Port" />
-        <input value={gmail} onChange={(e) => setGmail(e.target.value)} className={`${shellClass[theme].input} rounded-lg px-3 py-2`} placeholder="Gmail" />
-        <input value={appPassword} onChange={(e) => setAppPassword(e.target.value)} className={`${shellClass[theme].input} rounded-lg px-3 py-2`} placeholder="App password" type="password" />
-        <input value={senderName} onChange={(e) => setSenderName(e.target.value)} className={`${shellClass[theme].input} rounded-lg px-3 py-2 md:col-span-2`} placeholder="Sender name" />
-        <input value={deliveryWebhookUrl} onChange={(e) => setDeliveryWebhookUrl(e.target.value)} className={`${shellClass[theme].input} rounded-lg px-3 py-2 md:col-span-2`} placeholder="Delivery webhook URL (required for real send)" />
-        <input value={deliveryWebhookApiKey} onChange={(e) => setDeliveryWebhookApiKey(e.target.value)} className={`${shellClass[theme].input} rounded-lg px-3 py-2 md:col-span-2`} placeholder="Webhook API key (optional)" type="password" />
-        <label className="md:col-span-2 flex items-center justify-between text-sm">Send welcome email on signup<input type="checkbox" checked={welcomeEmailEnabled} onChange={(e) => setWelcomeEmailEnabled(e.target.checked)} /></label>
-        <div className="md:col-span-2 grid gap-2 md:grid-cols-[1fr_auto]">
-          <input value={testRecipient} onChange={(e) => setTestRecipient(e.target.value)} className={`${shellClass[theme].input} rounded-lg px-3 py-2`} placeholder="Test recipient email" />
-          <button className="rounded-lg border border-emerald-300/30 px-4 py-2 text-sm" onClick={sendTest}>Send Test Email</button>
+    <PageScaffold title="Email / Resend" description="Configure email delivery via Resend or SMTP" theme={theme}>
+      <div className={`${shellClass[theme].card} flex flex-col gap-4 rounded-3xl p-6`}>
+        <div className="space-y-4 border-b border-white/10 pb-4">
+          <p className="text-xs font-bold uppercase tracking-wider text-indigo-400">Resend API Configuration</p>
+          <div className="grid gap-3 md:grid-cols-2">
+            <input value={senderEmail} onChange={(e) => setSenderEmail(e.target.value)} className={`${shellClass[theme].input} rounded-lg px-3 py-2`} placeholder="Verified Sender Email" />
+            <input value={resendApiKey} type="password" onChange={(e) => setResendApiKey(e.target.value)} className={`${shellClass[theme].input} rounded-lg px-3 py-2`} placeholder="Resend API Key (re_...)" />
+          </div>
+          <input value={senderName} onChange={(e) => setSenderName(e.target.value)} className={`${shellClass[theme].input} w-full rounded-lg px-3 py-2`} placeholder="Display Sender Name" />
         </div>
-        <button className="rounded-lg bg-emerald-500 px-4 py-2 text-emerald-950 md:col-span-2" onClick={saveEmailConfig}>Save Email Config</button>
-        {status ? <p className={`md:col-span-2 text-sm ${shellClass[theme].subtle}`}>{status}</p> : null}
+
+        <div className="space-y-4 pb-2">
+          <p className={`text-xs font-bold uppercase tracking-wider ${shellClass[theme].subtle}`}>Legacy SMTP / Gmail Settings</p>
+          <div className="grid gap-3 md:grid-cols-2">
+            <input value={smtpHost} onChange={(e) => setSmtpHost(e.target.value)} className={`${shellClass[theme].input} rounded-lg px-3 py-2`} placeholder="SMTP host" />
+            <input value={port} onChange={(e) => setPort(e.target.value)} className={`${shellClass[theme].input} rounded-lg px-3 py-2`} placeholder="Port" />
+            <input value={gmail} onChange={(e) => setGmail(e.target.value)} className={`${shellClass[theme].input} rounded-lg px-3 py-2`} placeholder="Gmail" />
+            <input value={appPassword} onChange={(e) => setAppPassword(e.target.value)} className={`${shellClass[theme].input} rounded-lg px-3 py-2`} placeholder="App password" type="password" />
+          </div>
+          <input value={deliveryWebhookUrl} onChange={(e) => setDeliveryWebhookUrl(e.target.value)} className={`${shellClass[theme].input} w-full rounded-lg px-3 py-2`} placeholder="Delivery webhook URL (legacy)" />
+        </div>
+
+        <div className="space-y-4 pt-2">
+          <label className="flex items-center justify-between text-sm">
+            Send welcome email on signup
+            <input type="checkbox" checked={welcomeEmailEnabled} onChange={(e) => setWelcomeEmailEnabled(e.target.checked)} />
+          </label>
+          <div className="grid gap-2 md:grid-cols-[1fr_auto]">
+            <input value={testRecipient} onChange={(e) => setTestRecipient(e.target.value)} className={`${shellClass[theme].input} rounded-lg px-3 py-2`} placeholder="Test recipient email" />
+            <button className="rounded-lg border border-emerald-300/30 px-4 py-2 text-sm" onClick={sendTest}>Send Test Email</button>
+          </div>
+          <button className="w-full rounded-lg bg-emerald-500 py-3 font-semibold text-emerald-950" onClick={saveEmailConfig}>Save Email & Resend Config</button>
+          {status ? <p className={`text-center text-sm ${shellClass[theme].subtle}`}>{status}</p> : null}
+        </div>
       </div>
     </PageScaffold>
   );

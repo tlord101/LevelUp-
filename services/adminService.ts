@@ -12,9 +12,11 @@ import {
   where,
   addDoc,
   deleteDoc,
+  timestamp,
 } from 'firebase/firestore';
 import { firestore } from '../config/firebase';
 import { BodyScan, FaceScan, Group, NutritionScan, Post, UserProfile } from '../types';
+import { sendEmailNotification } from './resendService';
 
 export type ScannerType = 'food' | 'body' | 'face';
 
@@ -676,6 +678,20 @@ export const createAdminNotification = async (payload: {
     status: 'queued',
     created_at: serverTimestamp(),
   });
+
+  // FIRE RESEND IF TYPE IS EMAIL
+  if (payload.type === 'email') {
+    // In a real app, we would loop through target users.
+    // Here we'll just log and simulate sending to a test recipient or 
+    // trigger the Resend service if a specific email was intended.
+    console.log('Admin triggered Email via Resend:', title);
+    
+    // For development, we try to grab the admin's configured email or a placeholder
+    const settings = await getAdminSettings('email');
+    if (settings?.senderEmail) {
+       await sendEmailNotification(settings.senderEmail, title, `<p>${payload.message}</p>`);
+    }
+  }
 
   // 3. Optional Direct Webhook / Back-end Logic
   const settings = (await getAdminSettings('email')) as AdminEmailSettings | null;
