@@ -649,7 +649,19 @@ export const createAdminNotification = async (payload: {
     title,
     message: payload.message,
     target,
-    status: 'queued',
+    status: 'sent', // Simulating instant delivery for demo
+    read: false,
+    created_at: serverTimestamp(),
+  });
+
+  // DUPLICATE TO USER NOTIFICATIONS FOR APP-WIDE SYNC
+  // In a real app, this would be done via a Cloud Function filtered by 'target' users.
+  // For this development version, we broadcast to a 'userNotifications' collection.
+  await addDoc(collection(firestore, 'userNotifications'), {
+    userId: 'ALL_USERS', // Symbolic for broadcast
+    title,
+    message: payload.message,
+    type: payload.type === 'push' ? 'broadcast' : 'info',
     read: false,
     created_at: serverTimestamp(),
   });

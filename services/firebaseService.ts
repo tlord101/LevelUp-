@@ -36,7 +36,7 @@ import {
     writeBatch
 } from 'firebase/firestore';
 import { auth, firestore, messaging } from '../config/firebase';
-import { UserGoal, UserProfile, NutritionScan, BodyScan, FaceScan, Post, Group, Comment, NutritionLog, NutritionScanResult, BodyScanResult, FaceScanResult } from '../types';
+import { UserGoal, UserProfile, NutritionScan, BodyScan, FaceScan, Post, Group, Comment, NutritionLog, NutritionScanResult, BodyScanResult, FaceScanResult, UserNotification } from '../types';
 import { getToken, onMessage, Unsubscribe } from 'firebase/messaging';
 import { queueWelcomeEmail } from './adminService';
 
@@ -233,6 +233,67 @@ export const listenForForegroundMessages = (callback: (payload: any) => void): U
   return onMessage(messaging, (payload) => {
     callback(payload);
   });
+};
+
+export const subscribeToUserNotifications = (userId: string, callback: (notifications: UserNotification[]) => void) => {
+  // Query both private user notifications and general broadcasts
+  const qPriv = query(
+    collection(firestore, 'userNotifications'),
+    where('userId', '==', userId),
+    orderBy('created_at', 'desc'),
+    limit(30)
+  );
+
+  const qPub = query(
+    collection(firestore, 'userNotifications'),
+    where('userId', '==', 'ALL_USERS'),
+    orderBy('created_at', 'desc'),
+    limit(10)
+  );
+
+  let privNotes: UserNotification[] = [];
+  let pubNotes: UserNotification[] = [];
+
+  const update = () => {
+    const combined = [...privNotes, ...pubNotes].sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+    callback(combined);
+  };
+
+  const unsubPriv = onSnapshot(qPriv, (snapshot) => {
+    privNotes = snapshot.docs.map(doc => ({ id: doc.id, ...convertTimestampToISO(doc.data()) } as UserNotification));
+    update();
+  });
+
+  const unsubPub = onSnapshot(qPub, (snapshot) => {
+    pubNotes = snapshot.docs.map(doc => ({ id: doc.id, ...convertTimestampToISO(doc.data()) } as UserNotification));
+    update();
+  });
+
+  return () => {
+    unsubPriv();
+    unsubPub();
+  };
+};
+
+export const markNotificationAsRead = async (notificationId: string) => {
+  const docRef = doc(firestore, 'userNotifications', notificationId);
+  await updateDoc(docRef, { read: true });
+};
+
+export const markAllNotificationsAsRead = async (userId: string) => {
+  const q = query(
+    collection(firestore, 'userNotifications'),
+    where('userId', '==', userId),
+    where('read', '==', false)
+  );
+  const snapshot = await getDocs(q);
+  const batch = writeBatch(firestore);
+  snapshot.docs.forEach(doc => {
+    batch.update(doc.ref, { read: true });
+  });
+  await batch.commit();
 };
 
 // --- DATABASE: SCANS ---

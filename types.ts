@@ -225,3 +225,13 @@ export interface ActivityLogItem {
   timestamp: string;
   icon: string;
 }
+
+export interface UserNotification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: 'plan' | 'success' | 'achievement' | 'broadcast' | 'info';
+  read: boolean;
+  created_at: string;
+}

@@ -5,15 +5,9 @@ import { dailyMissions, Mission } from '../services/missions';
 import { Settings, Trophy, Dumbbell, Sparkles, ChevronRight, UtensilsCrossed, Zap, Brain, Bell, Check, X, Clock, Calendar, Target, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { hapticTap, hapticSuccess } from '../utils/haptics';
-import { getTodaysNutritionLogs } from '../services/firebaseService';
-import { NutritionLog } from '../types';
-
-// Mock Notification Data
-const mockNotifications = [
-    { id: 1, title: "Daily Plan Ready", message: "Your AI meal plan for today is ready.", time: "10m ago", type: 'plan', read: false },
-    { id: 2, title: "Goal Crushed!", message: "You hit your protein target yesterday.", time: "12h ago", type: 'success', read: false },
-    { id: 3, title: "New Badge Earned", message: "You unlocked the 'Early Bird' badge.", time: "1d ago", type: 'achievement', read: true },
-];
+import { getTodaysNutritionLogs, subscribeToUserNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '../services/firebaseService';
+import { NutritionLog, UserNotification } from '../types';
+import { formatRelativeTime } from '../utils/formatDate';
 
 const MissionItem: React.FC<{ mission: Mission, onClick: () => void }> = ({ mission, onClick }) => (
     <button onClick={onClick} className="w-full flex items-center space-x-4 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200">
@@ -125,8 +119,17 @@ const DashboardScreen: React.FC = () => {
     const navigate = useNavigate();
     const [nutritionLogs, setNutritionLogs] = useState<NutritionLog[]>([]);
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-    const [notifications, setNotifications] = useState(mockNotifications);
+    const [notifications, setNotifications] = useState<UserNotification[]>([]);
     const notificationRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (user?.uid) {
+            const unsubscribe = subscribeToUserNotifications(user.uid, (newNotifications) => {
+                setNotifications(newNotifications);
+            });
+            return () => unsubscribe();
+        }
+    }, [user]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -161,10 +164,26 @@ const DashboardScreen: React.FC = () => {
         setIsNotificationsOpen(!isNotificationsOpen);
     };
 
-    const markAllRead = () => {
+    const markAllRead = async () => {
+        if (!user?.uid) return;
         hapticTap();
         hapticSuccess();
-        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+        try {
+            await markAllNotificationsAsRead(user.uid);
+        } catch (error) {
+            console.error("Failed to mark all notifications as read:", error);
+        }
+    };
+
+    const handleNotificationClick = async (notif: UserNotification) => {
+        hapticTap();
+        if (!notif.read) {
+            try {
+                await markNotificationAsRead(notif.id);
+            } catch (error) {
+                console.error("Failed to mark notification as read:", error);
+            }
+        }
     };
 
     const getGreeting = () => {
@@ -247,20 +266,26 @@ const DashboardScreen: React.FC = () => {
                                     </div>
                                 ) : (
                                     notifications.map(notif => (
-                                        <div key={notif.id} className={`p-4 border-b border-gray-50 hover:bg-purple-50/50 transition-colors flex gap-3 ${notif.read ? 'opacity-60' : 'opacity-100'}`}>
+                                        <div 
+                                            key={notif.id} 
+                                            onClick={() => handleNotificationClick(notif)}
+                                            className={`p-4 border-b border-gray-50 hover:bg-purple-50/50 transition-colors flex gap-3 cursor-pointer ${notif.read ? 'opacity-60' : 'opacity-100'}`}
+                                        >
                                             <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
                                                 notif.type === 'success' ? 'bg-green-100 text-green-600' :
                                                 notif.type === 'achievement' ? 'bg-yellow-100 text-yellow-600' :
-                                                'bg-blue-100 text-blue-600'
+                                                notif.type === 'plan' ? 'bg-blue-100 text-blue-600' :
+                                                'bg-purple-100 text-purple-600'
                                             }`}>
                                                 {notif.type === 'success' ? <Check size={18} /> : 
                                                  notif.type === 'achievement' ? <Trophy size={18} /> : 
-                                                 <Target size={18} />}
+                                                 notif.type === 'plan' ? <UtensilsCrossed size={18} /> :
+                                                 <Bell size={18} />}
                                             </div>
                                             <div className="flex-1">
                                                 <div className="flex justify-between items-start">
                                                     <h4 className="text-sm font-bold text-gray-800">{notif.title}</h4>
-                                                    <span className="text-[10px] text-gray-400">{notif.time}</span>
+                                                    <span className="text-[10px] text-gray-400">{formatRelativeTime(notif.created_at)}</span>
                                                 </div>
                                                 <p className="text-xs text-gray-600 mt-0.5 leading-relaxed">{notif.message}</p>
                                             </div>
