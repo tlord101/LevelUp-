@@ -318,7 +318,7 @@ const WorkoutPlanDetailScreen: React.FC = () => {
 
         try {
             const latestBodyScan = await getLatestScan(user.uid, 'body');
-            const ai = createGeminiClient();
+            const ai = await createGeminiClient();
             const scanSummary = routeScanSummary || JSON.stringify(latestBodyScan || {}, null, 2);
 
             const prompt = `
