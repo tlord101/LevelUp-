@@ -733,10 +733,6 @@ export const AdminSettingsApiPage: React.FC = () => {
   const [stripeSecretKey, setStripeSecretKey] = useState('');
   const [stripeWebhookSecret, setStripeWebhookSecret] = useState('');
   
-  // Database Keys
-  const [supabaseUrl, setSupabaseUrl] = useState('');
-  const [supabaseAnonKey, setSupabaseAnonKey] = useState('');
-  
   // Webhooks & Other
   const [webhook, setWebhook] = useState('');
   const [toast, setToast] = useState('');
@@ -754,8 +750,6 @@ export const AdminSettingsApiPage: React.FC = () => {
       setStripePublishableKey(d.stripePublishableKey || '');
       setStripeSecretKey(d.stripeSecretKey || '');
       setStripeWebhookSecret(d.stripeWebhookSecret || '');
-      setSupabaseUrl(d.supabaseUrl || '');
-      setSupabaseAnonKey(d.supabaseAnonKey || '');
       setWebhook(d.webhook || '');
     });
   }, []);
@@ -773,8 +767,6 @@ export const AdminSettingsApiPage: React.FC = () => {
         stripePublishableKey,
         stripeSecretKey,
         stripeWebhookSecret,
-        supabaseUrl,
-        supabaseAnonKey,
         webhook, 
         updated_at: new Date().toISOString()
       });
@@ -899,35 +891,26 @@ export const AdminSettingsApiPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Advanced / Database */}
+        {/* Advanced / System */}
         <div className={`${shellClass[theme].card} rounded-3xl p-6 space-y-4 lg:col-span-2`}>
           <div className="flex items-center gap-3 border-b border-white/5 pb-3">
             <div className="rounded-full bg-orange-500/20 p-2 text-orange-400">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             </div>
-            <h3 className="text-lg font-bold">Database & Connectivity</h3>
+            <h3 className="text-lg font-bold">System & Connectivity</h3>
           </div>
           
           <div className="grid gap-6 md:grid-cols-2">
             <div className="space-y-4 border-r border-white/5 pr-4">
               <div className="space-y-1">
-                <label className="text-sm font-semibold opacity-70">Supabase Project URL</label>
-                <input value={supabaseUrl} onChange={(e) => setSupabaseUrl(e.target.value)} className={`${shellClass[theme].input} w-full rounded-xl px-4 py-2.5`} placeholder="https://....supabase.co" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-semibold opacity-70">Supabase Anon Key</label>
-                <input value={supabaseAnonKey} onChange={(e) => setSupabaseAnonKey(e.target.value)} className={`${shellClass[theme].input} w-full rounded-xl px-4 py-2.5`} placeholder="eyJ..." type="password" />
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="space-y-1">
                 <label className="text-sm font-semibold opacity-70">Global Webhook URL</label>
                 <input value={webhook} onChange={(e) => setWebhook(e.target.value)} className={`${shellClass[theme].input} w-full rounded-xl px-4 py-2.5`} placeholder="https://your-server.com/webhook" />
               </div>
-              <div className="flex items-end h-full pb-1">
-                <p className="text-xs opacity-40">These settings affect core database connectivity and platform integrations.</p>
-              </div>
+              <p className="text-xs opacity-40">Main endpoint for external integrations and event notifications.</p>
+            </div>
+            
+            <div className="flex items-center justify-center p-4 border border-dashed border-white/10 rounded-2xl">
+              <p className="text-xs text-center opacity-40 italic">Firebase and Cloudinary are the primary storage providers. System-wide settings updated here are applied in real-time.</p>
             </div>
           </div>
         </div>
