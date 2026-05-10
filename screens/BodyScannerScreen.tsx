@@ -246,7 +246,7 @@ const BodyScannerScreen: React.FC = () => {
 
         try {
             const latestScan = await getLatestScan(user.uid, 'body');
-            const ai = createGeminiClient();
+            const ai = await createGeminiClient();
             const base64Image = await blobToBase64(scanner.imageFile);
             const imagePart = { inlineData: { mimeType: scanner.imageFile.type, data: base64Image } };
 

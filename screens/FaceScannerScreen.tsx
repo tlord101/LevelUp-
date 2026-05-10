@@ -231,9 +231,11 @@ const FaceScannerScreen: React.FC = () => {
             ]);
             for (const modelName of FACE_SCAN_MODELS) {
                 try {
-                    const model = (genAI as any).getGenerativeModel({ model: modelName });
-                    const result = await model.generateContent([prompt, ...imageParts]);
-                    const text = (await result.response).text();
+                    const result = await genAI.models.generateContent({
+                        model: modelName,
+                        contents: { parts: [{ text: prompt }, ...imageParts] }
+                    });
+                    const text = result.text;
                     const jsonMatch = text.match(/\{[\s\S]*\}/);
                     if (jsonMatch) {
                         const res: FaceScanResult = JSON.parse(jsonMatch[0]);
