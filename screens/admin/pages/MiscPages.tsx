@@ -714,67 +714,233 @@ export const AdminSettingsEmailPage: React.FC = () => {
 
 export const AdminSettingsApiPage: React.FC = () => {
   const theme = useAdminTheme();
-  const [openAiKey, setOpenAiKey] = useState('');
+  
+  // AI Keys
   const [geminiApiKey, setGeminiApiKey] = useState('');
+  const [openAiKey, setOpenAiKey] = useState('');
+  
+  // Storage Keys
   const [cloudinaryCloudName, setCloudinaryCloudName] = useState('');
   const [cloudinaryApiKey, setCloudinaryApiKey] = useState('');
   const [cloudinaryApiSecret, setCloudinaryApiSecret] = useState('');
+  
+  // Communication Keys
+  const [resendApiKey, setResendApiKey] = useState('');
+  const [firebaseServerKey, setFirebaseServerKey] = useState('');
+  
+  // Payment Keys
+  const [stripePublishableKey, setStripePublishableKey] = useState('');
+  const [stripeSecretKey, setStripeSecretKey] = useState('');
+  const [stripeWebhookSecret, setStripeWebhookSecret] = useState('');
+  
+  // Database Keys
+  const [supabaseUrl, setSupabaseUrl] = useState('');
+  const [supabaseAnonKey, setSupabaseAnonKey] = useState('');
+  
+  // Webhooks & Other
   const [webhook, setWebhook] = useState('');
+  const [toast, setToast] = useState('');
 
   useEffect(() => {
     getAdminSettings('api').then((d: any) => {
       if (!d) return;
-      setOpenAiKey(d.openAiKey || '');
       setGeminiApiKey(d.geminiApiKey || '');
+      setOpenAiKey(d.openAiKey || '');
       setCloudinaryCloudName(d.cloudinaryCloudName || '');
       setCloudinaryApiKey(d.cloudinaryApiKey || '');
       setCloudinaryApiSecret(d.cloudinaryApiSecret || '');
+      setResendApiKey(d.resendApiKey || '');
+      setFirebaseServerKey(d.firebaseServerKey || '');
+      setStripePublishableKey(d.stripePublishableKey || '');
+      setStripeSecretKey(d.stripeSecretKey || '');
+      setStripeWebhookSecret(d.stripeWebhookSecret || '');
+      setSupabaseUrl(d.supabaseUrl || '');
+      setSupabaseAnonKey(d.supabaseAnonKey || '');
       setWebhook(d.webhook || '');
     });
   }, []);
 
+  const save = async () => {
+    try {
+      await saveAdminSettings('api', { 
+        geminiApiKey,
+        openAiKey, 
+        cloudinaryCloudName,
+        cloudinaryApiKey,
+        cloudinaryApiSecret,
+        resendApiKey,
+        firebaseServerKey,
+        stripePublishableKey,
+        stripeSecretKey,
+        stripeWebhookSecret,
+        supabaseUrl,
+        supabaseAnonKey,
+        webhook, 
+        updated_at: new Date().toISOString()
+      });
+      setToast('API configuration saved successfully');
+      setTimeout(() => setToast(''), 3000);
+    } catch (err) {
+      setToast('Failed to save configuration');
+      setTimeout(() => setToast(''), 3000);
+    }
+  };
+
   return (
-    <PageScaffold title="API & Integrations" description="Gemini AI, Cloudinary, and Webhooks" theme={theme}>
-      <div className={`${shellClass[theme].card} rounded-3xl p-5 space-y-4`}>
-        <div className="space-y-2">
-          <label className="text-sm font-bold opacity-70">AI Configuration</label>
-          <div className="space-y-1">
-            <p className="text-[10px] text-emerald-500 font-bold uppercase tracking-wider">Required for Face & Food scans</p>
-            <input 
-              value={geminiApiKey} 
-              onChange={(e) => setGeminiApiKey(e.target.value)} 
-              className={`${shellClass[theme].input} w-full rounded-lg px-3 py-2 border-emerald-500/30 focus:border-emerald-500`} 
-              placeholder="Google Gemini API Key" 
-              type="password" 
-            />
+    <PageScaffold title="API & Global Configuration" description="Manage all external service keys and platform settings" theme={theme}>
+      {toast && <Toast message={toast} theme={theme} />}
+      
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* AI & Intelligence */}
+        <div className={`${shellClass[theme].card} rounded-3xl p-6 space-y-4`}>
+          <div className="flex items-center gap-3 border-b border-white/5 pb-3">
+            <div className="rounded-full bg-indigo-500/20 p-2 text-indigo-400">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+            </div>
+            <h3 className="text-lg font-bold">AI & Intelligence</h3>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-sm font-semibold opacity-70">Google Gemini API Key</label>
+              <p className="text-[10px] text-emerald-500 font-bold uppercase tracking-wider">Primary AI for scans & coaching</p>
+              <input 
+                value={geminiApiKey} 
+                onChange={(e) => setGeminiApiKey(e.target.value)} 
+                className={`${shellClass[theme].input} w-full rounded-xl px-4 py-2.5 border-emerald-500/30 focus:border-emerald-500`} 
+                placeholder="AI_..." 
+                type="password" 
+              />
+            </div>
+            
+            <div className="space-y-1">
+              <label className="text-sm font-semibold opacity-70">OpenAI API Key (Fallback)</label>
+              <input 
+                value={openAiKey} 
+                onChange={(e) => setOpenAiKey(e.target.value)} 
+                className={`${shellClass[theme].input} w-full rounded-xl px-4 py-2.5`} 
+                placeholder="sk-..." 
+                type="password" 
+              />
+            </div>
           </div>
         </div>
 
-        <div className="space-y-2 border-t border-white/5 pt-4">
-          <label className="text-sm font-bold opacity-70">Cloudinary (Image Storage)</label>
-          <input value={cloudinaryCloudName} onChange={(e) => setCloudinaryCloudName(e.target.value)} className={`${shellClass[theme].input} w-full rounded-lg px-3 py-2`} placeholder="Cloud Name" />
-          <input value={cloudinaryApiKey} onChange={(e) => setCloudinaryApiKey(e.target.value)} className={`${shellClass[theme].input} w-full rounded-lg px-3 py-2`} placeholder="API Key" />
-          <input value={cloudinaryApiSecret} onChange={(e) => setCloudinaryApiSecret(e.target.value)} className={`${shellClass[theme].input} w-full rounded-lg px-3 py-2`} placeholder="API Secret" type="password" />
+        {/* Media & Storage */}
+        <div className={`${shellClass[theme].card} rounded-3xl p-6 space-y-4`}>
+          <div className="flex items-center gap-3 border-b border-white/5 pb-3">
+            <div className="rounded-full bg-sky-500/20 p-2 text-sky-400">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+            </div>
+            <h3 className="text-lg font-bold">Cloudinary Storage</h3>
+          </div>
+          
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1 md:col-span-2">
+              <label className="text-sm font-semibold opacity-70">Cloud Name</label>
+              <input value={cloudinaryCloudName} onChange={(e) => setCloudinaryCloudName(e.target.value)} className={`${shellClass[theme].input} w-full rounded-xl px-4 py-2.5`} placeholder="e.g. levelupai" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-semibold opacity-70">API Key</label>
+              <input value={cloudinaryApiKey} onChange={(e) => setCloudinaryApiKey(e.target.value)} className={`${shellClass[theme].input} w-full rounded-xl px-4 py-2.5`} placeholder="Key" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-semibold opacity-70">API Secret</label>
+              <input value={cloudinaryApiSecret} onChange={(e) => setCloudinaryApiSecret(e.target.value)} className={`${shellClass[theme].input} w-full rounded-xl px-4 py-2.5`} placeholder="Secret" type="password" />
+            </div>
+          </div>
         </div>
 
-        <div className="space-y-2 border-t border-white/5 pt-4">
-          <label className="text-sm font-bold opacity-70">Other</label>
-          <input value={webhook} onChange={(e) => setWebhook(e.target.value)} className={`${shellClass[theme].input} w-full rounded-lg px-3 py-2`} placeholder="Webhook endpoint" />
+        {/* Communications */}
+        <div className={`${shellClass[theme].card} rounded-3xl p-6 space-y-4`}>
+          <div className="flex items-center gap-3 border-b border-white/5 pb-3">
+            <div className="rounded-full bg-pink-500/20 p-2 text-pink-400">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+            </div>
+            <h3 className="text-lg font-bold">Communication</h3>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-sm font-semibold opacity-70">Resend (Email) API Key</label>
+              <input value={resendApiKey} onChange={(e) => setResendApiKey(e.target.value)} className={`${shellClass[theme].input} w-full rounded-xl px-4 py-2.5`} placeholder="re_..." type="password" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-semibold opacity-70">Firebase FCM Server Key</label>
+              <input value={firebaseServerKey} onChange={(e) => setFirebaseServerKey(e.target.value)} className={`${shellClass[theme].input} w-full rounded-xl px-4 py-2.5`} placeholder="Legacy Server Key (FCM)" type="password" />
+            </div>
+          </div>
         </div>
 
+        {/* Payments */}
+        <div className={`${shellClass[theme].card} rounded-3xl p-6 space-y-4`}>
+          <div className="flex items-center gap-3 border-b border-white/5 pb-3">
+            <div className="rounded-full bg-emerald-500/20 p-2 text-emerald-400">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+            <h3 className="text-lg font-bold">Payments (Stripe)</h3>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-sm font-semibold opacity-70">Publishable Key</label>
+              <input value={stripePublishableKey} onChange={(e) => setStripePublishableKey(e.target.value)} className={`${shellClass[theme].input} w-full rounded-xl px-4 py-2.5`} placeholder="pk_..." />
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-1">
+                <label className="text-sm font-semibold opacity-70">Secret Key</label>
+                <input value={stripeSecretKey} onChange={(e) => setStripeSecretKey(e.target.value)} className={`${shellClass[theme].input} w-full rounded-xl px-4 py-2.5`} placeholder="sk_..." type="password" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-semibold opacity-70">Webhook Secret</label>
+                <input value={stripeWebhookSecret} onChange={(e) => setStripeWebhookSecret(e.target.value)} className={`${shellClass[theme].input} w-full rounded-xl px-4 py-2.5`} placeholder="whsec_..." type="password" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Advanced / Database */}
+        <div className={`${shellClass[theme].card} rounded-3xl p-6 space-y-4 lg:col-span-2`}>
+          <div className="flex items-center gap-3 border-b border-white/5 pb-3">
+            <div className="rounded-full bg-orange-500/20 p-2 text-orange-400">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <h3 className="text-lg font-bold">Database & Connectivity</h3>
+          </div>
+          
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-4 border-r border-white/5 pr-4">
+              <div className="space-y-1">
+                <label className="text-sm font-semibold opacity-70">Supabase Project URL</label>
+                <input value={supabaseUrl} onChange={(e) => setSupabaseUrl(e.target.value)} className={`${shellClass[theme].input} w-full rounded-xl px-4 py-2.5`} placeholder="https://....supabase.co" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-semibold opacity-70">Supabase Anon Key</label>
+                <input value={supabaseAnonKey} onChange={(e) => setSupabaseAnonKey(e.target.value)} className={`${shellClass[theme].input} w-full rounded-xl px-4 py-2.5`} placeholder="eyJ..." type="password" />
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-sm font-semibold opacity-70">Global Webhook URL</label>
+                <input value={webhook} onChange={(e) => setWebhook(e.target.value)} className={`${shellClass[theme].input} w-full rounded-xl px-4 py-2.5`} placeholder="https://your-server.com/webhook" />
+              </div>
+              <div className="flex items-end h-full pb-1">
+                <p className="text-xs opacity-40">These settings affect core database connectivity and platform integrations.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-8 flex justify-center sticky bottom-6 z-10">
         <button 
-          className="w-full rounded-lg bg-emerald-500 px-4 py-3 font-bold text-emerald-950 hover:bg-emerald-400 transition-colors" 
-          onClick={() => saveAdminSettings('api', { 
-            openAiKey, 
-            geminiApiKey,
-            cloudinaryCloudName,
-            cloudinaryApiKey,
-            cloudinaryApiSecret,
-            webhook, 
-            stripeStatus: 'locked' 
-          })}
+          className="group relative flex items-center gap-3 overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-500 px-12 py-4 font-bold text-white shadow-lg shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95" 
+          onClick={save}
         >
-          Save All Integrations
+          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Save All System Keys
+          <div className="absolute inset-x-0 bottom-0 h-1 bg-white/20 scale-x-0 group-hover:scale-x-100 transition-transform origin-left" />
         </button>
       </div>
     </PageScaffold>

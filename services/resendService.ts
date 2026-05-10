@@ -1,4 +1,5 @@
 import { Resend } from 'resend';
+import { getAdminSettings } from './adminService';
 
 /**
  * =============================================================================
@@ -10,14 +11,27 @@ import { Resend } from 'resend';
  */
 
 // Initialize Resend with your API Key
-// In production, use import.meta.env.VITE_RESEND_API_KEY
-const resend = new Resend('re_123456789'); // Placeholder for development
+const getResendClient = async () => {
+  try {
+    const config = await getAdminSettings('api');
+    if (config?.resendApiKey) {
+      return new Resend(config.resendApiKey);
+    }
+  } catch (err) {
+    console.error('Failed to fetch Resend key from Firestore:', err);
+  }
+  
+  // Fallback to static or env
+  const key = import.meta.env.VITE_RESEND_API_KEY || 're_123456789';
+  return new Resend(key);
+};
 
 /**
  * Sends an email using Resend.
  */
 export const sendEmailNotification = async (to: string, subject: string, html: string) => {
   try {
+    const resend = await getResendClient();
     const { data, error } = await resend.emails.send({
       from: 'LevelUp <notifications@yourdomain.com>',
       to: [to],
