@@ -74,8 +74,9 @@ const normalizeFaceScanResults = (results: any): FaceScanResult => {
         const parsed = Number(value);
         return Number.isFinite(parsed) ? parsed : fallback;
     };
-    const toRoutineItems = (items: any[]): { step: string; description: string }[] =>
-        items
+    const toRoutineItems = (items: any): { step: string; description: string }[] => {
+        if (!Array.isArray(items)) return [];
+        return items
             .map((item: any, index: number) => {
                 if (item && typeof item === 'object') {
                     return {
@@ -89,6 +90,7 @@ const normalizeFaceScanResults = (results: any): FaceScanResult => {
                     : null;
             })
             .filter((item): item is { step: string; description: string } => Boolean(item));
+    };
 
     const rawDailyPlan = results?.dailyPlan;
     const normalizedDailyPlan = Array.isArray(rawDailyPlan)

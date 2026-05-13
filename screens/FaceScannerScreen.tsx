@@ -221,14 +221,11 @@ const FaceScannerScreen: React.FC = () => {
         setError(null);
         try {
             const pastScan = await getLatestScan(user.uid, 'face');
-            const pastScanRating =
-                pastScan &&
-                typeof pastScan === 'object' &&
-                'results' in pastScan &&
-                (pastScan as any).results &&
-                typeof (pastScan as any).results.skinRating === 'number'
-                    ? (pastScan as any).results.skinRating
-                    : null;
+            const pastScanResults =
+                pastScan && typeof pastScan === 'object' && 'results' in pastScan
+                    ? (pastScan as { results?: { skinRating?: unknown } }).results
+                    : undefined;
+            const pastScanRating = typeof pastScanResults?.skinRating === 'number' ? pastScanResults.skinRating : null;
             const pastScanStr = pastScanRating !== null ? `Previous rating ${pastScanRating}` : "First scan.";
             const genAI = await createGeminiClient();
             const prompt = "Analyze images for skin health. " + pastScanStr + " Return JSON format: { \"summaryTitle\": \"string\", \"skinCondition\": \"string\", \"skinRating\": number, \"comparisonSummary\": \"string\", \"skinAnalysis\": { \"hydration\": \"string\", \"clarity\": \"string\", \"radiance\": \"string\" }, \"visibleConcerns\": [\"string\"], \"recommendations\": [{ \"productName\": \"string\", \"productType\": \"string\", \"reason\": \"string\" }], \"dailyPlan\": { \"morning\": [{\"step\":\"string\", \"description\":\"string\"}], \"evening\": [{\"step\":\"string\", \"description\":\"string\"}] } }";
