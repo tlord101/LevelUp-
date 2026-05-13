@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 const COOKIE_CONSENT_KEY = 'levelup-cookie-consent';
+const COOKIE_CONSENT_VALUE = 'accepted';
 
 const CookieConsentWidget: React.FC = () => {
     const [showBanner, setShowBanner] = useState(false);
@@ -9,7 +10,7 @@ const CookieConsentWidget: React.FC = () => {
     useEffect(() => {
         try {
             const hasConsent = localStorage.getItem(COOKIE_CONSENT_KEY);
-            if (!hasConsent) {
+            if (hasConsent !== COOKIE_CONSENT_VALUE) {
                 setShowBanner(true);
             }
         } catch {
@@ -19,7 +20,7 @@ const CookieConsentWidget: React.FC = () => {
 
     const handleAccept = () => {
         try {
-            localStorage.setItem(COOKIE_CONSENT_KEY, new Date().toISOString());
+            localStorage.setItem(COOKIE_CONSENT_KEY, COOKIE_CONSENT_VALUE);
         } catch {
             // no-op
         }

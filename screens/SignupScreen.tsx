@@ -80,7 +80,7 @@ const SignupScreen: React.FC = () => {
             <div className="w-full max-w-sm bg-white p-8 rounded-3xl shadow-2xl space-y-6">
                 <div className="text-center">
                     <div className="mb-4 flex justify-center">
-                        <img src="/app-logo.svg" alt="LevelUp logo" className="h-16 w-16 object-contain" />
+                        <img src="/app-logo.svg" alt="LevelUp app branding logo" className="h-16 w-16 object-contain" />
                     </div>
                     <h2 className="text-3xl font-bold text-gray-900">Create Account</h2>
                     <p className="mt-2 text-sm text-gray-600">Join us and start leveling up your life!</p>
@@ -112,8 +112,9 @@ const SignupScreen: React.FC = () => {
                         </div>
                     </div>
 
-                    <label className="flex items-start gap-2 text-sm text-gray-700">
+                    <label htmlFor="accept-policies" className="flex items-start gap-2 text-sm text-gray-700">
                         <input
+                            id="accept-policies"
                             type="checkbox"
                             checked={acceptedPolicies}
                             onChange={(e) => setAcceptedPolicies(e.target.checked)}
