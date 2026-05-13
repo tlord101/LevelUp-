@@ -112,7 +112,7 @@ const SignupScreen: React.FC = () => {
                         </div>
                     </div>
 
-                    <label htmlFor="accept-policies" className="flex items-start gap-2 text-sm text-gray-700">
+                    <div className="flex items-start gap-2 text-sm text-gray-700">
                         <input
                             id="accept-policies"
                             type="checkbox"
@@ -120,13 +120,18 @@ const SignupScreen: React.FC = () => {
                             onChange={(e) => setAcceptedPolicies(e.target.checked)}
                             className="mt-0.5 h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                         />
-                        <span>
-                            I agree to the{' '}
-                            <Link to="/terms-and-conditions" className="font-medium text-purple-700 hover:underline">Terms &amp; Conditions</Link>{' '}
-                            and{' '}
-                            <Link to="/privacy-policy" className="font-medium text-purple-700 hover:underline">Privacy Policy</Link>.
-                        </span>
-                    </label>
+                        <div>
+                            <label htmlFor="accept-policies" className="block">
+                                I agree to the Terms &amp; Conditions and Privacy Policy.
+                            </label>
+                            <p className="mt-1">
+                                Read:{' '}
+                                <Link to="/terms-and-conditions" className="font-medium text-purple-700 hover:underline">Terms &amp; Conditions</Link>{' '}
+                                and{' '}
+                                <Link to="/privacy-policy" className="font-medium text-purple-700 hover:underline">Privacy Policy</Link>.
+                            </p>
+                        </div>
+                    </div>
 
                     {error && <p className="text-center text-red-500 text-sm">{error}</p>}
 

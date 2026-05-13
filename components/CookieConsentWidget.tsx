@@ -30,7 +30,7 @@ const CookieConsentWidget: React.FC = () => {
     if (!showBanner) return null;
 
     return (
-        <div className="fixed bottom-4 left-4 right-4 z-50" role="dialog" aria-label="Cookie consent" aria-live="polite">
+        <div className="fixed bottom-4 left-4 right-4 z-50" role="dialog" aria-modal="false" aria-label="Cookie consent" aria-live="polite">
             <div className="mx-auto max-w-2xl rounded-2xl border border-gray-200 bg-white/95 p-4 shadow-xl backdrop-blur-sm">
                 <p className="text-sm text-gray-700">
                     We use cookies to improve your experience. By clicking Accept, you agree to our{' '}
