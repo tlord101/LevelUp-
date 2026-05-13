@@ -239,7 +239,7 @@ const NutritionTrackerScreen: React.FC = () => {
         hapticTap();
 
         try {
-            const ai = createGeminiClient();
+            const ai = await createGeminiClient();
             const base64Image = await blobToBase64(blob);
             const imagePart = { inlineData: { mimeType: 'image/jpeg', data: base64Image } };
 

@@ -20,11 +20,22 @@ import {
 } from '../utils/gemini';
 
 const FOOD_SCAN_MODELS = GEMINI_TEXT_FALLBACK_MODELS;
+const DAYS_PER_WEEK = 7;
+const HOURS_PER_DAY = 24;
+const MINUTES_PER_HOUR = 60;
+const SECONDS_PER_MINUTE = 60;
+const MILLISECONDS_PER_SECOND = 1000;
+const WEEK_IN_MS = DAYS_PER_WEEK * HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE * MILLISECONDS_PER_SECOND;
+const STAT_TONE_CLASS: Record<'sky' | 'orange', string> = {
+    sky: 'text-sky-500',
+    orange: 'text-orange-500',
+};
 
-const StatCard: React.FC<{ label: string; value: string; color: string; }> = ({ label, value, color }) => (
-    <div className="flex-1 p-3 rounded-lg text-center" style={{ backgroundColor: `${color}1A`}}>
-        <p className={`text-lg font-bold`} style={{ color }}>{value}</p>
-        <p className="text-xs text-gray-600">{label}</p>
+const StatCard: React.FC<{ label: string; value: string; tone: 'sky' | 'orange'; helperText?: string; }> = ({ label, value, tone, helperText }) => (
+    <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{label}</p>
+        <p className={`mt-1 text-2xl font-bold ${STAT_TONE_CLASS[tone]}`}>{value}</p>
+        {helperText && <p className="mt-1 text-xs text-gray-500">{helperText}</p>}
     </div>
 );
 
@@ -67,8 +78,7 @@ const FoodScannerScreen: React.FC = () => {
     }, []);
 
     const weeklyAverageCalories = useMemo(() => {
-        const oneWeekAgo = new Date();
-        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        const oneWeekAgo = new Date(Date.now() - WEEK_IN_MS);
 
         const recentScans = scans.filter(s => new Date(s.created_at) > oneWeekAgo);
         if (recentScans.length === 0) return 0;
@@ -93,6 +103,13 @@ const FoodScannerScreen: React.FC = () => {
         return totalCalories / numberOfDays;
     }, [scans]);
 
+    const recentScansCount = useMemo(
+        () => scans.filter(s => new Date(s.created_at) > new Date(Date.now() - WEEK_IN_MS)).length,
+        [scans]
+    );
+
+    const latestScan = scans[0] ?? null;
+
     const handleAnalyzeAndLog = async () => {
         if (!scannerEnabled) {
             setError('Food scanner is currently disabled by admin.');
@@ -106,7 +123,7 @@ const FoodScannerScreen: React.FC = () => {
         
         try {
             // Step 1: Get AI Analysis
-            const ai = createGeminiClient();
+            const ai = await createGeminiClient();
             const base64Image = await blobToBase64(scanner.imageFile);
             const imagePart = { inlineData: { mimeType: scanner.imageFile.type, data: base64Image } };
 
@@ -198,73 +215,117 @@ const FoodScannerScreen: React.FC = () => {
 
 
     return (
-        <div className="min-h-screen bg-gray-50 p-4 pb-24 space-y-5">
+        <div className="min-h-screen bg-gradient-to-b from-emerald-50/60 via-gray-50 to-gray-100 px-4 pb-24 pt-4">
             {scanner.showCamera && <CameraView onCapture={scanner.handleCapture} onClose={scanner.closeCamera} facingMode="environment" promptText="Position your meal in the center" scanType="food" />}
-            
-            <header className="text-center">
-                <h1 className="text-2xl font-bold text-gray-800">Food Scanner</h1>
-                <p className="text-gray-500">Analyze & log meals by taking a photo</p>
-            </header>
 
-            <div className="bg-white p-4 rounded-xl shadow-sm">
-                <div className="relative flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
-                    {scanner.imagePreview ? (
-                        <img src={scanner.imagePreview} alt="Selected for analysis" className="w-full h-full object-cover rounded-lg" />
-                    ) : (
-                        <>
-                            <Upload className="w-10 h-10 text-gray-400 mb-2" />
-                            <p className="text-sm font-semibold text-gray-700">Select a photo of your meal</p>
-                            <p className="text-xs text-gray-500">For best results, show one dish</p>
-                        </>
-                    )}
-                </div>
-                <input type="file" accept="image/jpeg,image/png" ref={scanner.fileInputRef} onChange={scanner.handleFileChange} className="hidden" />
+            <div className="mx-auto w-full max-w-2xl space-y-5">
+                <header className="rounded-3xl bg-white/90 p-6 text-center shadow-sm ring-1 ring-gray-100">
+                    <p className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold tracking-wide text-emerald-700">
+                        SMART NUTRITION
+                    </p>
+                    <h1 className="mt-3 text-3xl font-bold tracking-tight text-gray-900">Food Scanner</h1>
+                    <p className="mt-2 text-sm text-gray-600">Capture your meal, get nutrition insights, and log it instantly.</p>
+                </header>
 
-                <div className="grid grid-cols-2 gap-3 mt-4">
-                    <button disabled={!scannerEnabled} onClick={() => { hapticTap(); scanner.openCamera(); }} className="flex items-center justify-center gap-2 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-sm hover:bg-green-700 transition disabled:bg-gray-300 disabled:cursor-not-allowed">
-                        <Camera size={20} /> Use Camera
-                    </button>
-                    <button disabled={!scannerEnabled} onClick={() => { hapticTap(); scanner.triggerFileInput(); }} className="flex items-center justify-center gap-2 py-3 bg-white text-green-700 font-semibold rounded-lg border border-green-200 hover:bg-green-50 transition disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed">
-                        <Upload size={20} /> Upload Photo
-                    </button>
-                </div>
-
-                <button
-                    onClick={handleAnalyzeAndLog}
-                    disabled={!scannerEnabled || !scanner.imageFile || isLoading}
-                    className="w-full mt-3 flex items-center justify-center gap-2 py-3 bg-teal-500 text-white font-bold rounded-lg shadow-sm hover:bg-teal-600 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
-                >
-                    {isLoading ? <Loader2 className="animate-spin" size={20} /> : <Apple size={20} />}
-                    {isLoading ? 'Analyzing & Logging...' : 'Analyze & Log Meal'}
-                </button>
-                {!scannerEnabled && <p className="text-amber-600 text-sm text-center mt-2">Scanner disabled by admin settings.</p>}
-                {error && <p className="text-red-500 text-sm text-center mt-2">{error}</p>}
-            </div>
-
-            <div className="bg-white p-4 rounded-xl shadow-sm">
-                <h2 className="font-bold text-gray-800 mb-3">Weekly Stats</h2>
-                <div className="flex gap-3">
-                     <StatCard label="Avg. Daily Cals" value={`${weeklyAverageCalories.toFixed(0)}`} color="#0ea5e9" />
-                     <StatCard label="Scans This Week" value={scans.filter(s => new Date(s.created_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length.toString()} color="#f97316" />
-                </div>
-            </div>
-            
-            <div className="bg-white p-4 rounded-xl shadow-sm">
-                 <div className="flex justify-between items-center mb-2">
-                    <h2 className="font-bold text-gray-800 flex items-center gap-2"><Clock size={18}/> Scan History</h2>
-                    <button onClick={() => { hapticTap(); navigate('/food-history'); }} className="flex items-center text-sm font-semibold text-purple-600 hover:text-purple-800">
-                        View All <ChevronRight size={16} />
-                    </button>
-                </div>
-                {scans.length > 0 ? (
-                    <div className="flex items-center gap-3">
-                        <img src={scans[0].image_url} alt="Last food scan" className="w-12 h-12 object-cover rounded-lg" />
-                        <div>
-                            <p className="font-semibold capitalize">{scans[0].results.foodName}</p>
-                            <p className="text-sm text-gray-500">Calories: {scans[0].results.calories.toFixed(0)}</p>
-                        </div>
+                <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
+                    <div className="mb-4 flex items-center justify-between">
+                        <h2 className="text-base font-semibold text-gray-900">Meal Photo</h2>
+                        <span className="text-xs font-medium text-gray-500">JPG or PNG</span>
                     </div>
-                ) : <p className="text-sm text-gray-500">No scans yet</p>}
+
+                    <div className="relative flex h-48 w-full flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50">
+                        {scanner.imagePreview ? (
+                            <img src={scanner.imagePreview} alt="Selected for analysis" className="h-full w-full object-cover" />
+                        ) : (
+                            <>
+                                <Upload className="mb-2 h-10 w-10 text-gray-400" />
+                                <p className="text-sm font-semibold text-gray-700">Select a clear meal photo</p>
+                                <p className="text-xs text-gray-500">Try to keep one dish centered in frame</p>
+                            </>
+                        )}
+                    </div>
+                    <input type="file" accept="image/jpeg,image/png" ref={scanner.fileInputRef} onChange={scanner.handleFileChange} className="hidden" />
+
+                    <div className="mt-4 grid grid-cols-2 gap-3">
+                        <button disabled={!scannerEnabled} onClick={() => { hapticTap(); scanner.openCamera(); }} className="flex items-center justify-center gap-2 rounded-xl bg-green-600 py-3 font-semibold text-white shadow-sm transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-300">
+                            <Camera size={20} /> Use Camera
+                        </button>
+                        <button disabled={!scannerEnabled} onClick={() => { hapticTap(); scanner.triggerFileInput(); }} className="flex items-center justify-center gap-2 rounded-xl border border-green-200 bg-white py-3 font-semibold text-green-700 transition hover:bg-green-50 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400">
+                            <Upload size={20} /> Upload Photo
+                        </button>
+                    </div>
+
+                    <button
+                        onClick={handleAnalyzeAndLog}
+                        disabled={!scannerEnabled || !scanner.imageFile || isLoading}
+                        className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-teal-500 py-3 font-bold text-white shadow-sm transition hover:bg-teal-600 disabled:cursor-not-allowed disabled:bg-gray-300"
+                    >
+                        {isLoading ? <Loader2 className="animate-spin" size={20} /> : <Apple size={20} />}
+                        {isLoading ? 'Analyzing & Logging...' : 'Analyze & Log Meal'}
+                    </button>
+
+                    {!scannerEnabled && (
+                        <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs font-medium text-amber-700">
+                            Scanner disabled by admin settings.
+                        </p>
+                    )}
+                    {error && (
+                        <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-center text-xs font-medium text-red-700">
+                            {error}
+                        </p>
+                    )}
+                </section>
+
+                <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
+                    <h2 className="mb-3 text-base font-semibold text-gray-900">Weekly Snapshot</h2>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <StatCard
+                            label="Average Daily Calories"
+                            value={`${weeklyAverageCalories.toFixed(0)} kcal`}
+                            tone="sky"
+                            helperText="Based on days with scans"
+                        />
+                        <StatCard
+                            label="Scans This Week"
+                            value={recentScansCount.toString()}
+                            tone="orange"
+                            helperText="Total meals scanned in the last 7 days"
+                        />
+                    </div>
+                </section>
+
+                <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
+                    <div className="mb-3 flex items-center justify-between">
+                        <h2 className="flex items-center gap-2 text-base font-semibold text-gray-900"><Clock size={18} /> Recent Scan</h2>
+                        <button onClick={() => { hapticTap(); navigate('/food-history'); }} className="flex items-center text-sm font-semibold text-purple-600 transition hover:text-purple-800">
+                            View All <ChevronRight size={16} />
+                        </button>
+                    </div>
+
+                    {latestScan ? (
+                        <div className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-3">
+                            <img src={latestScan.image_url} alt="Last food scan" className="h-14 w-14 rounded-xl object-cover" />
+                            <div className="min-w-0 flex-1">
+                                <p
+                                    className="truncate font-semibold capitalize text-gray-900"
+                                    title={latestScan.results.foodName}
+                                    aria-label={`Food name: ${latestScan.results.foodName}`}
+                                >
+                                    {latestScan.results.foodName}
+                                </p>
+                                <p className="text-sm text-gray-500">{latestScan.results.calories.toFixed(0)} calories</p>
+                            </div>
+                            <span className="rounded-full bg-purple-100 px-2.5 py-1 text-xs font-semibold text-purple-700">
+                                Latest
+                            </span>
+                        </div>
+                    ) : (
+                        <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center">
+                            <p className="text-sm font-medium text-gray-600">No scans yet</p>
+                            <p className="mt-1 text-xs text-gray-500">Your latest meal scan will appear here.</p>
+                        </div>
+                    )}
+                </section>
             </div>
         </div>
     );

@@ -14,12 +14,6 @@ const GoogleIcon = () => (
     </svg>
 );
 
-const AppleIcon = () => (
-    <svg className="w-5 h-5" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M19.3,4.62A5.44,5.44,0,0,0,15.33,3c-1.85,0-3.35,1.11-4.22,1.11S9.2,3,7.56,3a5.1,5.1,0,0,0-4.33,2.58c-1.85,3.33-.49,8,1.36,10.64a5.2,5.2,0,0,0,4,2.3c.64,0,1.21-.2,2.08-.2s1.31.2,2.21.2a5.21,5.21,0,0,0,4.1-2.39c1.6-2.52,2.68-6.66,1.32-9.72M12,20.18c-1.31,0-2.43-.88-3.22-.88s-2.08.88-3.33.88c-1.4,0-2.68-.94-3.4-2.28c-1.31-2.45-.3-6,1.14-8.23a4.52,4.52,0,0,1,3.8-2.28c1.68,0,3,1.06,3.84,1.06s2.05-1.06,3.69-1.06a4.5,4.5,0,0,1,4.22,2.56c-1.77,1.11-3,3-3,5.24,0,2.58,1.6,4.3,3.33,5.12C14.88,19.24,13.4,20.18,12,20.18" />
-    </svg>
-);
-
 const SignupScreen: React.FC = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -57,12 +51,12 @@ const SignupScreen: React.FC = () => {
         }
     };
     
-    const handleSocialSignUp = async (provider: 'google' | 'apple') => {
+    const handleGoogleSignUp = async () => {
         hapticTap();
         setLoading(true);
         setError(null);
         try {
-            await signInWithOAuth(provider);
+            await signInWithOAuth('google');
             hapticSuccess();
             // AuthProvider will handle the redirect upon successful sign-in
         } catch (err: any) {
@@ -122,16 +116,13 @@ const SignupScreen: React.FC = () => {
                         <div className="w-full border-t border-gray-300" />
                     </div>
                     <div className="relative flex justify-center text-sm">
-                        <span className="px-2 bg-white text-gray-500">Or sign up with</span>
+                        <span className="px-2 bg-white text-gray-500">Or continue with</span>
                     </div>
                 </div>
 
                 <div className="space-y-4">
-                     <button onClick={() => handleSocialSignUp('google')} className="w-full inline-flex items-center justify-center gap-3 py-3 px-4 border border-gray-300 rounded-xl shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+                     <button onClick={handleGoogleSignUp} className="w-full inline-flex items-center justify-center gap-3 py-3 px-4 border border-gray-300 rounded-xl shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
                         <GoogleIcon /> Continue with Google
-                    </button>
-                    <button onClick={() => handleSocialSignUp('apple')} className="w-full inline-flex items-center justify-center gap-3 py-3 px-4 border border-gray-300 rounded-xl shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
-                        <AppleIcon /> Continue with Apple
                     </button>
                 </div>
 

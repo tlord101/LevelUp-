@@ -1,7 +1,6 @@
 import React from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Rocket } from 'lucide-react';
 import { hapticTap } from '../utils/haptics';
 
 const WelcomeScreen: React.FC = () => {
@@ -18,9 +17,8 @@ const WelcomeScreen: React.FC = () => {
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-white text-center p-6">
             <div className="flex-grow flex flex-col items-center justify-center">
-                {/* Lottie Animation Placeholder */}
-                <div className="w-64 h-64 bg-purple-100 rounded-full flex items-center justify-center mb-8">
-                    <Rocket className="w-32 h-32 text-purple-500" />
+                <div className="w-64 h-64 flex items-center justify-center mb-8">
+                    <img src="/app-logo.svg" alt="LevelUp logo" className="w-44 h-44 object-contain" />
                 </div>
                 
                 <h1 className="text-5xl font-extrabold text-gray-800 tracking-tight">LevelUp</h1>
