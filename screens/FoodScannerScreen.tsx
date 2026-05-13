@@ -20,6 +20,7 @@ import {
 } from '../utils/gemini';
 
 const FOOD_SCAN_MODELS = GEMINI_TEXT_FALLBACK_MODELS;
+const WEEK_IN_MS = 7 * 24 * 60 * 60 * 1000;
 const STAT_TONE_CLASS: Record<'sky' | 'orange', string> = {
     sky: 'text-sky-500',
     orange: 'text-orange-500',
@@ -72,8 +73,7 @@ const FoodScannerScreen: React.FC = () => {
     }, []);
 
     const weeklyAverageCalories = useMemo(() => {
-        const oneWeekAgo = new Date();
-        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        const oneWeekAgo = new Date(Date.now() - WEEK_IN_MS);
 
         const recentScans = scans.filter(s => new Date(s.created_at) > oneWeekAgo);
         if (recentScans.length === 0) return 0;
@@ -99,7 +99,7 @@ const FoodScannerScreen: React.FC = () => {
     }, [scans]);
 
     const recentScansCount = useMemo(
-        () => scans.filter(s => new Date(s.created_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length,
+        () => scans.filter(s => new Date(s.created_at) > new Date(Date.now() - WEEK_IN_MS)).length,
         [scans]
     );
 
@@ -278,7 +278,7 @@ const FoodScannerScreen: React.FC = () => {
                             label="Average Daily Calories"
                             value={`${weeklyAverageCalories.toFixed(0)} kcal`}
                             tone="sky"
-                            helperText="Based on your recent scan days"
+                            helperText="Based on days with scans"
                         />
                         <StatCard
                             label="Scans This Week"
