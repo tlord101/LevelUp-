@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 
 const COOKIE_CONSENT_KEY = 'levelup-cookie-consent';
 const COOKIE_CONSENT_VALUE = 'accepted';
+const COOKIE_DECLINED_VALUE = 'declined';
 
 const CookieConsentWidget: React.FC = () => {
     const [showBanner, setShowBanner] = useState(false);
@@ -27,10 +28,19 @@ const CookieConsentWidget: React.FC = () => {
         setShowBanner(false);
     };
 
+    const handleDecline = () => {
+        try {
+            localStorage.setItem(COOKIE_CONSENT_KEY, COOKIE_DECLINED_VALUE);
+        } catch {
+            // no-op
+        }
+        setShowBanner(false);
+    };
+
     if (!showBanner) return null;
 
     return (
-        <div className="fixed bottom-4 left-4 right-4 z-50" role="dialog" aria-modal="false" aria-label="Cookie consent" aria-live="polite">
+        <div className="fixed bottom-4 left-4 right-4 z-50" role="region" aria-label="Cookie consent banner" aria-live="polite">
             <div className="mx-auto max-w-2xl rounded-2xl border border-gray-200 bg-white/95 p-4 shadow-xl backdrop-blur-sm">
                 <p className="text-sm text-gray-700">
                     We use cookies to improve your experience. By clicking Accept, you agree to our{' '}
@@ -43,7 +53,14 @@ const CookieConsentWidget: React.FC = () => {
                     </Link>
                     .
                 </p>
-                <div className="mt-3 flex justify-end">
+                <div className="mt-3 flex justify-end gap-2">
+                    <button
+                        type="button"
+                        onClick={handleDecline}
+                        className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    >
+                        Decline
+                    </button>
                     <button
                         type="button"
                         onClick={handleAccept}
