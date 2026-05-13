@@ -67,7 +67,8 @@ const toSortableTime = (value: any): number => {
     return 0;
 };
 
-const normalizeFaceScanResults = (results: any): FaceScanResult => {
+const normalizeFaceScanResults = (results: unknown): FaceScanResult => {
+    const payload = results && typeof results === 'object' ? (results as Record<string, any>) : {};
     const toText = (value: any, fallback: string) =>
         typeof value === 'string' && value.trim().length > 0 ? value : fallback;
     const toNumber = (value: any, fallback: number) => {
@@ -92,7 +93,7 @@ const normalizeFaceScanResults = (results: any): FaceScanResult => {
             .filter((item): item is { step: string; description: string } => Boolean(item));
     };
 
-    const rawDailyPlan = results?.dailyPlan;
+    const rawDailyPlan = payload.dailyPlan;
     const normalizedDailyPlan = Array.isArray(rawDailyPlan)
         ? { morning: toRoutineItems(rawDailyPlan), evening: [] }
         : {
@@ -102,15 +103,15 @@ const normalizeFaceScanResults = (results: any): FaceScanResult => {
 
     return {
         skinAnalysis: {
-            hydration: toText(results?.skinAnalysis?.hydration, 'N/A'),
-            clarity: toText(results?.skinAnalysis?.clarity, 'N/A'),
-            radiance: toText(results?.skinAnalysis?.radiance, 'N/A'),
-            texture: toText(results?.skinAnalysis?.texture, ''),
-            tone: toText(results?.skinAnalysis?.tone, ''),
+            hydration: toText(payload?.skinAnalysis?.hydration, 'N/A'),
+            clarity: toText(payload?.skinAnalysis?.clarity, 'N/A'),
+            radiance: toText(payload?.skinAnalysis?.radiance, 'N/A'),
+            texture: toText(payload?.skinAnalysis?.texture, ''),
+            tone: toText(payload?.skinAnalysis?.tone, ''),
         },
-        skinRating: toNumber(results?.skinRating, 0),
-        recommendations: Array.isArray(results?.recommendations)
-            ? results.recommendations
+        skinRating: toNumber(payload?.skinRating, 0),
+        recommendations: Array.isArray(payload?.recommendations)
+            ? payload.recommendations
                   .map((rec: any) => ({
                       productType: toText(rec?.productType, 'Skincare'),
                       productName: toText(rec?.productName, 'Recommended product'),
@@ -118,14 +119,14 @@ const normalizeFaceScanResults = (results: any): FaceScanResult => {
                   }))
                   .filter((rec: ProductRecommendation) => rec.productName.length > 0)
             : [],
-        skinCondition: toText(results?.skinCondition, 'No condition summary provided.'),
-        visibleConcerns: Array.isArray(results?.visibleConcerns)
-            ? results.visibleConcerns.filter((concern: any): concern is string => typeof concern === 'string' && concern.trim().length > 0)
+        skinCondition: toText(payload?.skinCondition, 'No condition summary provided.'),
+        visibleConcerns: Array.isArray(payload?.visibleConcerns)
+            ? payload.visibleConcerns.filter((concern: any): concern is string => typeof concern === 'string' && concern.trim().length > 0)
             : [],
         dailyPlan: normalizedDailyPlan,
-        comparisonSummary: toText(results?.comparisonSummary, 'No previous comparison available.'),
-        confidence: toNumber(results?.confidence, 75),
-        summaryTitle: toText(results?.summaryTitle, 'Skin Health Snapshot'),
+        comparisonSummary: toText(payload?.comparisonSummary, 'No previous comparison available.'),
+        confidence: toNumber(payload?.confidence, 75),
+        summaryTitle: toText(payload?.summaryTitle, 'Skin Health Snapshot'),
     };
 };
 
