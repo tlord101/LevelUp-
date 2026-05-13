@@ -20,11 +20,15 @@ import {
 } from '../utils/gemini';
 
 const FOOD_SCAN_MODELS = GEMINI_TEXT_FALLBACK_MODELS;
+const STAT_TONE_CLASS: Record<'sky' | 'orange', string> = {
+    sky: 'text-sky-500',
+    orange: 'text-orange-500',
+};
 
 const StatCard: React.FC<{ label: string; value: string; tone: 'sky' | 'orange'; helperText?: string; }> = ({ label, value, tone, helperText }) => (
     <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{label}</p>
-        <p className={`mt-1 text-2xl font-bold ${tone === 'sky' ? 'text-sky-500' : 'text-orange-500'}`}>{value}</p>
+        <p className={`mt-1 text-2xl font-bold ${STAT_TONE_CLASS[tone]}`}>{value}</p>
         {helperText && <p className="mt-1 text-xs text-gray-500">{helperText}</p>}
     </div>
 );
@@ -99,7 +103,7 @@ const FoodScannerScreen: React.FC = () => {
         [scans]
     );
 
-    const latestScan = scans[0];
+    const latestScan = scans[0] ?? null;
 
     const handleAnalyzeAndLog = async () => {
         if (!scannerEnabled) {
