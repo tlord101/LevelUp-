@@ -20,7 +20,12 @@ import {
 } from '../utils/gemini';
 
 const FOOD_SCAN_MODELS = GEMINI_TEXT_FALLBACK_MODELS;
-const WEEK_IN_MS = 7 * 24 * 60 * 60 * 1000;
+const DAYS_PER_WEEK = 7;
+const HOURS_PER_DAY = 24;
+const MINUTES_PER_HOUR = 60;
+const SECONDS_PER_MINUTE = 60;
+const MILLISECONDS_PER_SECOND = 1000;
+const WEEK_IN_MS = DAYS_PER_WEEK * HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE * MILLISECONDS_PER_SECOND;
 const STAT_TONE_CLASS: Record<'sky' | 'orange', string> = {
     sky: 'text-sky-500',
     orange: 'text-orange-500',
@@ -301,7 +306,13 @@ const FoodScannerScreen: React.FC = () => {
                         <div className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-3">
                             <img src={latestScan.image_url} alt="Last food scan" className="h-14 w-14 rounded-xl object-cover" />
                             <div className="min-w-0 flex-1">
-                                <p className="truncate font-semibold capitalize text-gray-900">{latestScan.results.foodName}</p>
+                                <p
+                                    className="truncate font-semibold capitalize text-gray-900"
+                                    title={latestScan.results.foodName}
+                                    aria-label={`Food name: ${latestScan.results.foodName}`}
+                                >
+                                    {latestScan.results.foodName}
+                                </p>
                                 <p className="text-sm text-gray-500">{latestScan.results.calories.toFixed(0)} calories</p>
                             </div>
                             <span className="rounded-full bg-purple-100 px-2.5 py-1 text-xs font-semibold text-purple-700">
