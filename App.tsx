@@ -30,6 +30,10 @@ import FaceScanDetailScreen from './screens/FaceScanDetailScreen';
 import LiveCoachScreen from './screens/LiveCoachScreen';
 import EditProfileScreen from './screens/EditProfileScreen';
 import WorkoutPlanDetailScreen from './screens/WorkoutPlanDetailScreen';
+import TermsAndConditionsScreen from './screens/TermsAndConditionsScreen';
+import PrivacyPolicyScreen from './screens/PrivacyPolicyScreen';
+import CookiePolicyScreen from './screens/CookiePolicyScreen';
+import CookieConsentWidget from './components/CookieConsentWidget';
 import {
     AdminLayout,
     AdminDashboardPage,
@@ -263,6 +267,9 @@ const App: React.FC = () => {
                 <Route path="/signup" element={<SignupScreen />} />
                 <Route path="/login" element={<LoginScreen />} />
                 <Route path="/forgot-password" element={<ForgotPasswordScreen />} />
+                <Route path="/terms-and-conditions" element={<TermsAndConditionsScreen />} />
+                <Route path="/privacy-policy" element={<PrivacyPolicyScreen />} />
+                <Route path="/cookie-policy" element={<CookiePolicyScreen />} />
                 <Route path="/admin/login" element={<AdminLoginPage />} />
                 <Route path="/admin/forgot-password" element={<AdminForgotPasswordPage />} />
 
@@ -355,6 +362,7 @@ const App: React.FC = () => {
                  {/* Redirect to dashboard if logged in and at root */}
                 <Route path="*" element={<Navigate to="/dashboard" />} />
             </Routes>
+            <CookieConsentWidget />
                 </BrowserRouter>
     </AuthProvider>
   );

@@ -18,6 +18,7 @@ const SignupScreen: React.FC = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [acceptedPolicies, setAcceptedPolicies] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -31,6 +32,12 @@ const SignupScreen: React.FC = () => {
 
         if (password !== confirmPassword) {
             setError("Passwords do not match.");
+            hapticError();
+            return;
+        }
+
+        if (!acceptedPolicies) {
+            setError('Please accept the Terms and Privacy Policy to continue.');
             hapticError();
             return;
         }
@@ -72,6 +79,9 @@ const SignupScreen: React.FC = () => {
         <div className="min-h-screen flex items-center justify-center p-4 bg-linear-to-br from-purple-500 to-pink-500">
             <div className="w-full max-w-sm bg-white p-8 rounded-3xl shadow-2xl space-y-6">
                 <div className="text-center">
+                    <div className="mb-4 flex justify-center">
+                        <img src="/app-logo.svg" alt="LevelUp logo" className="h-16 w-16 object-contain" />
+                    </div>
                     <h2 className="text-3xl font-bold text-gray-900">Create Account</h2>
                     <p className="mt-2 text-sm text-gray-600">Join us and start leveling up your life!</p>
                 </div>
@@ -102,6 +112,21 @@ const SignupScreen: React.FC = () => {
                         </div>
                     </div>
 
+                    <label className="flex items-start gap-2 text-sm text-gray-700">
+                        <input
+                            type="checkbox"
+                            checked={acceptedPolicies}
+                            onChange={(e) => setAcceptedPolicies(e.target.checked)}
+                            className="mt-0.5 h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span>
+                            I agree to the{' '}
+                            <Link to="/terms-and-conditions" className="font-medium text-purple-700 hover:underline">Terms &amp; Conditions</Link>{' '}
+                            and{' '}
+                            <Link to="/privacy-policy" className="font-medium text-purple-700 hover:underline">Privacy Policy</Link>.
+                        </span>
+                    </label>
+
                     {error && <p className="text-center text-red-500 text-sm">{error}</p>}
 
                     <div>
@@ -131,6 +156,10 @@ const SignupScreen: React.FC = () => {
                     <Link to="/login" className="font-medium text-transparent bg-clip-text bg-linear-to-r from-blue-500 to-purple-600 hover:underline">
                         Log In here
                     </Link>
+                </p>
+                <p className="text-center text-xs text-gray-500">
+                    Cookie details are available in our{' '}
+                    <Link to="/cookie-policy" className="font-medium text-purple-700 hover:underline">Cookie Policy</Link>.
                 </p>
             </div>
         </div>
