@@ -36,7 +36,7 @@ import {
     writeBatch
 } from 'firebase/firestore';
 import { auth, firestore, messaging } from '../config/firebase';
-import { UserGoal, UserProfile, NutritionScan, BodyScan, FaceScan, Post, Group, Comment, NutritionLog, NutritionScanResult, BodyScanResult, FaceScanResult, UserNotification } from '../types';
+import { UserGoal, UserProfile, NutritionScan, BodyScan, FaceScan, Post, Group, Comment, NutritionLog, NutritionScanResult, BodyScanResult, FaceScanResult, UserNotification, ProductRecommendation } from '../types';
 import { getToken, onMessage, Unsubscribe } from 'firebase/messaging';
 import { queueWelcomeEmail } from './adminService';
 
@@ -65,6 +65,66 @@ const toSortableTime = (value: any): number => {
         return value.seconds * 1000;
     }
     return 0;
+};
+
+const normalizeFaceScanResults = (results: any): FaceScanResult => {
+    const toText = (value: any, fallback: string) =>
+        typeof value === 'string' && value.trim().length > 0 ? value : fallback;
+    const toNumber = (value: any, fallback: number) => {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : fallback;
+    };
+    const toRoutineItems = (items: any[]): { step: string; description: string }[] =>
+        items
+            .map((item: any, index: number) => {
+                if (item && typeof item === 'object') {
+                    return {
+                        step: toText(item.step, `Step ${index + 1}`),
+                        description: toText(item.description, ''),
+                    };
+                }
+                const description = toText(item, '');
+                return description
+                    ? { step: `Step ${index + 1}`, description }
+                    : null;
+            })
+            .filter((item): item is { step: string; description: string } => Boolean(item));
+
+    const rawDailyPlan = results?.dailyPlan;
+    const normalizedDailyPlan = Array.isArray(rawDailyPlan)
+        ? { morning: toRoutineItems(rawDailyPlan), evening: [] }
+        : {
+              morning: toRoutineItems(Array.isArray(rawDailyPlan?.morning) ? rawDailyPlan.morning : []),
+              evening: toRoutineItems(Array.isArray(rawDailyPlan?.evening) ? rawDailyPlan.evening : []),
+          };
+
+    return {
+        skinAnalysis: {
+            hydration: toText(results?.skinAnalysis?.hydration, 'N/A'),
+            clarity: toText(results?.skinAnalysis?.clarity, 'N/A'),
+            radiance: toText(results?.skinAnalysis?.radiance, 'N/A'),
+            texture: toText(results?.skinAnalysis?.texture, ''),
+            tone: toText(results?.skinAnalysis?.tone, ''),
+        },
+        skinRating: toNumber(results?.skinRating, 0),
+        recommendations: Array.isArray(results?.recommendations)
+            ? results.recommendations
+                  .map((rec: any) => ({
+                      productType: toText(rec?.productType, 'Skincare'),
+                      productName: toText(rec?.productName, 'Recommended product'),
+                      reason: toText(rec?.reason, 'Recommended based on your scan results.'),
+                  }))
+                  .filter((rec: ProductRecommendation) => rec.productName.length > 0)
+            : [],
+        skinCondition: toText(results?.skinCondition, 'No condition summary provided.'),
+        visibleConcerns: Array.isArray(results?.visibleConcerns)
+            ? results.visibleConcerns.filter((concern: any): concern is string => typeof concern === 'string' && concern.trim().length > 0)
+            : [],
+        dailyPlan: normalizedDailyPlan,
+        comparisonSummary: toText(results?.comparisonSummary, 'No previous comparison available.'),
+        confidence: toNumber(results?.confidence, 75),
+        summaryTitle: toText(results?.summaryTitle, 'Skin Health Snapshot'),
+    };
 };
 
 // --- USER PROFILE ---
@@ -348,7 +408,7 @@ export const saveFaceScan = async (userId: string, imageUrl: string, results: Fa
     await addDoc(collection(firestore, 'faceScans'), {
         userId,
         image_url: imageUrl,
-        results,
+        results: normalizeFaceScanResults(results),
         created_at: serverTimestamp(),
     });
 };
@@ -363,7 +423,12 @@ export const getFaceScans = async (userId: string): Promise<FaceScan[]> => {
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => {
         const data = convertTimestampToISO(doc.data());
-        return { id: doc.id, user_id: data.userId, ...data } as FaceScan;
+        return {
+            id: doc.id,
+            user_id: data.userId,
+            ...data,
+            results: normalizeFaceScanResults(data.results),
+        } as FaceScan;
     });
 };
 
@@ -753,7 +818,10 @@ export const getLatestScan = async (userId: string, scanType: 'nutrition' | 'bod
     const querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
         const data = convertTimestampToISO(querySnapshot.docs[0].data());
-        return { results: data.results, created_at: data.created_at };
+        return {
+            results: scanType === 'face' ? normalizeFaceScanResults(data.results) : data.results,
+            created_at: data.created_at,
+        };
     }
     return { message: `No ${scanType} scans found.` };
 };
