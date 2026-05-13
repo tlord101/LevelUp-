@@ -71,6 +71,9 @@ const LoginScreen: React.FC = () => {
         <div className="min-h-screen flex items-center justify-center p-4 bg-linear-to-br from-purple-500 to-pink-500">
             <div className="w-full max-w-sm bg-white p-8 rounded-3xl shadow-2xl space-y-6">
                 <div className="text-center">
+                    <div className="mb-4 flex justify-center">
+                        <img src="/app-logo.svg" alt="LevelUp logo" className="h-16 w-16 object-contain" />
+                    </div>
                     <h2 className="text-3xl font-bold text-gray-900">Welcome Back</h2>
                     <p className="mt-2 text-sm text-gray-600">Please log in using the form below to continue.</p>
                 </div>
@@ -126,6 +129,13 @@ const LoginScreen: React.FC = () => {
                     <Link to="/signup" className="font-medium text-transparent bg-clip-text bg-linear-to-r from-blue-500 to-purple-600 hover:underline">
                         Sign Up here
                     </Link>
+                </p>
+                <p className="text-center text-xs text-gray-500">
+                    By continuing you agree to our{' '}
+                    <Link to="/terms-and-conditions" className="font-medium text-purple-700 hover:underline">Terms</Link>,{' '}
+                    <Link to="/privacy-policy" className="font-medium text-purple-700 hover:underline">Privacy Policy</Link>{' '}
+                    and{' '}
+                    <Link to="/cookie-policy" className="font-medium text-purple-700 hover:underline">Cookie Policy</Link>.
                 </p>
             </div>
         </div>
