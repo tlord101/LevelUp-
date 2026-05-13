@@ -51,7 +51,7 @@ const SignupScreen: React.FC = () => {
         }
     };
     
-    const handleSocialSignUp = async () => {
+    const handleGoogleSignUp = async () => {
         hapticTap();
         setLoading(true);
         setError(null);
@@ -121,7 +121,7 @@ const SignupScreen: React.FC = () => {
                 </div>
 
                 <div className="space-y-4">
-                     <button onClick={handleSocialSignUp} className="w-full inline-flex items-center justify-center gap-3 py-3 px-4 border border-gray-300 rounded-xl shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+                     <button onClick={handleGoogleSignUp} className="w-full inline-flex items-center justify-center gap-3 py-3 px-4 border border-gray-300 rounded-xl shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
                         <GoogleIcon /> Continue with Google
                     </button>
                 </div>
