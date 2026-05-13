@@ -25,7 +25,7 @@ onBackgroundMessage(messaging, (payload) => {
   const notificationTitle = payload.notification?.title || 'LevelUp';
   const notificationOptions = {
     body: payload.notification?.body || 'You have a new notification.',
-    icon: "/vite.svg",
+    icon: "/app-logo.svg",
   };
 
   self.registration.showNotification(notificationTitle, notificationOptions);

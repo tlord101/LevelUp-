@@ -38,7 +38,7 @@ export const sendTestPushNotification = async (token: string, title: string, bod
         notification: {
             title: title,
             body: body,
-            icon: "/vite.svg" 
+            icon: "/app-logo.svg" 
         }
     };
 
