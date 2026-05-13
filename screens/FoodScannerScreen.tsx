@@ -21,10 +21,10 @@ import {
 
 const FOOD_SCAN_MODELS = GEMINI_TEXT_FALLBACK_MODELS;
 
-const StatCard: React.FC<{ label: string; value: string; color: string; helperText?: string; }> = ({ label, value, color, helperText }) => (
+const StatCard: React.FC<{ label: string; value: string; tone: 'sky' | 'orange'; helperText?: string; }> = ({ label, value, tone, helperText }) => (
     <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{label}</p>
-        <p className="mt-1 text-2xl font-bold" style={{ color }}>{value}</p>
+        <p className={`mt-1 text-2xl font-bold ${tone === 'sky' ? 'text-sky-500' : 'text-orange-500'}`}>{value}</p>
         {helperText && <p className="mt-1 text-xs text-gray-500">{helperText}</p>}
     </div>
 );
@@ -206,7 +206,7 @@ const FoodScannerScreen: React.FC = () => {
 
 
     return (
-        <div className="min-h-screen bg-linear-to-b from-emerald-50/60 via-gray-50 to-gray-100 px-4 pb-24 pt-4">
+        <div className="min-h-screen bg-gradient-to-b from-emerald-50/60 via-gray-50 to-gray-100 px-4 pb-24 pt-4">
             {scanner.showCamera && <CameraView onCapture={scanner.handleCapture} onClose={scanner.closeCamera} facingMode="environment" promptText="Position your meal in the center" scanType="food" />}
 
             <div className="mx-auto w-full max-w-2xl space-y-5">
@@ -273,13 +273,13 @@ const FoodScannerScreen: React.FC = () => {
                         <StatCard
                             label="Average Daily Calories"
                             value={`${weeklyAverageCalories.toFixed(0)} kcal`}
-                            color="#0ea5e9"
+                            tone="sky"
                             helperText="Based on your recent scan days"
                         />
                         <StatCard
                             label="Scans This Week"
                             value={recentScansCount.toString()}
-                            color="#f97316"
+                            tone="orange"
                             helperText="Total meals scanned in the last 7 days"
                         />
                     </div>
