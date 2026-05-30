@@ -34,6 +34,7 @@ import TermsAndConditionsScreen from './screens/TermsAndConditionsScreen';
 import PrivacyPolicyScreen from './screens/PrivacyPolicyScreen';
 import CookiePolicyScreen from './screens/CookiePolicyScreen';
 import CookieConsentWidget from './components/CookieConsentWidget';
+import ForegroundNotificationHandler from './components/ForegroundNotificationHandler';
 import {
     AdminLayout,
     AdminDashboardPage,
@@ -205,6 +206,7 @@ const ProtectedLayout: React.FC = () => {
     
     return (
         <div className="relative min-h-screen bg-white pb-20 md:pb-0">
+            <ForegroundNotificationHandler />
             <Outlet />
             <BottomNavBar />
         </div>

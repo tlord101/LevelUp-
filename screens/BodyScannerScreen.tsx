@@ -668,6 +668,21 @@ const BodyScannerScreen: React.FC = () => {
                         setError('Body scanner is currently disabled by admin.');
                         return;
                     }
+                    hapticTap();
+                    scanner.triggerFileInput();
+                }}
+                disabled={!scannerEnabled}
+                className="fixed bottom-40 left-1/2 transform -translate-x-1/2 w-[calc(100%-2rem)] max-w-md bg-white text-purple-700 font-bold py-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-3 z-10 border-2 border-purple-200"
+            >
+                <Upload size={24} />
+                Upload Body Image
+            </button>
+            <button
+                onClick={() => { 
+                    if (!scannerEnabled) {
+                        setError('Body scanner is currently disabled by admin.');
+                        return;
+                    }
                     hapticTap(); 
                     setShowPrescanModal(true); 
                 }}

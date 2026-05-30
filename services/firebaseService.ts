@@ -272,22 +272,30 @@ export const uploadImage = async (file: Blob | File, userId?: string, bucket?: s
 // --- PUSH NOTIFICATIONS ---
 
 export const requestNotificationPermissionAndSaveToken = async (userId: string): Promise<boolean> => {
-  if (!('Notification' in window)) return false;
+    if (typeof window === 'undefined' || !('Notification' in window) || !('serviceWorker' in navigator)) return false;
 
-  const permission = await Notification.requestPermission();
-  if (permission === 'granted') {
+    const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
+    if (permission !== 'granted') return false;
+
     try {
-      // Note: VAPID key needs to be configured in a real app. 
-      // For now we just simulate success or handle if key exists.
-      const currentToken = await getToken(messaging, { vapidKey: "YOUR_VAPID_KEY" }).catch(() => null);
-      if (currentToken) {
-        const userRef = doc(firestore, 'users', userId);
-        await updateDoc(userRef, { notificationToken: currentToken });
-        return true;
-      }
+        const vapidKey = (import.meta as any)?.env?.VITE_FIREBASE_VAPID_KEY as string | undefined;
+        if (!vapidKey) {
+            console.warn('VITE_FIREBASE_VAPID_KEY is not configured. Push token registration is skipped.');
+            return false;
+        }
+
+        const serviceWorkerRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+        const currentToken = await getToken(messaging, { vapidKey, serviceWorkerRegistration }).catch(() => null);
+        if (currentToken) {
+            const userRef = doc(firestore, 'users', userId);
+            await updateDoc(userRef, {
+                notificationToken: currentToken,
+                notificationTokenUpdatedAt: serverTimestamp(),
+            });
+            return true;
+        }
     } catch (e) {
-      console.log("Notification token error", e);
-    }
+        console.log('Notification token error', e);
   }
   return false;
 };

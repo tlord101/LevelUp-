@@ -5,7 +5,7 @@ import { auth, firestore } from '../config/firebase';
 import { doc, getDoc, updateDoc, onSnapshot, Unsubscribe } from 'firebase/firestore';
 import { UserProfile } from '../types';
 import { hapticSuccess } from '../utils/haptics';
-import { createOrUpdateUserProfile, getUserProfile } from '../services/firebaseService';
+import { createOrUpdateUserProfile, getUserProfile, requestNotificationPermissionAndSaveToken } from '../services/firebaseService';
 
 interface AuthContextType {
   user: User | null;
@@ -51,6 +51,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 if (isMounted) {
                     setUserProfile(profile);
                 }
+
+                requestNotificationPermissionAndSaveToken(currentUser.uid).catch((notificationError) => {
+                    console.warn('Push notification setup skipped or failed:', notificationError);
+                });
 
                 // Set up a real-time listener to the user's profile document so stats update live
                 try {
