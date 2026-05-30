@@ -9,6 +9,7 @@ interface CameraViewProps {
     facingMode?: 'user' | 'environment';
     promptText?: string;
     scanType?: 'body' | 'face' | 'food';
+    captureDelayMs?: number;
 }
 
 const CameraView: React.FC<CameraViewProps> = ({ 
@@ -16,7 +17,8 @@ const CameraView: React.FC<CameraViewProps> = ({
     onClose,
     facingMode = 'user',
     promptText = 'Position yourself in the frame',
-    scanType = 'body'
+    scanType = 'body',
+    captureDelayMs = 2500
 }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -48,14 +50,12 @@ const CameraView: React.FC<CameraViewProps> = ({
     useEffect(() => {
         if (!isScanning) return;
 
+        const startedAt = Date.now();
+
         // Progress animation
         const progressInterval = setInterval(() => {
-            setScanProgress(prev => {
-                if (prev >= 100) {
-                    return 100;
-                }
-                return prev + 2;
-            });
+            const elapsed = Date.now() - startedAt;
+            setScanProgress(Math.min(100, (elapsed / captureDelayMs) * 100));
         }, 50);
 
         // Rotation animation
@@ -63,7 +63,7 @@ const CameraView: React.FC<CameraViewProps> = ({
             setRotationAngle(prev => (prev + 1) % 360);
         }, 30);
 
-        // Complete scanning after 2.5 seconds
+        // Complete scanning after the configured delay
         const completeTimeout = setTimeout(() => {
             if (videoRef.current && canvasRef.current) {
                 const video = videoRef.current;
@@ -77,14 +77,14 @@ const CameraView: React.FC<CameraViewProps> = ({
                     }
                 }, 'image/jpeg', 0.9);
             }
-        }, 2500);
+        }, captureDelayMs);
 
         return () => {
             clearInterval(progressInterval);
             clearInterval(rotationInterval);
             clearTimeout(completeTimeout);
         };
-    }, [isScanning, onCapture]);
+    }, [isScanning, onCapture, captureDelayMs]);
 
     const handleCapture = () => {
         hapticTap();

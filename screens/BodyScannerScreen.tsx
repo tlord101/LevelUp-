@@ -144,6 +144,8 @@ const TrendChart: React.FC<{ scans: BodyScan[] }> = ({ scans }) => {
     );
 };
 
+const scanTimerOptions = [3, 5, 7, 10];
+
 
 const BodyScannerScreen: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -153,6 +155,7 @@ const BodyScannerScreen: React.FC = () => {
     const [showResults, setShowResults] = useState(false);
     const [latestScan, setLatestScan] = useState<BodyScan | null>(null);
     const [scannerEnabled, setScannerEnabled] = useState(true);
+    const [scanTimerSeconds, setScanTimerSeconds] = useState(3);
     
     const { user, rewardUser } = useAuth();
     const navigate = useNavigate();
@@ -398,7 +401,7 @@ const BodyScannerScreen: React.FC = () => {
                 </div>
             )}
 
-            {scanner.showCamera && <CameraView onCapture={scanner.handleCapture} onClose={scanner.closeCamera} promptText="Position your full body within the frame" scanType="body" />}
+            {scanner.showCamera && <CameraView onCapture={scanner.handleCapture} onClose={scanner.closeCamera} promptText="Position your full body within the frame" scanType="body" captureDelayMs={scanTimerSeconds * 1000} />}
             
             {/* Body Scan Results Modal */}
             {showResults && latestScan && (
@@ -460,6 +463,31 @@ const BodyScannerScreen: React.FC = () => {
                                     <CheckCircle2 size={20} className="text-green-500 shrink-0 mt-0.5" />
                                     <p className="text-sm text-gray-700 leading-tight">Device stable</p>
                                 </div>
+                            </div>
+                        </div>
+
+                        <div className="mb-6">
+                            <div className="flex items-center justify-between mb-3">
+                                <p className="text-sm font-semibold text-gray-800">Capture timer</p>
+                                <p className="text-xs text-gray-500">Auto-capture after selection</p>
+                            </div>
+                            <div className="grid grid-cols-4 gap-2">
+                                {scanTimerOptions.map((seconds) => {
+                                    const active = scanTimerSeconds === seconds;
+                                    return (
+                                        <button
+                                            key={seconds}
+                                            type="button"
+                                            onClick={() => {
+                                                hapticTap();
+                                                setScanTimerSeconds(seconds);
+                                            }}
+                                            className={`rounded-xl border px-3 py-3 text-sm font-bold transition ${active ? 'border-purple-600 bg-purple-600 text-white shadow-md' : 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100'}`}
+                                        >
+                                            {seconds}s
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
                         
