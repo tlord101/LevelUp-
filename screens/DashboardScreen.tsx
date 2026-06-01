@@ -311,13 +311,9 @@ const DashboardScreen: React.FC = () => {
                              <Trophy className="w-6 h-6 text-yellow-300" />
                         </div>
                         <div>
+                            <p className="text-xs uppercase tracking-wider text-purple-100">Level Progress</p>
+                            <h2 className="text-lg font-extrabold">Level {userProfile.level}</h2>
                         </div>
-
-                    </header>
-
-                    <ProgressRings />
-                    <AnnouncementBanner />
-            
                     </div>
                     <div className="text-right">
                         <span className="text-sm font-bold">{userProfile.xp} <span className="text-purple-200 font-normal">/ {xpForNextLevel} XP</span></span>
@@ -327,6 +323,9 @@ const DashboardScreen: React.FC = () => {
                     <div className="bg-white rounded-full h-2 transition-all duration-1000 ease-out" style={{ width: `${xpProgress}%` }}></div>
                 </div>
             </div>
+
+            <ProgressRings />
+            <AnnouncementBanner />
             
             <div onClick={() => { hapticTap(); navigate('/nutrition-tracker'); }} className="cursor-pointer">
                 <h2 className="text-xl font-bold text-gray-800 mb-3">Today's Status</h2>

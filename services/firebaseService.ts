@@ -67,6 +67,17 @@ const toSortableTime = (value: any): number => {
     return 0;
 };
 
+const toDate = (value: any): Date | null => {
+    if (!value) return null;
+    if (value instanceof Timestamp) return value.toDate();
+    if (value?.seconds && typeof value.seconds === 'number') return new Date(value.seconds * 1000);
+    if (typeof value === 'string') {
+        const parsed = Date.parse(value);
+        return Number.isNaN(parsed) ? null : new Date(parsed);
+    }
+    return null;
+};
+
 const normalizeFaceScanResults = (results: unknown): FaceScanResult => {
     const payload = results && typeof results === 'object' ? (results as Record<string, any>) : {};
     const toText = (value: any, fallback: string) =>
@@ -326,19 +337,39 @@ export const subscribeToUserNotifications = (userId: string, callback: (notifica
   let pubNotes: UserNotification[] = [];
 
   const update = () => {
-    const combined = [...privNotes, ...pubNotes].sort((a, b) => 
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
+    const combined = [...privNotes, ...pubNotes].sort((a, b) => toSortableTime((b as any).created_at) - toSortableTime((a as any).created_at));
     callback(combined);
   };
 
   const unsubPriv = onSnapshot(qPriv, (snapshot) => {
-    privNotes = snapshot.docs.map(doc => ({ id: doc.id, ...convertTimestampToISO(doc.data()) } as UserNotification));
+    privNotes = snapshot.docs.map(doc => {
+      const raw = convertTimestampToISO(doc.data()) as any;
+      return {
+        id: doc.id,
+        userId: raw.userId || userId,
+        title: raw.title || 'Notification',
+        message: raw.message || raw.body || '',
+        type: raw.type || 'info',
+        read: Boolean(raw.read),
+        created_at: raw.created_at || new Date().toISOString(),
+      } as UserNotification;
+    });
     update();
   });
 
   const unsubPub = onSnapshot(qPub, (snapshot) => {
-    pubNotes = snapshot.docs.map(doc => ({ id: doc.id, ...convertTimestampToISO(doc.data()) } as UserNotification));
+    pubNotes = snapshot.docs.map(doc => {
+      const raw = convertTimestampToISO(doc.data()) as any;
+      return {
+        id: doc.id,
+        userId: raw.userId || 'ALL_USERS',
+        title: raw.title || 'Announcement',
+        message: raw.message || raw.body || '',
+        type: raw.type || 'broadcast',
+        read: Boolean(raw.read),
+        created_at: raw.created_at || new Date().toISOString(),
+      } as UserNotification;
+    });
     update();
   });
 
@@ -374,8 +405,6 @@ export const getTodayActivityStatus = async (userId: string) => {
     const startOfDay = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 0, 0, 0));
     const endOfDay = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 23, 59, 59));
 
-    const startTs = serverTimestamp();
-    // We'll query recent scans and logs; simplified approach: fetch counts
     try {
         const bodyQ = query(collection(firestore, 'bodyScans'), where('userId', '==', userId), orderBy('created_at', 'desc'), limit(5));
         const faceQ = query(collection(firestore, 'faceScans'), where('userId', '==', userId), orderBy('created_at', 'desc'), limit(10));
@@ -390,7 +419,7 @@ export const getTodayActivityStatus = async (userId: string) => {
 
         const hasBody = bodySnap.docs.some(d => {
             const data: any = d.data();
-            const created = data.created_at ? new Date(data.created_at) : null;
+            const created = toDate(data.created_at);
             return created && created >= start && created <= end;
         });
 
@@ -399,7 +428,7 @@ export const getTodayActivityStatus = async (userId: string) => {
         let faceEvening = false;
         faceSnap.docs.forEach(d => {
             const data: any = d.data();
-            const created = data.created_at ? new Date(data.created_at) : null;
+            const created = toDate(data.created_at);
             if (!created) return;
             const h = created.getHours();
             if (created >= start && created <= end) {
@@ -414,7 +443,7 @@ export const getTodayActivityStatus = async (userId: string) => {
         const seenMeals: Record<string, boolean> = { breakfast: false, lunch: false, dinner: false };
         foodSnap.docs.forEach(d => {
             const data: any = d.data();
-            const created = data.created_at ? new Date(data.created_at) : null;
+            const created = toDate(data.created_at);
             if (!created) return;
             if (created >= start && created <= end) {
                 const h = created.getHours();
@@ -429,11 +458,53 @@ export const getTodayActivityStatus = async (userId: string) => {
             }
         });
 
+        const completedCount = (hasBody ? 1 : 0) + (faceMorning ? 1 : 0) + (faceEvening ? 1 : 0) + meals;
+        const totalCount = 6;
+        const allCompleted = hasBody && faceMorning && faceEvening && meals >= 3;
+
+        const todayKey = new Date().toISOString().slice(0, 10);
+        if (allCompleted) {
+            await setDoc(doc(firestore, 'dailyRingCompletions', `${userId}_${todayKey}`), {
+                userId,
+                date: todayKey,
+                body: true,
+                faceMorning: true,
+                faceEvening: true,
+                mealsCompleted: 3,
+                completed: true,
+                completedAt: serverTimestamp(),
+            }, { merge: true });
+        }
+
+        const completionSnap = await getDocs(query(collection(firestore, 'dailyRingCompletions'), where('userId', '==', userId), limit(45)));
+        const completionDays = completionSnap.docs
+            .map((d) => (d.data() as any).date)
+            .filter((value): value is string => typeof value === 'string')
+            .sort((a, b) => (a > b ? -1 : 1));
+
+        let currentStreak = 0;
+        const cursor = new Date();
+        while (true) {
+            const key = cursor.toISOString().slice(0, 10);
+            if (!completionDays.includes(key)) break;
+            currentStreak += 1;
+            cursor.setDate(cursor.getDate() - 1);
+        }
+
+        const motivation = allCompleted
+            ? `Daily Ring Completed • ${Math.max(currentStreak, 1)}-day streak`
+            : `${completedCount}/${totalCount} tasks done — keep going.`;
+
         return {
             body: hasBody,
             faceMorning,
             faceEvening,
             mealsCompleted: meals,
+            completedCount,
+            totalCount,
+            allCompleted,
+            currentStreak,
+            motivation,
         };
     } catch (err) {
         console.error('getTodayActivityStatus error', err);

@@ -18,16 +18,31 @@ const Ring: React.FC<{label:string, value:number, color:string}> = ({label, valu
 
 const ProgressRings: React.FC = () => {
     const { user } = useAuth();
-    const [status, setStatus] = useState<{body:boolean,faceMorning:boolean,faceEvening:boolean,mealsCompleted:number} | null>(null);
+    const [status, setStatus] = useState<{
+        body: boolean;
+        faceMorning: boolean;
+        faceEvening: boolean;
+        mealsCompleted: number;
+        completedCount?: number;
+        totalCount?: number;
+        currentStreak?: number;
+        motivation?: string;
+    } | null>(null);
 
     useEffect(() => {
         if (!user) return;
         let mounted = true;
-        (async () => {
+        const load = async () => {
             const s = await getTodayActivityStatus(user.uid);
             if (mounted) setStatus(s as any);
-        })();
-        return () => { mounted = false; };
+        };
+        load();
+        const interval = window.setInterval(load, 60_000);
+        return () => {
+            mounted = false;
+            window.clearInterval(interval);
+        };
+        
     }, [user]);
 
     if (!status) return (
@@ -39,7 +54,8 @@ const ProgressRings: React.FC = () => {
     const foodVal = Math.min(status.mealsCompleted / 3, 1);
 
     return (
-        <div className="bg-white p-4 rounded-2xl shadow-sm flex items-center justify-between gap-4">
+        <div className="bg-white p-4 rounded-2xl shadow-sm space-y-3">
+            <div className="flex items-center justify-between gap-4">
             <div className="flex-1">
                 <h3 className="text-sm font-bold text-gray-800 mb-2">Daily Rings</h3>
                 <p className="text-xs text-gray-500">Close your rings by completing daily activities.</p>
@@ -48,6 +64,11 @@ const ProgressRings: React.FC = () => {
                 <Ring label="Body" value={bodyVal} color="#8b5cf6" />
                 <Ring label="Face" value={faceVal} color="#ec4899" />
                 <Ring label="Nutrition" value={foodVal} color="#f59e0b" />
+            </div>
+        </div>
+            <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-gray-700">{status.motivation || `${status.completedCount || 0}/${status.totalCount || 6} tasks done`}</span>
+                <span className="text-purple-600 font-bold">{status.currentStreak || 0}d streak</span>
             </div>
         </div>
     );

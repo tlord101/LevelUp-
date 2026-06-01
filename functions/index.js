@@ -143,40 +143,155 @@ exports.createAnnouncement = functions.https.onRequest(async (req, res) => {
   }
 });
 
-// Scheduled function: daily reminders (runs every day at 12:00 UTC)
-exports.dailyReminderJob = functions.pubsub.schedule('0 12 * * *').timeZone('UTC').onRun(async (context) => {
-  try {
-    // Simple example: find users who have notifications enabled and who did not complete today's body scan
-    const usersSnap = await firestore.collection('users').where('notificationPreferences.dailyReminders', '==', true).get();
-    const today = new Date();
-    const startOfDay = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 0, 0, 0));
-    const endOfDay = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 23, 59, 59));
+const getDateKeyInTimeZone = (date, timeZone) => {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  return formatter.format(date);
+};
 
-    const promises = [];
+const getHourInTimeZone = (date, timeZone) => {
+  const formatter = new Intl.DateTimeFormat('en-GB', {
+    timeZone,
+    hour: '2-digit',
+    hour12: false,
+  });
+  return Number(formatter.format(date));
+};
+
+const toDate = (value) => {
+  if (!value) return null;
+  if (value.toDate && typeof value.toDate === 'function') return value.toDate();
+  if (value.seconds) return new Date(value.seconds * 1000);
+  if (typeof value === 'string') return new Date(value);
+  return null;
+};
+
+const getMinReminderIntervalHours = (frequency) => {
+  if (frequency === 'low') return 20;
+  if (frequency === 'high') return 6;
+  return 10;
+};
+
+// Scheduled function: smart reminders (runs every 3 hours)
+exports.dailyReminderJob = functions.pubsub.schedule('0 */3 * * *').timeZone('UTC').onRun(async () => {
+  try {
+    const usersSnap = await firestore.collection('users').where('notificationPreferences.dailyReminders', '==', true).get();
+    const now = new Date();
+    const ops = [];
+
     for (const userDoc of usersSnap.docs) {
       const uid = userDoc.id;
-      // Check if user has a body scan today
-      const scansQ = await firestore.collection('bodyScans')
-        .where('userId', '==', uid)
-        .where('created_at', '>=', admin.firestore.Timestamp.fromDate(startOfDay))
-        .where('created_at', '<=', admin.firestore.Timestamp.fromDate(endOfDay))
-        .limit(1)
-        .get();
+      const userData = userDoc.data() || {};
+      const prefs = userData.notificationPreferences || {};
+      const timeZone = prefs.timezone || 'UTC';
+      const reminderFrequency = prefs.reminderFrequency || 'normal';
+      const minIntervalHours = getMinReminderIntervalHours(reminderFrequency);
+      const lastReminderAt = toDate(userData.lastEngagementReminderAt);
+      const hoursSinceLastReminder = lastReminderAt ? (now.getTime() - lastReminderAt.getTime()) / (1000 * 60 * 60) : Number.POSITIVE_INFINITY;
+      if (hoursSinceLastReminder < minIntervalHours) continue;
 
-      const hasBodyScan = !scansQ.empty;
-      if (!hasBodyScan) {
-        // send reminder
-        const title = 'Don\'t forget your Body Scan';
-        const body = 'You haven\'t completed your body scan today. Open the app to finish your ring.';
-        promises.push(createInAppNotification(uid, { title, body, data: { type: 'reminder', category: 'body' } }));
-        const token = userDoc.data()?.notificationToken;
-        if (token) {
-          promises.push(messaging.send({ token, notification: { title, body }, data: { type: 'reminder', category: 'body' } }).catch(() => null));
-        }
+      const localToday = getDateKeyInTimeZone(now, timeZone);
+      const localHour = getHourInTimeZone(now, timeZone);
+
+      const [bodySnap, faceSnap, foodSnap] = await Promise.all([
+        firestore.collection('bodyScans').where('userId', '==', uid).orderBy('created_at', 'desc').limit(10).get(),
+        firestore.collection('faceScans').where('userId', '==', uid).orderBy('created_at', 'desc').limit(20).get(),
+        firestore.collection('nutritionScans').where('userId', '==', uid).orderBy('created_at', 'desc').limit(20).get(),
+      ]);
+
+      const bodyToday = bodySnap.docs.some((docSnap) => {
+        const created = toDate(docSnap.data().created_at);
+        return created && getDateKeyInTimeZone(created, timeZone) === localToday;
+      });
+
+      let faceMorning = false;
+      let faceEvening = false;
+      faceSnap.docs.forEach((docSnap) => {
+        const created = toDate(docSnap.data().created_at);
+        if (!created || getDateKeyInTimeZone(created, timeZone) !== localToday) return;
+        const h = getHourInTimeZone(created, timeZone);
+        if (h >= 4 && h < 12) faceMorning = true;
+        if (h >= 18 || h < 2) faceEvening = true;
+      });
+
+      const seenMeals = { breakfast: false, lunch: false, dinner: false };
+      foodSnap.docs.forEach((docSnap) => {
+        const created = toDate(docSnap.data().created_at);
+        if (!created || getDateKeyInTimeZone(created, timeZone) !== localToday) return;
+        const h = getHourInTimeZone(created, timeZone);
+        if (h >= 5 && h <= 10) seenMeals.breakfast = true;
+        if (h >= 11 && h <= 15) seenMeals.lunch = true;
+        if (h >= 17 && h <= 22) seenMeals.dinner = true;
+      });
+      const mealsCompleted = Object.values(seenMeals).filter(Boolean).length;
+
+      let reminder = null;
+      if (!bodyToday && localHour >= 10) {
+        reminder = {
+          category: 'body',
+          title: 'Your body ring is still open',
+          body: 'You have not completed your body scan today. A quick scan keeps your streak alive.',
+        };
+      } else if (!faceMorning && localHour >= 13 && localHour < 18) {
+        reminder = {
+          category: 'face-morning',
+          title: 'Morning face scan missing',
+          body: 'Complete your morning face scan to stay on track with your daily ring.',
+        };
+      } else if (!faceEvening && localHour >= 20) {
+        reminder = {
+          category: 'face-evening',
+          title: 'Evening face scan pending',
+          body: 'Close your face ring tonight with a quick evening scan.',
+        };
+      } else if (mealsCompleted < 2 && localHour >= 15 && localHour < 20) {
+        reminder = {
+          category: 'nutrition-afternoon',
+          title: 'Nutrition ring check-in',
+          body: `You are at ${mealsCompleted}/3 meals today. Log your next meal to keep momentum.`,
+        };
+      } else if (mealsCompleted < 3 && localHour >= 20) {
+        reminder = {
+          category: 'nutrition-evening',
+          title: 'Final nutrition ring push',
+          body: `You are at ${mealsCompleted}/3 meals. One more meal log can complete your ring today.`,
+        };
       }
+
+      if (!reminder) continue;
+
+      ops.push(createInAppNotification(uid, {
+        title: reminder.title,
+        body: reminder.body,
+        data: { type: 'reminder', category: reminder.category },
+      }));
+
+      if (userData.notificationToken) {
+        ops.push(
+          messaging.send({
+            token: userData.notificationToken,
+            notification: { title: reminder.title, body: reminder.body },
+            data: { type: 'reminder', category: reminder.category },
+          }).catch(() => null)
+        );
+      }
+
+      ops.push(
+        firestore.collection('users').doc(uid).set(
+          {
+            lastEngagementReminderAt: admin.firestore.FieldValue.serverTimestamp(),
+            lastEngagementReminderCategory: reminder.category,
+          },
+          { merge: true }
+        )
+      );
     }
 
-    await Promise.all(promises);
+    await Promise.all(ops);
     return null;
   } catch (err) {
     console.error('dailyReminderJob error', err);

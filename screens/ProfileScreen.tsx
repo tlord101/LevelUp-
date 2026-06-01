@@ -22,7 +22,7 @@ const ProfileScreen: React.FC = () => {
   
   const menuItems = [
     { label: 'Edit Profile', icon: UserCircle, path: '/edit-profile', badge: null },
-    { label: 'Notification Settings', icon: Bell, path: '#', badge: null },
+    { label: 'Notification Settings', icon: Bell, path: '/notification-settings', badge: null },
     { label: 'Invite Friends', icon: UserPlus, path: '/community', badge: null },
   ];
 
