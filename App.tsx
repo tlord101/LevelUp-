@@ -29,6 +29,7 @@ import BodyScanDetailScreen from './screens/BodyScanDetailScreen';
 import FaceScanDetailScreen from './screens/FaceScanDetailScreen';
 import LiveCoachScreen from './screens/LiveCoachScreen';
 import EditProfileScreen from './screens/EditProfileScreen';
+import NotificationSettingsScreen from './screens/NotificationSettingsScreen';
 import WorkoutPlanDetailScreen from './screens/WorkoutPlanDetailScreen';
 import TermsAndConditionsScreen from './screens/TermsAndConditionsScreen';
 import PrivacyPolicyScreen from './screens/PrivacyPolicyScreen';
@@ -133,6 +134,9 @@ const AdminSeoBridge: React.FC = () => {
                     upsertMetaTag('property', 'og:title', socialTitle);
                     upsertMetaTag('name', 'twitter:title', socialTitle);
                 }
+                upsertMetaTag('property', 'og:type', 'website');
+                upsertMetaTag('property', 'og:site_name', 'LevelUp AI');
+                upsertMetaTag('name', 'twitter:card', 'summary_large_image');
 
                 const keywords = Array.isArray(seo.metaKeywords) ? seo.metaKeywords.filter(Boolean).join(',') : String(seo.metaKeywords || '');
                 if (keywords.trim()) upsertMetaTag('name', 'keywords', keywords.trim());
@@ -147,7 +151,12 @@ const AdminSeoBridge: React.FC = () => {
                 if (robots) upsertMetaTag('name', 'robots', robots);
 
                 const canonical = String(seo.canonicalUrl || '').trim();
-                if (canonical) upsertCanonical(canonical);
+                if (canonical) {
+                    upsertCanonical(canonical);
+                } else if (typeof window !== 'undefined') {
+                    const url = `${window.location.origin}${location.pathname}`;
+                    upsertCanonical(url);
+                }
             })
             .catch((error) => {
                 console.error('seo settings load error', error);
@@ -296,6 +305,7 @@ const App: React.FC = () => {
                     <Route path="/create-group" element={<CreateGroupScreen />} />
                     <Route path="/profile" element={<ProfileScreen />} />
                     <Route path="/edit-profile" element={<EditProfileScreen />} />
+                    <Route path="/notification-settings" element={<NotificationSettingsScreen />} />
                     <Route path="/leaderboard" element={<LeaderboardScreen />} />
                     <Route path="/discover-groups" element={<DiscoverGroupsScreen />} />
                     <Route path="/groups/:groupId" element={<GroupDetailScreen />} />

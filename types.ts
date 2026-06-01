@@ -28,6 +28,12 @@ export interface UserProfile {
     energy: number;
     willpower: number;
   };
+  notificationPreferences?: {
+    dailyReminders: boolean;
+    communityUpdates: boolean;
+    reminderFrequency?: 'low' | 'normal' | 'high';
+    timezone?: string;
+  };
   fitness_goals?: string[];
   body_type?: string;
   activity_level?: string;
