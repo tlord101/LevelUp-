@@ -367,6 +367,104 @@ export const markAllNotificationsAsRead = async (userId: string) => {
   await batch.commit();
 };
 
+// --- Activity helpers for daily rings ---
+export const getTodayActivityStatus = async (userId: string) => {
+    if (!userId) return null;
+    const today = new Date();
+    const startOfDay = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 0, 0, 0));
+    const endOfDay = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 23, 59, 59));
+
+    const startTs = serverTimestamp();
+    // We'll query recent scans and logs; simplified approach: fetch counts
+    try {
+        const bodyQ = query(collection(firestore, 'bodyScans'), where('userId', '==', userId), orderBy('created_at', 'desc'), limit(5));
+        const faceQ = query(collection(firestore, 'faceScans'), where('userId', '==', userId), orderBy('created_at', 'desc'), limit(10));
+        const foodQ = query(collection(firestore, 'nutritionScans'), where('userId', '==', userId), orderBy('created_at', 'desc'), limit(10));
+
+        const [bodySnap, faceSnap, foodSnap] = await Promise.all([getDocs(bodyQ), getDocs(faceQ), getDocs(foodQ)]);
+
+        // Determine whether there is a body scan today
+        const now = new Date();
+        const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+        const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+        const hasBody = bodySnap.docs.some(d => {
+            const data: any = d.data();
+            const created = data.created_at ? new Date(data.created_at) : null;
+            return created && created >= start && created <= end;
+        });
+
+        // For face: check morning and evening by timestamp hour
+        let faceMorning = false;
+        let faceEvening = false;
+        faceSnap.docs.forEach(d => {
+            const data: any = d.data();
+            const created = data.created_at ? new Date(data.created_at) : null;
+            if (!created) return;
+            const h = created.getHours();
+            if (created >= start && created <= end) {
+                if (h >= 4 && h < 12) faceMorning = true;
+                if (h >= 18 || h < 2) faceEvening = true;
+            }
+        });
+
+        // Food: count meals completed (breakfast 5-10, lunch 11-15, dinner 17-22)
+        let meals = 0;
+        const mealWindows = [ {name:'breakfast', start:5, end:10}, {name:'lunch', start:11, end:15}, {name:'dinner', start:17, end:22} ];
+        const seenMeals: Record<string, boolean> = { breakfast: false, lunch: false, dinner: false };
+        foodSnap.docs.forEach(d => {
+            const data: any = d.data();
+            const created = data.created_at ? new Date(data.created_at) : null;
+            if (!created) return;
+            if (created >= start && created <= end) {
+                const h = created.getHours();
+                for (const w of mealWindows) {
+                    if (h >= w.start && h <= w.end) {
+                        if (!seenMeals[w.name]) {
+                            seenMeals[w.name] = true;
+                            meals += 1;
+                        }
+                    }
+                }
+            }
+        });
+
+        return {
+            body: hasBody,
+            faceMorning,
+            faceEvening,
+            mealsCompleted: meals,
+        };
+    } catch (err) {
+        console.error('getTodayActivityStatus error', err);
+        return null;
+    }
+};
+
+export const createAnnouncement = async (payload: { title: string; body: string; targetUsers?: string[]; startsAt?: string; endsAt?: string; data?: any }) => {
+    const docRef = await addDoc(collection(firestore, 'announcements'), {
+        title: payload.title,
+        body: payload.body,
+        targetUsers: payload.targetUsers || null,
+        startsAt: payload.startsAt ? new Date(payload.startsAt).toISOString() : new Date().toISOString(),
+        endsAt: payload.endsAt || null,
+        data: payload.data || {},
+        created_at: serverTimestamp()
+    });
+    // If global announcement, also write to userNotifications as ALL_USERS
+    if (!payload.targetUsers) {
+        await addDoc(collection(firestore, 'userNotifications'), {
+            userId: 'ALL_USERS',
+            title: payload.title,
+            body: payload.body,
+            data: payload.data || {},
+            read: false,
+            created_at: serverTimestamp()
+        });
+    }
+    return docRef.id;
+};
+
 // --- DATABASE: SCANS ---
 
 export const saveNutritionScan = async (userId: string, imageUrl: string, results: NutritionScanResult) => {

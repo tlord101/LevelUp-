@@ -66,6 +66,7 @@ import {
     AdminCommunityBlockedPage,
     AdminNotificationsPushPage,
     AdminNotificationsInAppPage,
+    AdminAnnouncementsPage,
     AdminNotificationsEmailPage,
     AdminSettingsGeneralPage,
     AdminSettingsApiPage,
@@ -342,6 +343,7 @@ const App: React.FC = () => {
 
                         <Route path="notifications/push" element={<AdminNotificationsPushPage />} />
                         <Route path="notifications/in-app" element={<AdminNotificationsInAppPage />} />
+                        <Route path="announcements" element={<AdminAnnouncementsPage />} />
                         <Route path="notifications/email" element={<AdminNotificationsEmailPage />} />
 
                         <Route path="settings/general" element={<AdminSettingsGeneralPage />} />

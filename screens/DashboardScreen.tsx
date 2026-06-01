@@ -8,6 +8,8 @@ import { hapticTap, hapticSuccess } from '../utils/haptics';
 import { getTodaysNutritionLogs, subscribeToUserNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '../services/firebaseService';
 import { NutritionLog, UserNotification } from '../types';
 import { formatRelativeTime } from '../utils/formatDate';
+import ProgressRings from '../components/ProgressRings';
+import AnnouncementBanner from '../components/AnnouncementBanner';
 
 const MissionItem: React.FC<{ mission: Mission, onClick: () => void }> = ({ mission, onClick }) => (
     <button onClick={onClick} className="w-full flex items-center space-x-4 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200">
@@ -309,9 +311,13 @@ const DashboardScreen: React.FC = () => {
                              <Trophy className="w-6 h-6 text-yellow-300" />
                         </div>
                         <div>
-                            <span className="block text-xs text-purple-200 font-medium uppercase tracking-wider">Current Level</span>
-                            <span className="font-bold text-2xl">{userProfile.level}</span>
                         </div>
+
+                    </header>
+
+                    <ProgressRings />
+                    <AnnouncementBanner />
+            
                     </div>
                     <div className="text-right">
                         <span className="text-sm font-bold">{userProfile.xp} <span className="text-purple-200 font-normal">/ {xpForNextLevel} XP</span></span>

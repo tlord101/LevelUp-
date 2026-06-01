@@ -71,6 +71,7 @@ const navSections: NavSection[] = [
   { key: 'notifications', label: 'Notifications', icon: <Bell size={18} />, basePath: '/admin/notifications', items: [
     { label: 'Push Notifications', path: '/admin/notifications/push' },
     { label: 'In-App Announcements', path: '/admin/notifications/in-app' },
+    { label: 'Announcements', path: '/admin/announcements' },
     { label: 'Email Campaigns', path: '/admin/notifications/email' },
   ] },
   { key: 'settings', label: 'System Settings', icon: <Settings size={18} />, basePath: '/admin/settings', items: [

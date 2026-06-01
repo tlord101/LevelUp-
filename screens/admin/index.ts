@@ -53,3 +53,5 @@ export {
   AdminEmailTemplateDetailPage,
   AdminEmailConfigurePage,
 } from './pages/SeoAndEmailPages';
+
+export { default as AdminAnnouncementsPage } from './pages/AnnouncementsPage';
