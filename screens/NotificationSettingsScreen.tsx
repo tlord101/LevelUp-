@@ -67,6 +67,7 @@ const NotificationSettingsScreen: React.FC = () => {
               onChange={(e) => setForm((prev) => ({ ...prev, timezone: e.target.value }))}
               className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-2"
             />
+            <p className="mt-1 text-xs text-gray-500">Auto-detected from your device. You can edit this manually if reminders arrive at the wrong time.</p>
           </label>
         </div>
 

@@ -153,13 +153,21 @@ const getDateKeyInTimeZone = (date, timeZone) => {
   return formatter.format(date);
 };
 
+const BODY_REMINDER_HOUR = 10;
+const MORNING_FACE_REMINDER_HOUR = 13;
+const NUTRITION_AFTERNOON_REMINDER_HOUR = 15;
+const EVENING_FACE_REMINDER_HOUR = 20;
+const AFTERNOON_MEAL_TARGET = 2;
+
 const getHourInTimeZone = (date, timeZone) => {
   const formatter = new Intl.DateTimeFormat('en-GB', {
     timeZone,
     hour: '2-digit',
     hour12: false,
   });
-  return Number(formatter.format(date));
+  const parts = formatter.formatToParts(date);
+  const hourPart = parts.find((part) => part.type === 'hour');
+  return Number(hourPart?.value || '0');
 };
 
 const toDate = (value) => {
@@ -230,31 +238,31 @@ exports.dailyReminderJob = functions.pubsub.schedule('0 */3 * * *').timeZone('UT
       const mealsCompleted = Object.values(seenMeals).filter(Boolean).length;
 
       let reminder = null;
-      if (!bodyToday && localHour >= 10) {
+      if (!bodyToday && localHour >= BODY_REMINDER_HOUR) {
         reminder = {
           category: 'body',
           title: 'Your body ring is still open',
           body: 'You have not completed your body scan today. A quick scan keeps your streak alive.',
         };
-      } else if (!faceMorning && localHour >= 13 && localHour < 18) {
+      } else if (!faceMorning && localHour >= MORNING_FACE_REMINDER_HOUR && localHour < EVENING_FACE_REMINDER_HOUR) {
         reminder = {
           category: 'face-morning',
           title: 'Morning face scan missing',
           body: 'Complete your morning face scan to stay on track with your daily ring.',
         };
-      } else if (!faceEvening && localHour >= 20) {
+      } else if (!faceEvening && localHour >= EVENING_FACE_REMINDER_HOUR) {
         reminder = {
           category: 'face-evening',
           title: 'Evening face scan pending',
           body: 'Close your face ring tonight with a quick evening scan.',
         };
-      } else if (mealsCompleted < 2 && localHour >= 15 && localHour < 20) {
+      } else if (mealsCompleted < AFTERNOON_MEAL_TARGET && localHour >= NUTRITION_AFTERNOON_REMINDER_HOUR && localHour < EVENING_FACE_REMINDER_HOUR) {
         reminder = {
           category: 'nutrition-afternoon',
           title: 'Nutrition ring check-in',
           body: `You are at ${mealsCompleted}/3 meals today. Log your next meal to keep momentum.`,
         };
-      } else if (mealsCompleted < 3 && localHour >= 20) {
+      } else if (mealsCompleted < 3 && localHour >= EVENING_FACE_REMINDER_HOUR) {
         reminder = {
           category: 'nutrition-evening',
           title: 'Final nutrition ring push',

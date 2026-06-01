@@ -40,6 +40,8 @@ import { UserGoal, UserProfile, NutritionScan, BodyScan, FaceScan, Post, Group, 
 import { getToken, onMessage, Unsubscribe } from 'firebase/messaging';
 import { queueWelcomeEmail } from './adminService';
 
+export const DAILY_RING_TASK_TOTAL = 6;
+
 // --- HELPER ---
 const convertTimestampToISO = (data: any) => {
     const newData = { ...data };
@@ -459,7 +461,7 @@ export const getTodayActivityStatus = async (userId: string) => {
         });
 
         const completedCount = (hasBody ? 1 : 0) + (faceMorning ? 1 : 0) + (faceEvening ? 1 : 0) + meals;
-        const totalCount = 6;
+        const totalCount = DAILY_RING_TASK_TOTAL;
         const allCompleted = hasBody && faceMorning && faceEvening && meals >= 3;
 
         const todayKey = new Date().toISOString().slice(0, 10);
@@ -481,18 +483,20 @@ export const getTodayActivityStatus = async (userId: string) => {
             .map((d) => (d.data() as any).date)
             .filter((value): value is string => typeof value === 'string')
             .sort((a, b) => (a > b ? -1 : 1));
+        const completionDaySet = new Set(completionDays);
 
         let currentStreak = 0;
         const cursor = new Date();
-        while (true) {
+        const MAX_STREAK_LOOKBACK_DAYS = 365;
+        while (currentStreak < MAX_STREAK_LOOKBACK_DAYS) {
             const key = cursor.toISOString().slice(0, 10);
-            if (!completionDays.includes(key)) break;
+            if (!completionDaySet.has(key)) break;
             currentStreak += 1;
             cursor.setDate(cursor.getDate() - 1);
         }
 
         const motivation = allCompleted
-            ? `Daily Ring Completed • ${Math.max(currentStreak, 1)}-day streak`
+            ? `Daily Ring Completed • ${currentStreak}-day streak`
             : `${completedCount}/${totalCount} tasks done — keep going.`;
 
         return {
